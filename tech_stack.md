@@ -8,7 +8,7 @@
 
 ## One-line Description
 
-An AI-powered software architecture visualization platform that transforms any software project into an interactive graph, helping developers understand, navigate, debug, document, and eventually refactor large codebases.
+An software architecture visualization platform that transforms any software project into an interactive graph, helping developers understand, navigate, debug, document, and eventually refactor large codebases.
 
 ---
 

@@ -68,8 +68,8 @@ export default function StateLab({ onClose }: StateLabProps) {
     return (
         <div className="fixed z-40 right-6 top-[84px] w-[340px] bg-[#171a1a] border border-[#2b3030] shadow-[0_24px_60px_rgba(0,0,0,.45)] light:bg-[#f6f8f5] light:border-[#d6dfda]">
             <div className="h-[42px] flex items-center gap-2 px-[14px] border-b border-[#2b3030] text-[#b1bab5] font-dm text-[10px] tracking-[.1em] light:border-[#d6dfda] light:text-[#71807a]">
-                <span className="live-dot mr-1" /> STATE LAB
-                <button className="ml-auto panel-collapse" onClick={onClose} aria-label="Close state lab"><span className="material-symbols-outlined">close</span></button>
+                <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#64d5c4] shadow-[0_0_12px_#64d5c4]" /> STATE LAB
+                <button className="ml-auto" onClick={onClose} aria-label="Close state lab"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="grid grid-cols-2 gap-2 p-[14px]">
                 {STATES.map((state) => (

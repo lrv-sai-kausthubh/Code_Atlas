@@ -41,7 +41,7 @@ function Login({ onLogin, onBack }: LoginProps) {
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-[#080a0d] text-[#dfe2eb] font-inter overflow-hidden max-[900px]:overflow-auto max-[900px]:flex-col">
+        <div className="flex     min-h-screen bg-[#080a0d] text-[#dfe2eb] font-inter overflow-hidden max-[900px]:overflow-auto max-[900px]:flex-col">
             <section className="flex-[0_0_60%] relative overflow-hidden border-r border-[#30363d] flex flex-col justify-between p-12 max-[900px]:hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(rgba(48,54,61,.5)_1px,transparent_1px)] bg-[size:24px_24px] opacity-20" />
                 <div className="absolute left-0 right-0 h-[100px] z-5 bg-[linear-gradient(0deg,transparent,rgba(0,122,255,.05)_50%,transparent)] opacity-40 animate-scan" />
@@ -50,7 +50,7 @@ function Login({ onLogin, onBack }: LoginProps) {
                         <span className="w-7 h-7 bg-[#007aff] text-white grid place-items-center text-[15px]">✦</span>
                         <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">CODE ATLAS</span>
                     </div>
-                    <div className="ca-login-hero">
+                    <div>
                         <h1 className="font-space text-[clamp(40px,5vw,52px)] leading-[1.05] tracking-[-.02em] font-bold mt-0 mb-5 max-w-[560px]">The Knowledge Graph for your <span className="text-[#007aff]">Codebase.</span></h1>
                         <p className="text-[#c1c6d7] text-[15px] leading-[1.6] max-w-[420px] mt-0 mb-0">Navigate architectural complexity with AI-driven insights. Visualize flows, manage dependencies, and ship better code faster.</p>
                         <div className="flex items-center gap-4 opacity-60 mt-12">

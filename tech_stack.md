@@ -25,7 +25,7 @@ Developers spend hours trying to answer questions like
 * What breaks if I modify this file?
 * Why are these modules tightly coupled?
 
-Reading hundreds of files is slow.
+Reading hundreds of files is slow and tedious.
 
 Most dependency visualizers only show imports.
 

@@ -9,6 +9,7 @@ function GraphPanel({
     graph,
     collapsed,
     selected,
+    focusNodeId,
     onSelect,
     onToggle,
     compact,
@@ -24,6 +25,7 @@ function GraphPanel({
     graph: ProjectGraph;
     collapsed: Set<string>;
     selected: ProjectNode | null;
+    focusNodeId: string | null;
     onSelect: (node: ProjectNode) => void;
     onToggle: (nodeId: string) => void;
     compact: boolean;
@@ -76,6 +78,7 @@ function GraphPanel({
                     graph={graph}
                     collapsed={collapsed}
                     selected={selected}
+                    focusNodeId={focusNodeId}
                     onSelect={onSelect}
                     onToggle={onToggle}
                     compact={compact}

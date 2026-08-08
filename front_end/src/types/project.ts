@@ -19,6 +19,49 @@ export type FunctionCall = {
     external_lib: string | null;  // package name when is_external is true
 };
 
+export type FunctionInput = {
+    name: string;
+    type: string;
+};
+
+export type SourceCall = {
+    name: string;
+    target: string | null;
+};
+
+export type ApiCall = {
+    provider: string;
+    operation: string;
+    expression: string;
+};
+
+export type SourceFunction = {
+    name: string;
+    signature: string;
+    line_start: number;
+    line_end: number;
+    inputs: FunctionInput[];
+    calls: SourceCall[];
+    api_calls: ApiCall[];
+    uses: string[];
+    summary: string;
+    snippet: string;
+};
+
+export type FileImportDetail = {
+    path: string;
+    names: string[];
+};
+
+export type FileDetails = {
+    path: string;
+    imports: FileImportDetail[];
+    external_imports: string[];
+    uses: string[];
+    api_calls: ApiCall[];
+    functions: SourceFunction[];
+};
+
 export type FileMetric = {
     path: string;
     size_bytes: number;
@@ -67,6 +110,7 @@ export type ProjectGraph = {
     edges: ProjectEdge[];
     analysis: RepositoryAnalysis;
     function_calls?: FunctionCall[];  // populated for uploads processed after v1.1
+    file_details?: Record<string, FileDetails>;
 };
 
 export type UploadProgress = {

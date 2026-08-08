@@ -11,6 +11,7 @@ export type AtlasNodeData = ProjectNode & {
     onSelect: (node: ProjectNode) => void;
     onToggle: (nodeId: string) => void;
     selected: boolean;
+    focused: boolean;
 };
 
 export type AtlasNode = Node<AtlasNodeData, "atlas">;

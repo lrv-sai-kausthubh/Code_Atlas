@@ -30,6 +30,8 @@ function WorkspaceLayout({
     const [compact, setCompact] = useState(false);
     const [analysisOpen, setAnalysisOpen] = useState(false);
     const [previewNode, setPreviewNode] = useState<ProjectNode | null>(null);
+    const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+    const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [explorerWidth, setExplorerWidth] = useState(
         () => Number(localStorage.getItem("ca-explorer-width")) || 230,
     );
@@ -134,17 +136,6 @@ function WorkspaceLayout({
         });
     }, []);
 
-    const handleSelect = useCallback(
-        (node: ProjectNode) => {
-            onSelect(node);
-            if (inspectorCollapsed) {
-                localStorage.setItem("ca-inspector-collapsed", "0");
-                setInspectorCollapsed(false);
-            }
-        },
-        [inspectorCollapsed, onSelect],
-    );
-
     const parentById = useMemo(() => {
         const parents = new Map<string, string>();
         graph.edges
@@ -152,6 +143,31 @@ function WorkspaceLayout({
             .forEach((edge) => parents.set(edge.target, edge.source));
         return parents;
     }, [graph]);
+
+    const handleSelect = useCallback(
+        (node: ProjectNode) => {
+            onSelect(node);
+            if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+            setFocusNodeId(node.id);
+            focusTimerRef.current = setTimeout(() => setFocusNodeId(null), 1800);
+            if (node.type === "file") {
+                setCollapsed((current) => {
+                    const next = new Set(current);
+                    let parent = parentById.get(node.id);
+                    while (parent) {
+                        next.delete(parent);
+                        parent = parentById.get(parent);
+                    }
+                    return next;
+                });
+            }
+            if (inspectorCollapsed) {
+                localStorage.setItem("ca-inspector-collapsed", "0");
+                setInspectorCollapsed(false);
+            }
+        },
+        [inspectorCollapsed, onSelect, parentById],
+    );
 
     const moveNodes = useCallback(
         (movements: NodeMovement[]) => {
@@ -291,6 +307,7 @@ function WorkspaceLayout({
                 graph={graph}
                 collapsed={collapsed}
                 selected={selected}
+                focusNodeId={focusNodeId}
                 onSelect={handleSelect}
                 onToggle={toggleFolder}
                 compact={compact}

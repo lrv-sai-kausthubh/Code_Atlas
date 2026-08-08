@@ -39,7 +39,7 @@ def status():
     }
 
 
-IGNORED_DIRECTORIES = {"node_modules", ".git", "dist", "build", "__pycache__", "venv", ".venv"}
+IGNORED_DIRECTORIES = {"node_modules", ".git", "dist", "build", "__pycache__", "venv", ".venv", ".env", ".idea", ".vscode", ".DS_Store", "target", "out", "bin", "obj"}
 
 ENV_FILE_NAMES = {".env", ".env.local", ".env.example", ".env.development", ".env.test", ".env.production", ".env.staging", ".env.development.local", ".env.test.local", ".env.production.local"}
 
@@ -120,6 +120,343 @@ def find_local_imports(source: PurePosixPath, content: str, file_paths: set[Pure
     else:
         specifiers = re.findall(r"(?:from|(?:import|require)\s*(?:\(\s*)?)\s*[\"']([^\"']+)", content)
     return {target for specifier in specifiers if (target := resolve_local_import(source, specifier, file_paths))}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Function-call intelligence helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+EXTERNAL_CALL_DB: dict[str, list[tuple[str, str]]] = {
+    "react": [
+        ("useState",      "React state hook — manages component-level state"),
+        ("useEffect",     "React effect hook — runs side-effects on mount / update"),
+        ("useCallback",   "React callback hook — memoises a function reference"),
+        ("useMemo",       "React memo hook — memoises an expensive computation"),
+        ("useRef",        "React ref hook — holds a mutable DOM or value reference"),
+        ("useContext",    "React context hook — reads a shared context value"),
+        ("createContext", "Creates a React context object for prop-drilling avoidance"),
+        ("forwardRef",    "React forwardRef — passes a ref through a component boundary"),
+        ("useReducer",    "React reducer hook — manages complex state with a dispatch function"),
+        ("useImperativeHandle", "React hook — exposes an imperative API through a ref"),
+    ],
+    "@xyflow/react": [
+        ("useReactFlow",       "React Flow hook — accesses fitView, zoomIn, zoomOut, getNodes\u2026"),
+        ("ReactFlow",          "React Flow component — renders the interactive graph canvas"),
+        ("ReactFlowProvider",  "React Flow provider — wraps canvas with shared graph context"),
+        ("Background",         "React Flow background — renders dot/grid pattern behind nodes"),
+        ("Controls",           "React Flow controls — zoom / fit / lock button overlay"),
+        ("MiniMap",            "React Flow minimap — overview thumbnail of the full graph"),
+        ("Handle",             "React Flow handle — connection point on a custom node"),
+        ("applyNodeChanges",   "React Flow util — applies node drag/position changes to state"),
+        ("applyEdgeChanges",   "React Flow util — applies edge selection/removal to state"),
+        ("useNodesState",      "React Flow hook — manages node list state with built-in helpers"),
+        ("useEdgesState",      "React Flow hook — manages edge list state with built-in helpers"),
+        ("MarkerType",         "React Flow enum — edge arrowhead marker type constants"),
+        ("Position",           "React Flow enum — handle position constants (Top/Bottom/Left/Right)"),
+        ("SelectionMode",      "React Flow enum — lasso vs partial-overlap selection mode"),
+    ],
+    "axios": [
+        ("axios",   "Axios HTTP client — makes REST API requests with interceptors / retries"),
+        ("create",  "Axios factory — creates a custom HTTP client instance with base config"),
+    ],
+    "zustand": [
+        ("create",   "Zustand — creates a global state store with a selector-based API"),
+        ("useStore", "Zustand hook — subscribes a component to a global state store"),
+    ],
+    "react-router-dom": [
+        ("useNavigate", "React Router hook — programmatic route navigation"),
+        ("useParams",   "React Router hook — reads URL path parameters"),
+        ("Link",        "React Router component — declarative client-side navigation link"),
+        ("Route",       "React Router component — maps a URL pattern to a component"),
+        ("Routes",      "React Router component — route-switch container"),
+    ],
+    "socket.io-client": [
+        ("io", "Socket.IO client — opens a persistent WebSocket connection to the server"),
+    ],
+}
+
+
+def _infer_param_type(param_name: str) -> str:
+    """Heuristically infer a high-level type label from a parameter name."""
+    n = param_name.lower().replace("_", "")
+    if any(k in n for k in ("json", "body", "payload", "data", "obj", "config", "options", "props", "meta")):
+        return "JSON"
+    if any(k in n for k in ("vec", "embed", "tensor", "matrix", "vector", "embedding")):
+        return "vector"
+    if any(k in n for k in ("arr", "list", "items", "rows", "collection", "elements", "batch")):
+        return "array"
+    if any(k in n for k in ("url", "endpoint", "uri", "href", "link", "src", "route", "path")):
+        return "URL"
+    if any(k in n for k in ("file", "stream", "blob", "buffer", "asset", "upload", "image")):
+        return "File"
+    if any(k in n for k in ("id", "key", "token", "hash", "slug", "name", "title", "label", "query", "str", "text", "message", "msg")):
+        return "string"
+    if any(k in n for k in ("count", "num", "size", "index", "len", "offset", "limit", "page", "width", "height")):
+        return "number"
+    if any(k in n for k in ("is", "has", "should", "enabled", "flag", "active", "open", "visible", "show", "bool")):
+        return "boolean"
+    if any(k in n for k in ("cb", "callback", "handler", "fn", "func", "hook")):
+        return "function"
+    if any(k in n for k in ("event", "evt", "ev")):
+        return "Event"
+    if any(k in n for k in ("node", "element", "el", "component", "ref", "dom")):
+        return "element"
+    return "any"
+
+
+def _describe_call(name: str, params: list[str], target_file: str | None) -> str:
+    """Generate a one-line human-readable description for a function call."""
+    n = name.lower()
+    if name.startswith("use"):
+        if any(k in n for k in ("flow", "reactflow", "xyflow")):
+            return "React Flow hook — accesses viewport / graph control methods"
+        if "state" in n:    return "React state hook — manages component-level state"
+        if "effect" in n:   return "React effect hook — runs side-effects on mount / update"
+        if "memo" in n:     return "React memo hook — memoises an expensive computation"
+        if "callback" in n: return "React callback hook — memoises a function reference"
+        if "ref" in n:      return "React ref hook — holds a mutable DOM or value reference"
+        if "context" in n:  return "React context hook — reads a shared context value"
+        if "reducer" in n:  return "React reducer hook — manages complex state with dispatch"
+        if "navigate" in n or "router" in n: return "React Router hook — programmatic navigation"
+        if "param" in n:    return "React Router hook — reads URL path parameters"
+        return f"Custom React hook — {name}"
+    if any(k in n for k in ("upload", "fetch", "request", "post", "get", "put", "patch", "delete", "api")):
+        return f"Makes an HTTP request — {name}"
+    if any(k in n for k in ("format", "stringify", "serialize", "encode")):
+        return f"Formats / serializes data — {name}"
+    if any(k in n for k in ("parse", "decode", "deserialize", "extract")):
+        return f"Parses / deserializes data — {name}"
+    if any(k in n for k in ("build", "make", "create", "construct", "generate", "compose")):
+        return f"Constructs a data structure or component — {name}"
+    if any(k in n for k in ("render", "draw", "paint", "display", "show")):
+        return f"Renders visual output — {name}"
+    if any(k in n for k in ("validate", "check", "verify", "assert", "guard")):
+        return f"Validates or verifies data — {name}"
+    if any(k in n for k in ("update", "set", "mutate", "write", "save", "store", "persist")):
+        return f"Updates or persists state / data — {name}"
+    if n.startswith("on") and len(n) > 3:
+        return f"Event handler — {name}"
+    if any(k in n for k in ("navigate", "redirect", "route", "push", "goto")):
+        return f"Navigates to a route — {name}"
+    if any(k in n for k in ("cancel", "abort", "stop", "reset", "clear", "clean")):
+        return f"Cancels or resets an operation — {name}"
+    fname = PurePosixPath(target_file).name if target_file else "module"
+    return f"Imported from {fname} — {name}"
+
+
+def _parse_js_params(raw: str) -> list[str]:
+    """Strip TypeScript type annotations and default values; return plain param names."""
+    if not raw.strip():
+        return []
+    params: list[str] = []
+    depth = 0
+    current: list[str] = []
+    for ch in raw:
+        if ch in "({[<":
+            depth += 1
+        elif ch in ")}]>":
+            depth -= 1
+        if ch == "," and depth == 0:
+            params.append("".join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    params.append("".join(current).strip())
+    cleaned: list[str] = []
+    for p in params:
+        p = re.sub(r"\s*=.*$", "", p)   # strip default
+        p = re.sub(r"\s*:.*$", "", p)   # strip TS type
+        p = p.lstrip(". ")              # strip rest/spread dots
+        p = p.strip()
+        if p.startswith("{") or p.startswith("["):
+            cleaned.append("...destructured")
+        elif p:
+            cleaned.append(p)
+    return [c for c in cleaned if c]
+
+
+def _parse_py_params(raw: str) -> list[str]:
+    """Strip type annotations, defaults, and Python-specific syntax."""
+    skip = {"self", "cls"}
+    params: list[str] = []
+    for p in raw.split(","):
+        p = p.strip().lstrip("*")
+        p = re.sub(r"\s*:.*$", "", p)
+        p = re.sub(r"\s*=.*$", "", p)
+        p = p.strip()
+        if p and p not in skip:
+            params.append(p)
+    return params
+
+
+def _extract_function_definitions(content: str, suffix: str) -> dict[str, list[str]]:
+    """Return {func_name: [param_names]} for all top-level definitions in a source file."""
+    defs: dict[str, list[str]] = {}
+    if suffix in {".js", ".jsx", ".ts", ".tsx"}:
+        for m in re.finditer(r"(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)", content):
+            defs[m.group(1)] = _parse_js_params(m.group(2))
+        for m in re.finditer(r"(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\(([^)]*)\)\s*(?::[^=>{][^=>{]*)?\s*=>", content):
+            if m.group(1) not in defs:
+                defs[m.group(1)] = _parse_js_params(m.group(2))
+    elif suffix == ".py":
+        for m in re.finditer(r"def\s+(\w+)\s*\(([^)]*)\)", content):
+            defs[m.group(1)] = _parse_py_params(m.group(2))
+    return defs
+
+
+def _extract_import_map(
+    content: str,
+    source_path: PurePosixPath,
+    file_path_set: set,
+    suffix: str,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """
+    Parse import statements and return:
+      local_map    — {local_alias: target_file_posix}   (imports from this project)
+      external_map — {local_alias: package_name}         (imports from npm / pip)
+    """
+    local_map: dict[str, str] = {}
+    external_map: dict[str, str] = {}
+
+    if suffix in {".js", ".jsx", ".ts", ".tsx"}:
+        # Named imports: import { Foo, Bar as Baz } from '...'
+        for m in re.finditer(r"import\s*\{([^}]+)\}\s*from\s*['\"]([^'\"]+)['\"]", content):
+            specifier = m.group(2)
+            for sym in m.group(1).split(","):
+                sym = sym.strip()
+                if sym.startswith("type "):
+                    continue
+                if " as " in sym:
+                    sym = sym.split(" as ")[-1].strip()
+                if not sym:
+                    continue
+                if specifier.startswith("."):
+                    r = resolve_local_import(source_path, specifier, file_path_set)
+                    if r:
+                        local_map[sym] = r.as_posix()
+                else:
+                    external_map[sym] = specifier
+        # Default / namespace: import Foo from '...'  |  import * as Foo from '...'
+        for m in re.finditer(r"import\s+(?:\*\s+as\s+)?(\w+)\s+from\s*['\"]([^'\"]+)['\"]", content):
+            name, specifier = m.group(1), m.group(2)
+            if name in ("type", "typeof"):
+                continue
+            if specifier.startswith("."):
+                r = resolve_local_import(source_path, specifier, file_path_set)
+                if r:
+                    local_map[name] = r.as_posix()
+            else:
+                external_map[name] = specifier
+
+    elif suffix == ".py":
+        # from .module import A, B as C
+        for m in re.finditer(r"from\s+([.][A-Za-z0-9_./-]*)\s+import\s+([^\n]+)", content):
+            specifier, names_raw = m.group(1), m.group(2)
+            r = resolve_local_import(source_path, specifier, file_path_set)
+            for sym in names_raw.split(","):
+                sym = sym.strip().split(" as ")[-1].strip()
+                if sym:
+                    if r:
+                        local_map[sym] = r.as_posix()
+                    else:
+                        external_map[sym] = specifier
+        # from package import X
+        for m in re.finditer(r"from\s+([A-Za-z][A-Za-z0-9_.]*)\s+import\s+([^\n]+)", content):
+            pkg, names_raw = m.group(1), m.group(2)
+            for sym in names_raw.split(","):
+                sym = sym.strip().split(" as ")[-1].strip()
+                if sym:
+                    external_map[sym] = pkg
+        # import package as alias
+        for m in re.finditer(r"^import\s+([A-Za-z][A-Za-z0-9_.]*)\s*(?:as\s+(\w+))?", content, re.MULTILINE):
+            pkg = m.group(1)
+            alias = m.group(2) if m.group(2) else pkg.split(".")[0]
+            external_map[alias] = pkg
+
+    return local_map, external_map
+
+
+def _find_called_names(content: str) -> set[str]:
+    """Single O(n) pass: collect all identifiers immediately before '(' or '<'."""
+    return set(re.findall(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s*[(<]", content))
+
+
+def _extract_external_calls(content: str, external_map: dict[str, str], called_names: set[str]) -> list[dict]:
+    """Detect external library functions that are actually used in the file."""
+    calls: list[dict] = []
+    seen: set[str] = set()
+
+    # Native browser fetch()
+    if "fetch" in called_names and "fetch" not in external_map:
+        urls = re.findall(r"fetch\s*\(\s*[`'\"]((?:https?://|/)[^`'\"]+)[`'\"]", content)
+        desc = f"Native fetch — HTTP request to {urls[0]}" if urls else "Native fetch — makes a browser HTTP request"
+        calls.append({"callee_name": "fetch", "callee_file": None, "params": ["url", "options"], "param_types": ["URL", "JSON"], "description": desc, "is_external": True, "external_lib": "browser fetch API"})
+        seen.add("fetch")
+
+    for local_name, pkg in external_map.items():
+        if local_name in seen or local_name not in called_names:
+            continue
+        seen.add(local_name)
+        found_entry: tuple[str, str] | None = None
+        for lib_key, entries in EXTERNAL_CALL_DB.items():
+            if pkg == lib_key or pkg.startswith(lib_key + "/"):
+                for func_name, func_desc in entries:
+                    if func_name == local_name:
+                        found_entry = (func_name, func_desc)
+                        break
+            if found_entry:
+                break
+        if found_entry:
+            calls.append({"callee_name": found_entry[0], "callee_file": None, "params": [], "param_types": [], "description": found_entry[1], "is_external": True, "external_lib": pkg})
+        else:
+            calls.append({"callee_name": local_name, "callee_file": None, "params": [], "param_types": [], "description": f"External call to {local_name} from package '{pkg}'", "is_external": True, "external_lib": pkg})
+
+    return calls
+
+
+def _extract_function_calls(source_contents: dict, file_path_set: set) -> list[dict]:
+    """
+    Analyse all source files and return a flat list of cross-file function-call
+    records (both local imports and external library usage).
+    """
+    # Phase 1 — build a global function-definition map
+    func_def_map: dict[str, dict[str, list[str]]] = {}
+    for path, content in source_contents.items():
+        func_def_map[path.as_posix()] = _extract_function_definitions(content, path.suffix.lower())
+
+    all_calls: list[dict] = []
+
+    # Phase 2 — per-file import + call analysis
+    for source_path, content in source_contents.items():
+        suffix = source_path.suffix.lower()
+        local_map, external_map = _extract_import_map(content, source_path, file_path_set, suffix)
+        called_names = _find_called_names(content)
+
+        # Local cross-file calls
+        seen_local: set[str] = set()
+        for sym_name, target_file_posix in local_map.items():
+            if sym_name not in called_names or sym_name in seen_local:
+                continue
+            seen_local.add(sym_name)
+            target_defs = func_def_map.get(target_file_posix, {})
+            params = target_defs.get(sym_name, [])
+            all_calls.append({
+                "caller_file": source_path.as_posix(),
+                "callee_name": sym_name,
+                "callee_file": target_file_posix,
+                "params": params,
+                "param_types": [_infer_param_type(p) for p in params],
+                "description": _describe_call(sym_name, params, target_file_posix),
+                "is_external": False,
+                "external_lib": None,
+            })
+
+        # External / library calls
+        for call in _extract_external_calls(content, external_map, called_names):
+            all_calls.append({"caller_file": source_path.as_posix(), **call})
+
+    return all_calls
+
 
 
 def find_cycles(adjacency: dict[str, set[str]]) -> list[list[str]]:
@@ -359,6 +696,11 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str) -> None:
             edges.append({"id": f"imports:{source_id}:{target_id}", "source": source_id, "target": target_id, "label": "IMPORTS", "relation": "IMPORTS"})
 
     analysis = build_analysis(file_paths, edges, file_sizes, file_lines, source_contents)
+
+    try:
+        function_calls = _extract_function_calls(source_contents, file_path_set)
+    except Exception:
+        function_calls = []
     for node in nodes:
         if node["type"] != "file":
             continue
@@ -375,6 +717,7 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str) -> None:
         "nodes": nodes,
         "edges": edges,
         "analysis": analysis,
+        "function_calls": function_calls,
     }
     elapsed = time.monotonic() - started
     _update_upload_task(upload_id, status="complete", phase="done", progress=100.0, files_processed=len(file_paths), elapsed_seconds=round(elapsed, 1), remaining_seconds=0, result=result)

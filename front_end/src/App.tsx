@@ -4,6 +4,7 @@ import Home from "./pages/home";
 import Landing from "./pages/landing";
 import Login from "./pages/login";
 
+// add sonner module
 type Route = "landing" | "login" | "home";
 
 function App() {

@@ -8,6 +8,17 @@ export type ProjectNode = {
     lines?: number;
 };
 
+export type FunctionCall = {
+    caller_file: string;          // relative path of the file making the call
+    callee_name: string;          // function / component / symbol name
+    callee_file: string | null;   // relative path of the target file (null = external)
+    params: string[];             // parameter names from the function definition
+    param_types: string[];        // inferred type labels (JSON, array, URL …)
+    description: string;          // one-line human-readable description
+    is_external: boolean;         // true when the call targets an npm/pip package
+    external_lib: string | null;  // package name when is_external is true
+};
+
 export type FileMetric = {
     path: string;
     size_bytes: number;
@@ -55,6 +66,7 @@ export type ProjectGraph = {
     nodes: ProjectNode[];
     edges: ProjectEdge[];
     analysis: RepositoryAnalysis;
+    function_calls?: FunctionCall[];  // populated for uploads processed after v1.1
 };
 
 export type UploadProgress = {

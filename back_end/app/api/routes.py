@@ -11,6 +11,8 @@ import zipfile
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
+from app.services.source_analyzer import analyze_source_files
+
 router = APIRouter()
 
 PREVIEW_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".pdf"}
@@ -701,6 +703,10 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str) -> None:
         function_calls = _extract_function_calls(source_contents, file_path_set)
     except Exception:
         function_calls = []
+    try:
+        file_details = analyze_source_files(source_contents, file_path_set, resolve_local_import)
+    except Exception:
+        file_details = {}
     for node in nodes:
         if node["type"] != "file":
             continue
@@ -718,6 +724,7 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str) -> None:
         "edges": edges,
         "analysis": analysis,
         "function_calls": function_calls,
+        "file_details": file_details,
     }
     elapsed = time.monotonic() - started
     _update_upload_task(upload_id, status="complete", phase="done", progress=100.0, files_processed=len(file_paths), elapsed_seconds=round(elapsed, 1), remaining_seconds=0, result=result)

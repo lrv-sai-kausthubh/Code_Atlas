@@ -71,6 +71,8 @@ button { cursor: pointer; }
 .atlas-node { position: relative; min-width: 96px; padding: 7px 9px 6px; border: 1px solid color-mix(in srgb, var(--node-color) 42%, transparent); border-radius: 7px; background: color-mix(in srgb, var(--graph-surface) 93%, var(--node-color)); color: var(--graph-label); text-align: center; box-shadow: 0 8px 26px rgba(0, 0, 0, .12); transition: border-color .18s, box-shadow .18s, transform .18s; }
 .atlas-node:hover, .atlas-node.is-selected { border-color: var(--node-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-color) 20%, transparent), 0 12px 28px rgba(0, 0, 0, .18); }
 .react-flow__node.selected .atlas-node { border-color: #f2b84b; box-shadow: 0 0 0 3px rgba(242, 184, 75, .25), 0 12px 28px rgba(0, 0, 0, .18); }
+.atlas-node.is-focused { animation: atlas-focus-pulse 1.8s ease-out both; }
+@keyframes atlas-focus-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--node-color) 0%, transparent); } 20% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--node-color) 38%, transparent), 0 0 28px color-mix(in srgb, var(--node-color) 55%, transparent); } 65% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--node-color) 18%, transparent); } }
 .atlas-node-project { min-width: 150px; padding: 12px 15px 10px; }
 .atlas-node-folder { min-width: 112px; }
 .atlas-node-dot { display: flex; align-items: center; justify-content: center; min-height: 22px; color: var(--node-color); font-size: 22px; line-height: 18px; }

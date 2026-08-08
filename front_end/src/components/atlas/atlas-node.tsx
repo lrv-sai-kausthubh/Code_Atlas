@@ -9,7 +9,7 @@ export function AtlasNodeView({ data }: NodeProps<AtlasNode>) {
     const color = NODE_COLORS[data.type];
     return (
         <div
-            className={`atlas-node atlas-node-${data.type} ${data.selected ? "is-selected" : ""}`}
+            className={`atlas-node atlas-node-${data.type} ${data.selected ? "is-selected" : ""} ${data.focused ? "is-focused" : ""}`}
             style={{ "--node-color": color } as CSSProperties}
             onClick={() => data.onSelect(data)}
         >
@@ -52,4 +52,3 @@ export function ImageNodeView({ data }: NodeProps<ImageAtlasNode>) {
     );
 }
 
-export const nodeTypes = { atlas: AtlasNodeView, image: ImageNodeView };

@@ -13,7 +13,7 @@ import {
 } from "@xyflow/react";
 import type { NodeChange, OnNodeDrag, XYPosition } from "@xyflow/react";
 import type { ProjectGraph, ProjectNode } from "../../types/project";
-import { nodeTypes } from "./atlas-node";
+import { AtlasNodeView, ImageNodeView } from "./atlas-node";
 import { NODE_COLORS } from "./atlas-types";
 import type {
     AtlasNode,
@@ -23,6 +23,8 @@ import type {
     NodeMovement,
 } from "./atlas-types";
 import { makeLayout } from "./graph-layout";
+
+const nodeTypes = { atlas: AtlasNodeView, image: ImageNodeView };
 
 export const IMAGE_DROP_MIME = "application/x-codeatlas-image";
 
@@ -37,6 +39,7 @@ function GraphCanvas({
     selected,
     onSelect,
     onToggle,
+    focusNodeId,
     compact,
     positionOffsets,
     onMoveNodes,
@@ -46,6 +49,7 @@ function GraphCanvas({
     selected: ProjectNode | null;
     onSelect: (node: ProjectNode) => void;
     onToggle: (nodeId: string) => void;
+    focusNodeId: string | null;
     compact: boolean;
     positionOffsets: ReadonlyMap<string, XYPosition>;
     onMoveNodes: (movements: NodeMovement[]) => void;
@@ -73,8 +77,8 @@ function GraphCanvas({
         return hidden;
     }, [collapsed, graph.nodes, parentById]);
     const initial = useMemo(
-        () => makeLayout(graph, onSelect, onToggle, compact, positionOffsets),
-        [compact, graph, onSelect, onToggle, positionOffsets],
+        () => makeLayout(graph, onSelect, onToggle, compact, positionOffsets, focusNodeId),
+        [compact, focusNodeId, graph, onSelect, onToggle, positionOffsets],
     );
     const [nodes, setNodes] = useNodesState<AtlasNode>(initial.nodes);
     const [imageNodes, setImageNodes] = useState<ImageAtlasNode[]>([]);
@@ -100,6 +104,14 @@ function GraphCanvas({
         });
         return () => cancelAnimationFrame(frame);
     }, [fitView]);
+
+    useEffect(() => {
+        if (!focusNodeId || !graph.nodes.some((node) => node.id === focusNodeId)) return;
+        const frame = requestAnimationFrame(() => {
+            fitView({ nodes: [{ id: focusNodeId }], padding: 1.8, duration: 550, maxZoom: 1.35 });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [fitView, focusNodeId, graph.nodes]);
 
     useEffect(() => {
         const reflow = previousCompact.current !== compact;

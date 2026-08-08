@@ -16,6 +16,7 @@
   --animate-scanline: ca-scanline 3s cubic-bezier(.4, 0, .2, 1) infinite;
   --animate-march: ca-march .8s linear infinite;
   --animate-slide: ca-slide .3s ease-out;
+  --animate-slide-left: ca-slide-left .28s ease-out;
 
   @keyframes ca-scan { 0% { top: -100px; } 100% { top: 100%; } }
   @keyframes ca-pulse { 0%, 100% { transform: scale(1); opacity: .4; } 50% { transform: scale(1.08); opacity: 1; } }
@@ -24,6 +25,7 @@
   @keyframes ca-scanline { 0% { top: 0; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
   @keyframes ca-march { 0% { background-position: 0 0; } 100% { background-position: 20px 0; } }
   @keyframes ca-slide { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes ca-slide-left { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 }
 
 :root { font-family: 'Space Grotesk', sans-serif; color: #eff0ed; background: #101112; font-synthesis: none; }
@@ -78,7 +80,7 @@ button { cursor: pointer; }
 .atlas-node-dot { display: flex; align-items: center; justify-content: center; min-height: 22px; color: var(--node-color); font-size: 22px; line-height: 18px; }
 .atlas-node-dot .material-symbols-outlined { font-size: 20px; line-height: 1; }
 .atlas-node-file .atlas-node-dot { font-size: 25px; line-height: 14px; }
-.atlas-node-label { margin-top: 5px; max-width: 165px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--node-color); font: 10px 'DM Mono', monospace; }
+.atlas-node-label { margin-top: 5px; max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--node-color); font: 10px 'DM Mono', monospace; }
 .atlas-node-project .atlas-node-label { font-weight: 500; }
 .atlas-node-kind { margin-top: 5px; color: var(--graph-label); font: 8px 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .08em; }
 .atlas-handle { width: 6px; height: 6px; visibility: hidden; background: var(--node-color); border: 0; }

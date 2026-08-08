@@ -64,7 +64,7 @@ function GraphCanvas({
     positionOffsets: ReadonlyMap<string, XYPosition>;
     onMoveNodes: (movements: NodeMovement[]) => void;
 }) {
-    const { fitView, zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+    const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport } = useReactFlow();
     const parentById = useMemo(() => {
         const parents = new Map<string, string>();
         graph.edges
@@ -86,9 +86,17 @@ function GraphCanvas({
         });
         return hidden;
     }, [collapsed, graph.nodes, parentById]);
+    const visibleGraph = useMemo(() => {
+        const nodes = graph.nodes.filter((node) => !hiddenIds.has(node.id));
+        const visibleIds = new Set(nodes.map((node) => node.id));
+        const edges = graph.edges.filter(
+            (edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target),
+        );
+        return { ...graph, nodes, edges };
+    }, [graph, hiddenIds]);
     const initial = useMemo(
-        () => makeLayout(graph, onSelect, onToggle, compact, positionOffsets, focusNodeId),
-        [compact, focusNodeId, graph, onSelect, onToggle, positionOffsets],
+        () => makeLayout(visibleGraph, onSelect, onToggle, compact, positionOffsets, focusNodeId),
+        [compact, focusNodeId, onSelect, onToggle, positionOffsets, visibleGraph],
     );
     const [nodes, setNodes] = useNodesState<AtlasNode>(initial.nodes);
     const [imageNodes, setImageNodes] = useState<ImageAtlasNode[]>([]);
@@ -96,23 +104,82 @@ function GraphCanvas({
     const [isDragging, setIsDragging] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
     const hasFittedInitialView = useRef(false);
-    const previousCompact = useRef(compact);
+    const previousLayout = useRef(initial);
+    const previousHiddenKey = useRef([...hiddenIds].sort().join(","));
     const nodesRef = useRef(nodes);
     const dragStart = useRef<Map<string, XYPosition>>(new Map());
+    const viewportSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         nodesRef.current = nodes;
     }, [nodes]);
 
+    const saveViewport = useCallback(() => {
+        try {
+            const projectId = graph.project_id;
+            if (!projectId) return;
+            const viewport = getViewport();
+            localStorage.setItem(
+                `codeatlas-viewport-${projectId}`,
+                JSON.stringify(viewport),
+            );
+        } catch {
+            // ignore
+        }
+    }, [getViewport, graph.project_id]);
+
+    useEffect(() => {
+        return () => {
+            if (viewportSaveTimer.current) clearTimeout(viewportSaveTimer.current);
+        };
+    }, []);
+
     useEffect(() => {
         const frame = requestAnimationFrame(() => {
             if (!hasFittedInitialView.current) {
-                fitView({ padding: 0.18, duration: 350 });
+                let restored = false;
+                try {
+                    const projectId = graph.project_id;
+                    if (projectId) {
+                        const stored = localStorage.getItem(`codeatlas-viewport-${projectId}`);
+                        if (stored) {
+                            const viewport = JSON.parse(stored) as {
+                                x: number;
+                                y: number;
+                                zoom: number;
+                            };
+                            if (
+                                typeof viewport.x === "number" &&
+                                typeof viewport.y === "number" &&
+                                typeof viewport.zoom === "number"
+                            ) {
+                                setViewport(viewport, { duration: 0 });
+                                restored = true;
+                            }
+                        }
+                    }
+                } catch {
+                    // ignore
+                }
+                if (!restored) {
+                    fitView({ padding: 0.18, duration: 350 });
+                }
                 hasFittedInitialView.current = true;
             }
         });
         return () => cancelAnimationFrame(frame);
-    }, [fitView]);
+    }, [fitView, graph.project_id, setViewport]);
+
+    useEffect(() => {
+        const hiddenKey = [...hiddenIds].sort().join(",");
+        if (hiddenKey !== previousHiddenKey.current) {
+            previousHiddenKey.current = hiddenKey;
+            const frame = requestAnimationFrame(() => {
+                fitView({ padding: 0.18, duration: 400 });
+            });
+            return () => cancelAnimationFrame(frame);
+        }
+    }, [fitView, hiddenIds]);
 
     useEffect(() => {
         if (!focusNodeId || !graph.nodes.some((node) => node.id === focusNodeId)) return;
@@ -123,8 +190,8 @@ function GraphCanvas({
     }, [fitView, focusNodeId, graph.nodes]);
 
     useEffect(() => {
-        const reflow = previousCompact.current !== compact;
-        previousCompact.current = compact;
+        const reflow = previousLayout.current !== initial;
+        previousLayout.current = initial;
         setNodes((currentNodes) => {
             const currentById = new Map(currentNodes.map((node) => [node.id, node]));
             return initial.nodes.map((node) => {
@@ -140,7 +207,7 @@ function GraphCanvas({
                 hidden: hiddenIds.has(edge.source) || hiddenIds.has(edge.target),
             })),
         );
-    }, [compact, hiddenIds, initial, setEdges, setNodes]);
+    }, [hiddenIds, initial, setEdges, setNodes]);
 
     useEffect(() => {
         setNodes((currentNodes) => {
@@ -338,6 +405,7 @@ function GraphCanvas({
                 onEdgesChange={onEdgesChange}
                 onNodeDragStart={onNodeDragStart}
                 onNodeDragStop={onNodeDragStop}
+                onMoveEnd={saveViewport}
                 onNodeClick={(_, node) => {
                     if (node.type === "image") {
                         onSelect((node.data as ImageNodeData).node);

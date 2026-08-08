@@ -12,18 +12,51 @@ import type { GitHubRepo } from "../services/api";
 
 function Home({ onLogout }: { onLogout: () => void }) {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [graph, setGraph] = useState<ProjectGraph | null>(null);
+    const [graph, setGraph] = useState<ProjectGraph | null>(() => {
+        try {
+            const raw = localStorage.getItem("codeatlas-last-graph");
+            return raw ? (JSON.parse(raw) as ProjectGraph) : null;
+        } catch {
+            return null;
+        }
+    });
     const [parsingFile, setParsingFile] = useState<File | null>(null);
     const [parsingRepoUrl, setParsingRepoUrl] = useState("");
     const [parsingConnectedRepo, setParsingConnectedRepo] = useState<GitHubRepo | null>(null);
     const [parsingUploadId, setParsingUploadId] = useState("");
     const [githubUrl, setGithubUrl] = useState("");
     const [githubToken] = useState(() => localStorage.getItem("codeatlas-token") ?? "");
-    const [projectId, setProjectId] = useState("");
-    const [selected, setSelected] = useState<ProjectNode | null>(null);
+    const [projectId, setProjectId] = useState<string>(() => {
+        try {
+            const raw = localStorage.getItem("codeatlas-last-graph");
+            return raw ? (JSON.parse(raw) as ProjectGraph).project_id ?? "" : "";
+        } catch {
+            return "";
+        }
+    });
+    const [selected, setSelected] = useState<ProjectNode | null>(() => {
+        try {
+            const raw = localStorage.getItem("codeatlas-last-graph");
+            return raw ? (JSON.parse(raw) as ProjectGraph).nodes[0] ?? null : null;
+        } catch {
+            return null;
+        }
+    });
     const [positionOffsets, setPositionOffsets] = useState<
         Map<string, XYPosition>
-    >(new Map());
+    >(() => {
+        try {
+            const raw = localStorage.getItem("codeatlas-last-graph");
+            if (!raw) return new Map();
+            const projectId = (JSON.parse(raw) as ProjectGraph).project_id ?? "";
+            if (!projectId) return new Map();
+            const stored = localStorage.getItem(`codeatlas-offsets-${projectId}`);
+            if (!stored) return new Map();
+            return new Map(JSON.parse(stored) as [string, { x: number; y: number }][]);
+        } catch {
+            return new Map();
+        }
+    });
     const [theme, setTheme] = useState<"dark" | "light">(
         () =>
             (localStorage.getItem("codeatlas-theme") as "dark" | "light") || "dark",
@@ -43,6 +76,18 @@ function Home({ onLogout }: { onLogout: () => void }) {
 
     const handleMoveNodes = useCallback((next: Map<string, XYPosition>) => {
         setPositionOffsets(next);
+        try {
+            const raw = localStorage.getItem("codeatlas-last-graph");
+            if (!raw) return;
+            const projectId = (JSON.parse(raw) as ProjectGraph).project_id ?? "";
+            if (!projectId) return;
+            localStorage.setItem(
+                `codeatlas-offsets-${projectId}`,
+                JSON.stringify([...next.entries()]),
+            );
+        } catch {
+            // storage full; keep in-memory only
+        }
     }, []);
 
     const chooseFile = async (file?: File) => {
@@ -93,6 +138,7 @@ function Home({ onLogout }: { onLogout: () => void }) {
         setParsingFile(null);
         setParsingRepoUrl("");
         setParsingConnectedRepo(null);
+        localStorage.removeItem("codeatlas-last-graph");
     };
 
     return (
@@ -123,6 +169,11 @@ function Home({ onLogout }: { onLogout: () => void }) {
                         setParsingRepoUrl("");
                         setParsingConnectedRepo(null);
                         setGithubUrl("");
+                        try {
+                            localStorage.setItem("codeatlas-last-graph", JSON.stringify(nextGraph));
+                        } catch {
+                            // storage full; keep in-memory only
+                        }
                         if (!nextGraph.files || nextGraph.files === 0) {
                             toastEmpty("This archive contains no analyzable files.");
                         }

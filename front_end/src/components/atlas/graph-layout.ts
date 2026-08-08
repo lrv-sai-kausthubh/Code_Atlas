@@ -42,8 +42,8 @@ export function makeLayout(
             id: node.id,
             type: "atlas",
             position: {
-                x: center * (compact ? 112 : 150) + offset.x,
-                y: depth * (compact ? 122 : 160) + offset.y,
+                x: center * (compact ? 148 : 176) + offset.x,
+                y: depth * (compact ? 128 : 168) + offset.y,
             },
             data: { ...node, onSelect, onToggle, selected: false, focused: node.id === focusedNodeId },
         });

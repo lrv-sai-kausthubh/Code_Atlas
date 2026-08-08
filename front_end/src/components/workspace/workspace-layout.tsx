@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { XYPosition } from "@xyflow/react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import AnalysisPanel from "./analysis-panel";
 import ExplorerPanel from "./explorer-panel";
 import GraphPanel from "./graph-panel";
@@ -26,8 +27,25 @@ function WorkspaceLayout({
     onMoveNodes: (next: Map<string, XYPosition>) => void;
 }) {
     const [query, setQuery] = useState("");
-    const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-    const [compact, setCompact] = useState(false);
+    const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+        const stored = projectId ? localStorage.getItem(`ca-collapsed-${projectId}`) : null;
+        if (stored) {
+            try {
+                return new Set(JSON.parse(stored) as string[]);
+            } catch {
+                // fall through to default
+            }
+        }
+        const initial = new Set<string>();
+        graph.nodes.forEach((node) => {
+            if (node.type === "folder") initial.add(node.id);
+        });
+        return initial;
+    });
+    const [compact, setCompact] = useState(() => {
+        const stored = projectId ? localStorage.getItem(`ca-compact-${projectId}`) : null;
+        return stored ? stored === "1" : true;
+    });
     const [analysisOpen, setAnalysisOpen] = useState(false);
     const [previewNode, setPreviewNode] = useState<ProjectNode | null>(null);
     const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
@@ -38,75 +56,50 @@ function WorkspaceLayout({
     const [inspectorWidth, setInspectorWidth] = useState(
         () => Number(localStorage.getItem("ca-inspector-width")) || 245,
     );
-    const [analysisHeight, setAnalysisHeight] = useState(
-        () => Number(localStorage.getItem("ca-analysis-height")) || 240,
-    );
     const [explorerCollapsed, setExplorerCollapsed] = useState(
         () => localStorage.getItem("ca-explorer-collapsed") === "1",
     );
     const [inspectorCollapsed, setInspectorCollapsed] = useState(
         () => localStorage.getItem("ca-inspector-collapsed") === "1",
     );
-    const resizingRef = useRef<"explorer" | "inspector" | "analysis" | null>(null);
+    const resizingRef = useRef<"explorer" | "inspector" | null>(null);
     const layoutRootRef = useRef<HTMLElement>(null);
 
     const persistLayout = (key: string, value: number) =>
         localStorage.setItem(key, String(value));
 
     const startResize =
-        (which: "explorer" | "inspector" | "analysis") =>
+        (which: "explorer" | "inspector") =>
         (event: ReactPointerEvent) => {
             event.preventDefault();
             resizingRef.current = which;
             const originX = event.clientX;
-            const originY = event.clientY;
-            const wasExplorerCollapsed = explorerCollapsed;
-            const wasInspectorCollapsed = inspectorCollapsed;
             const startExplorer = explorerWidth;
             const startInspector = inspectorWidth;
-            const startAnalysis = analysisHeight;
-            const root = layoutRootRef.current;
-            document.body.style.cursor =
-                which === "analysis" ? "row-resize" : "col-resize";
+            document.body.style.cursor = "col-resize";
             document.body.style.userSelect = "none";
 
             const onMove = (move: PointerEvent) => {
                 if (which === "explorer") {
-                    const base = wasExplorerCollapsed ? 160 : startExplorer;
                     const next = Math.min(
                         560,
-                        Math.max(160, base + (move.clientX - originX)),
+                        Math.max(160, startExplorer + (move.clientX - originX)),
                     );
                     setExplorerWidth(next);
                     persistLayout("ca-explorer-width", next);
-                } else if (which === "inspector") {
-                    const base = wasInspectorCollapsed ? 160 : startInspector;
+                } else {
                     const next = Math.min(
                         560,
-                        Math.max(160, base - (move.clientX - originX)),
+                        Math.max(160, startInspector - (move.clientX - originX)),
                     );
                     setInspectorWidth(next);
                     persistLayout("ca-inspector-width", next);
-                } else {
-                    const next = Math.min(
-                        Math.max(120, startAnalysis - (move.clientY - originY)),
-                        root ? root.clientHeight * 0.6 : 400,
-                    );
-                    setAnalysisHeight(next);
-                    persistLayout("ca-analysis-height", next);
                 }
             };
             const onUp = () => {
                 resizingRef.current = null;
                 document.body.style.cursor = "";
                 document.body.style.userSelect = "";
-                if (wasExplorerCollapsed) {
-                    localStorage.setItem("ca-explorer-collapsed", "0");
-                    setExplorerCollapsed(false);
-                } else if (wasInspectorCollapsed) {
-                    localStorage.setItem("ca-inspector-collapsed", "0");
-                    setInspectorCollapsed(false);
-                }
                 window.removeEventListener("pointermove", onMove);
                 window.removeEventListener("pointerup", onUp);
             };
@@ -135,6 +128,18 @@ function WorkspaceLayout({
             return next;
         });
     }, []);
+
+    useEffect(() => {
+        if (projectId) {
+            localStorage.setItem(`ca-collapsed-${projectId}`, JSON.stringify([...collapsed]));
+        }
+    }, [collapsed, projectId]);
+
+    useEffect(() => {
+        if (projectId) {
+            localStorage.setItem(`ca-compact-${projectId}`, compact ? "1" : "0");
+        }
+    }, [compact, projectId]);
 
     const parentById = useMemo(() => {
         const parents = new Map<string, string>();
@@ -259,9 +264,7 @@ function WorkspaceLayout({
         : inspectorCollapsed
             ? "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_0_0]"
             : "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_4px_var(--inspector-width,245px)]";
-    const gridRows = analysisOpen
-        ? "grid-rows-[minmax(0,1fr)_4px_auto]"
-        : "grid-rows-[minmax(0,1fr)_0_0]";
+    const gridRows = "grid-rows-[minmax(0,1fr)]";
 
     return (
         <section
@@ -275,7 +278,6 @@ function WorkspaceLayout({
                     "--inspector-width": inspectorCollapsed
                         ? "0px"
                         : `${inspectorWidth}px`,
-                    "--analysis-height": `${analysisHeight}px`,
                 } as CSSProperties
             }
         >
@@ -292,11 +294,11 @@ function WorkspaceLayout({
             />
             {explorerCollapsed && (
                 <button
-                    className="absolute inset-y-0 left-0 z-[6] flex w-[18px] items-center justify-center border-0 border-r border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b] [&_.material-symbols-outlined]:text-[16px]"
-                    title="Open explorer (click or drag)"
-                    onPointerDown={startResize("explorer")}
+                    className="absolute inset-y-0 left-0 z-[6] flex w-[18px] items-center justify-center border-0 border-r border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b]"
+                    title="Open explorer"
+                    onClick={toggleExplorer}
                 >
-                    <span className="material-symbols-outlined">chevron_right</span>
+                    <ChevronRight size={16} />
                 </button>
             )}
             <div
@@ -334,22 +336,20 @@ function WorkspaceLayout({
             />
             {inspectorCollapsed && (
                 <button
-                    className="absolute inset-y-0 right-0 z-[6] flex w-[18px] items-center justify-center border-0 border-l border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b] [&_.material-symbols-outlined]:text-[16px]"
-                    title="Open inspector (click or drag)"
-                    onPointerDown={startResize("inspector")}
+                    className="absolute inset-y-0 right-0 z-[6] flex w-[18px] items-center justify-center border-0 border-l border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b]"
+                    title="Open inspector"
+                    onClick={toggleInspector}
                 >
-                    <span className="material-symbols-outlined">chevron_left</span>
+                    <ChevronLeft size={16} />
                 </button>
             )}
-            <div
-                className={`relative z-[5] col-start-3 row-start-2 cursor-row-resize before:absolute before:inset-x-0 before:top-px before:bottom-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "analysis" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} ${analysisOpen ? "" : "hidden"} max-[850px]:hidden`}
-                onPointerDown={startResize("analysis")}
-            />
             {analysisOpen && (
-                <AnalysisPanel
-                    analysis={graph.analysis}
-                    onClose={() => setAnalysisOpen(false)}
-                />
+                <div className="absolute inset-y-0 right-[var(--inspector-width,245px)] z-[7] w-[420px] max-w-[46%] overflow-hidden border-l border-[#2b3030] bg-[#171a1a] shadow-[-16px_0_40px_rgba(0,0,0,.45)] animate-slide-left light:border-[#d6dfda] light:bg-[#f6f8f5]">
+                    <AnalysisPanel
+                        analysis={graph.analysis}
+                        onClose={() => setAnalysisOpen(false)}
+                    />
+                </div>
             )}
             {previewNode && (
                 <ImagePreview

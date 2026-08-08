@@ -41,75 +41,75 @@ function Login({ onLogin, onBack }: LoginProps) {
     };
 
     return (
-        <div className="ca-login">
-            <section className="ca-login-visual">
-                <div className="ca-grid-bg" />
-                <div className="ca-scanline" />
-                <div className="ca-login-inner">
-                    <div className="ca-brand">
-                        <span className="ca-brand-mark">✦</span>
-                        <span className="ca-brand-word">CODE ATLAS</span>
+        <div className="flex flex-col min-h-screen bg-[#080a0d] text-[#dfe2eb] font-inter overflow-hidden max-[900px]:overflow-auto max-[900px]:flex-col">
+            <section className="flex-[0_0_60%] relative overflow-hidden border-r border-[#30363d] flex flex-col justify-between p-12 max-[900px]:hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(rgba(48,54,61,.5)_1px,transparent_1px)] bg-[size:24px_24px] opacity-20" />
+                <div className="absolute left-0 right-0 h-[100px] z-5 bg-[linear-gradient(0deg,transparent,rgba(0,122,255,.05)_50%,transparent)] opacity-40 animate-scan" />
+                <div className="relative z-10 flex flex-col justify-between h-full">
+                    <div className="flex items-center gap-[10px]">
+                        <span className="w-7 h-7 bg-[#007aff] text-white grid place-items-center text-[15px]">✦</span>
+                        <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">CODE ATLAS</span>
                     </div>
                     <div className="ca-login-hero">
-                        <h1>The Knowledge Graph for your <span>Codebase.</span></h1>
-                        <p>Navigate architectural complexity with AI-driven insights. Visualize flows, manage dependencies, and ship better code faster.</p>
-                        <div className="ca-login-status">
-                            <span className="dot" />
-                            <span className="ca-label" style={{ fontSize: 10 }}>Stable v2.4</span>
-                            <span style={{ width: 1, height: 12, background: "#30363d" }} />
-                            <span className="ca-label" style={{ fontSize: 10, color: "#c1c6d7" }}>Node Engine: Running</span>
+                        <h1 className="font-space text-[clamp(40px,5vw,52px)] leading-[1.05] tracking-[-.02em] font-bold mt-0 mb-5 max-w-[560px]">The Knowledge Graph for your <span className="text-[#007aff]">Codebase.</span></h1>
+                        <p className="text-[#c1c6d7] text-[15px] leading-[1.6] max-w-[420px] mt-0 mb-0">Navigate architectural complexity with AI-driven insights. Visualize flows, manage dependencies, and ship better code faster.</p>
+                        <div className="flex items-center gap-4 opacity-60 mt-12">
+                            <span className="w-2 h-2 rounded-full bg-[#10b981]" />
+                            <span className="font-jet tracking-[.05em] uppercase" style={{ fontSize: 10 }}>Stable v2.4</span>
+                            <span className="w-px h-3 bg-[#30363d]" />
+                            <span className="font-jet tracking-[.05em] uppercase" style={{ fontSize: 10, color: "#c1c6d7" }}>Node Engine: Running</span>
                         </div>
                     </div>
-                    <div className="ca-login-meta">
+                    <div className="flex justify-between font-jet text-[11px] text-[rgba(193,198,215,.5)]">
                         <span>0x1A4F_SYSTEM_CORE</span>
                         <span>© 2026 CODE ATLAS LABS</span>
                     </div>
                 </div>
             </section>
 
-            <section className="ca-login-form-wrap">
-                <form className="ca-login-form" onSubmit={handleSubmit}>
-                    <div className="ca-mobile-brand">
-                        <span className="ca-brand-mark">✦</span>
-                        <span className="ca-brand-word">CODE ATLAS</span>
+            <section className="flex-1 bg-[#10141a] flex items-center justify-center p-8">
+                <form className="w-full max-w-[400px]" onSubmit={handleSubmit}>
+                    <div className="hidden items-center gap-2 mb-12 max-[900px]:flex">
+                        <span className="w-7 h-7 bg-[#007aff] text-white grid place-items-center text-[15px]">✦</span>
+                        <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">CODE ATLAS</span>
                     </div>
-                    <h2>Welcome back</h2>
-                    <p className="ca-login-sub">Sign in to your development workspace.</p>
+                    <h2 className="font-space text-2xl font-semibold mt-0 mb-2">Welcome back</h2>
+                    <p className="text-[#c1c6d7] text-sm mt-0 mb-8">Sign in to your development workspace.</p>
 
-                    <div className="ca-social-stack">
-                        <button type="submit" className="ca-social-btn github"><GitHubIcon />Continue with GitHub</button>
-                        <button type="submit" className="ca-social-btn google"><GoogleIcon />Continue with Google</button>
-                    </div>
-
-                    <div className="ca-divider"><span>Or with email</span></div>
-
-                    <div className="ca-field">
-                        <label htmlFor="ca-email">Email Address</label>
-                        <input id="ca-email"  placeholder="dev@company.com" autoComplete="email"  />
-                    </div>
-                    <div className="ca-field">
-                        <label htmlFor="ca-password">Password</label>
-                        <input id="ca-password" placeholder="••••••••" autoComplete="current-password"  />
-                    </div>
-                    <div className="ca-login-remember">
-                        <input id="ca-remember" type="checkbox" />
-                        <label htmlFor="ca-remember">Remember this device for 30 days</label>
+                    <div className="flex flex-col gap-3 mb-8">
+                        <button type="submit" className="h-11 border-0 flex items-center justify-center gap-3 font-inter text-sm font-semibold cursor-pointer transition-[background,transform] duration-150 hover:scale-[.98] bg-[#dfe2eb] text-[#0a0e14] hover:bg-white"><GitHubIcon />Continue with GitHub</button>
+                        <button type="submit" className="h-11 flex items-center justify-center gap-3 font-inter text-sm font-semibold cursor-pointer transition-[background,transform] duration-150 hover:scale-[.98] bg-[#181c22] border border-[#30363d] text-[#dfe2eb] hover:bg-[#262a31]"><GoogleIcon />Continue with Google</button>
                     </div>
 
-                    <button type="submit" className="ca-login-submit">Authorize Access</button>
+                    <div className="flex items-center gap-4 mb-8 before:flex-1 before:h-px before:bg-[#30363d] after:flex-1 after:h-px after:bg-[#30363d]"><span className="font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7]">Or with email</span></div>
 
-                    <div className="ca-login-footer">
-                        <p>New to Code Atlas? <a href="#" onClick={(event) => { event.preventDefault(); onBack(); }}>Create an account</a></p>
-                        <div className="ca-legal">
-                            <a href="#">Privacy Policy</a>
+                    <div className="mb-5">
+                        <label htmlFor="ca-email" className="block font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7] mb-1.5">Email Address</label>
+                        <input id="ca-email"  placeholder="dev@company.com" autoComplete="email" className="w-full bg-[#181c22] border border-[#30363d] text-[#dfe2eb] p-3 px-4 font-inter text-sm outline-none transition-[border-color,box-shadow] duration-150 focus:border-[#007aff] focus:shadow-[0_0_0_2px_rgba(0,122,255,.3)]" />
+                    </div>
+                    <div className="mb-5">
+                        <label htmlFor="ca-password" className="block font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7] mb-1.5">Password</label>
+                        <input id="ca-password" placeholder="••••••••" autoComplete="current-password" className="w-full bg-[#181c22] border border-[#30363d] text-[#dfe2eb] p-3 px-4 font-inter text-sm outline-none transition-[border-color,box-shadow] duration-150 focus:border-[#007aff] focus:shadow-[0_0_0_2px_rgba(0,122,255,.3)]" />
+                    </div>
+                    <div className="flex items-center gap-2 mb-6">
+                        <input id="ca-remember" type="checkbox" className="w-4 h-4 accent-[#007aff]" />
+                        <label htmlFor="ca-remember" className="text-xs text-[#c1c6d7] cursor-pointer">Remember this device for 30 days</label>
+                    </div>
+
+                    <button type="submit" className="w-full h-12 border-0 bg-[#007aff] text-white font-space text-sm font-bold tracking-[.06em] uppercase cursor-pointer relative overflow-hidden transition-[transform,filter] duration-150 hover:brightness-110 active:scale-[.98]">Authorize Access</button>
+
+                    <div className="mt-10 pt-10 border-t border-[#30363d] text-center">
+                        <p className="text-sm text-[#c1c6d7] mt-0 mb-4">New to Code Atlas? <a href="#" onClick={(event) => { event.preventDefault(); onBack(); }} className="text-[#007aff] font-semibold no-underline">Create an account</a></p>
+                        <div className="flex gap-4 justify-center text-[10px] text-[rgba(193,198,215,.6)]">
+                            <a href="#" className="no-underline hover:text-[#dfe2eb]">Privacy Policy</a>
                             <span>•</span>
-                            <a href="#">Terms of Service</a>
+                            <a href="#" className="no-underline hover:text-[#dfe2eb]">Terms of Service</a>
                         </div>
                     </div>
                 </form>
             </section>
 
-            <div className="ca-login-float">
+            <div className="fixed top-8 right-8 z-20 text-right font-jet text-[11px] text-[rgba(193,198,215,.5)] leading-[1.7] pointer-events-none">
                 <span>SECURE_SHELL_ESTABLISHED</span>
                 <br />
                 <span>{timestamp}</span>

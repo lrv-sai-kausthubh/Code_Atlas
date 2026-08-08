@@ -14,6 +14,13 @@ export type FileMetric = {
     lines: number;
 };
 
+export type SecurityIssue = {
+    file: string;
+    line: number;
+    type: string;
+    snippet: string;
+};
+
 export type RepositoryAnalysis = {
     total_lines: number;
     total_size_bytes: number;
@@ -25,6 +32,7 @@ export type RepositoryAnalysis = {
     longest_import_chain: { length: number; files: string[] };
     orphan_files: string[];
     circular_dependencies: string[][];
+    security_issues: SecurityIssue[];
     health_score: number;
 };
 

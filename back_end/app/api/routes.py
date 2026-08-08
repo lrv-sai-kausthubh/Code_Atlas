@@ -40,6 +40,15 @@ def status():
 
 
 IGNORED_DIRECTORIES = {"node_modules", ".git", "dist", "build", "__pycache__", "venv", ".venv"}
+
+ENV_FILE_NAMES = {".env", ".env.local", ".env.example", ".env.development", ".env.test", ".env.production", ".env.staging", ".env.development.local", ".env.test.local", ".env.production.local"}
+
+SECRET_PATTERNS = [
+    (re.compile(r"AKIA[0-9A-Z]{16}", re.IGNORECASE), "AWS Access Key"),
+    (re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----", re.IGNORECASE), "Private Key"),
+    (re.compile(r"(?i)(?:password|passwd|pwd|passphrase)\s*[:=]\s*[\"'][^\"']{4,}[\"']"), "Hardcoded Password"),
+    (re.compile(r"(?i)(?:api[_-]?key|apikey|secret[_-]?key|client[_-]?secret|access[_-]?token|auth[_-]?token|private[_-]?key|firebase[_-]?key|slack[_-]?token)\s*[:=]\s*[\"'][^\"']{8,}[\"']"), "API Key / Token"),
+]
 LANGUAGES = {
     ".ts": "TypeScript",
     ".tsx": "TypeScript",
@@ -56,7 +65,38 @@ RESOLVE_EXTENSIONS = ["", ".ts", ".tsx", ".js", ".jsx", ".py", ".json", ".css", 
 
 
 def is_ignored(path: PurePosixPath) -> bool:
-    return any(part in IGNORED_DIRECTORIES for part in path.parts)
+    if any(part in IGNORED_DIRECTORIES for part in path.parts):
+        return True
+    name = path.name
+    if name in ENV_FILE_NAMES or name.startswith(".env."):
+        return True
+    return False
+
+
+def scan_for_secrets(source_contents: dict[PurePosixPath, str]) -> list[dict]:
+    """Scan source files for hardcoded credentials and secrets."""
+    findings: list[dict] = []
+    placeholder_markers = ("your_", "your-", "example", "sample", "changeme", "xxxx", "****", "todo", "<", "{", "}")
+    for path, content in source_contents.items():
+        for line_index, line in enumerate(content.splitlines(), start=1):
+            if len(line) > 400:
+                continue
+            for pattern, label in SECRET_PATTERNS:
+                match = pattern.search(line)
+                if not match:
+                    continue
+                value = match.group(0)
+                lower = value.lower()
+                if any(marker in lower for marker in placeholder_markers):
+                    continue
+                findings.append({
+                    "file": path.as_posix(),
+                    "line": line_index,
+                    "type": label,
+                    "snippet": line.strip()[:160],
+                })
+                break
+    return findings
 
 
 def resolve_local_import(source: PurePosixPath, specifier: str, file_paths: set[PurePosixPath]) -> PurePosixPath | None:
@@ -140,7 +180,7 @@ def longest_import_chain(adjacency: dict[str, set[str]]) -> list[str]:
     return longest
 
 
-def build_analysis(file_paths: list[PurePosixPath], edges: list[dict], file_sizes: dict[PurePosixPath, int], file_lines: dict[PurePosixPath, int]) -> dict:
+def build_analysis(file_paths: list[PurePosixPath], edges: list[dict], file_sizes: dict[PurePosixPath, int], file_lines: dict[PurePosixPath, int], source_contents: dict[PurePosixPath, str] | None = None) -> dict:
     file_ids = {f"file:{path.as_posix()}": path for path in file_paths}
     adjacency = {node_id: set() for node_id in file_ids}
     for edge in edges:
@@ -157,7 +197,8 @@ def build_analysis(file_paths: list[PurePosixPath], edges: list[dict], file_size
     orphan_paths = sorted(file_ids[node_id].as_posix() for node_id in analyzed_ids if incoming.get(node_id, 0) == 0)
     average_dependencies = round(sum(len(targets) for targets in adjacency.values()) / len(file_paths), 2) if file_paths else 0
     orphan_ratio = len(orphan_paths) / len(analyzed_ids) if analyzed_ids else 0
-    score = max(0, min(100, round(100 - len(cycles) * 10 - orphan_ratio * 20 - sum(1 for path in file_paths if file_lines.get(path, 0) > 500) * 3)))
+    secrets = scan_for_secrets(source_contents or {})
+    score = max(0, min(100, round(100 - len(cycles) * 10 - orphan_ratio * 20 - sum(1 for path in file_paths if file_lines.get(path, 0) > 500) * 3 - len(secrets) * 4)))
 
     return {
         "total_lines": total_lines,
@@ -170,6 +211,7 @@ def build_analysis(file_paths: list[PurePosixPath], edges: list[dict], file_size
         "longest_import_chain": {"length": len(chains), "files": [file_ids[node_id].as_posix() for node_id in chains]},
         "orphan_files": orphan_paths,
         "circular_dependencies": [[file_ids[node_id].as_posix() for node_id in cycle] for cycle in cycles],
+        "security_issues": secrets,
         "health_score": score,
     }
 
@@ -316,7 +358,7 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str) -> None:
             target_id = f"file:{target_path.as_posix()}"
             edges.append({"id": f"imports:{source_id}:{target_id}", "source": source_id, "target": target_id, "label": "IMPORTS", "relation": "IMPORTS"})
 
-    analysis = build_analysis(file_paths, edges, file_sizes, file_lines)
+    analysis = build_analysis(file_paths, edges, file_sizes, file_lines, source_contents)
     for node in nodes:
         if node["type"] != "file":
             continue

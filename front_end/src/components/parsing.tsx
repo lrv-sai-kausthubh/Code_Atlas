@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cancelUpload, getUploadProgress, getUploadResult, uploadProject } from "../services/api";
+import { toastLoading, toastSuccess, toastDismiss } from "../services/toast";
 import type { ProjectGraph, UploadProgress } from "../types/project";
 
 const PARTICLE_ICONS = ["code", "javascript", "css", "html", "terminal", "functions", "settings", "data_object", "folder", "description"];
@@ -63,16 +64,24 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
     }), []);
 
     useEffect(() => {
+        const loadingId = toastLoading(`Analyzing ${file.name}…`);
         void uploadProject(file, uploadId, (event) => {
             if (event.total) setNetworkPct((event.loaded / event.total) * 100);
         }).then((response) => {
             const body = response.data as { status?: string };
-            if (body.status === "error") onError("The project failed to process.");
+            if (body.status === "error") {
+                toastDismiss(loadingId);
+                onError("The project failed to process.");
+            }
         }).catch((error: unknown) => {
+            toastDismiss(loadingId);
             if (cancelRef.current) return;
             const detail = error && typeof error === "object" && "response" in error ? (error.response as { data?: { detail?: string } })?.data?.detail : undefined;
             onError(detail ?? "Could not analyze that project.");
         });
+        return () => {
+            toastDismiss(loadingId);
+        };
     }, [file, onError, uploadId]);
 
     useEffect(() => {
@@ -94,6 +103,7 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
                 if (snapshot.phase === "done" && !doneRef.current) {
                     doneRef.current = true;
                     const resultResponse = await getUploadResult(uploadId);
+                    toastSuccess(`Project "${file.name}" mapped successfully.`);
                     if (alive) onComplete(resultResponse.data as ProjectGraph);
                     return;
                 }
@@ -117,7 +127,7 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
         void poll();
         const interval = setInterval(() => void poll(), 500);
         return () => { alive = false; clearInterval(interval); };
-    }, [onComplete, onError, uploadId]);
+    }, [file, onComplete, onError, uploadId]);
 
     useEffect(() => {
         if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -148,14 +158,14 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
     };
 
     return (
-        <div className="ca-parse">
-            <div className="ca-parse-bg">
-                <div className="ca-parse-grid" />
-                <div className="ca-parse-core" />
+        <div className="h-screen bg-[#080a0d] text-[#dfe2eb] font-inter overflow-hidden relative">
+            <div className="fixed inset-0 z-0 overflow-hidden">
+                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#30363d_1px,transparent_1px)] bg-[size:24px_24px]" />
+                <div className="absolute top-1/2 left-1/2 w-[600px] h-[600px] -translate-x-1/2 -translate-y-1/2 border border-[#30363d] rounded-full opacity-10 flex items-center justify-center before:content-[''] before:absolute before:w-[400px] before:h-[400px] before:border-2 before:border-[rgba(0,122,255,.2)] before:rounded-full before:animate-pulse" />
                 {particles.map((particle) => (
                     <div
                         key={particle.id}
-                        className="ca-parse-particle"
+                        className="absolute border border-[rgba(0,122,255,.3)] bg-[rgba(38,42,49,.4)] flex items-center justify-center animate-absorb pointer-events-none"
                         style={{
                             width: particle.size,
                             height: particle.size,
@@ -168,46 +178,46 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
                         <span className="material-symbols-outlined" style={{ fontSize: particle.size / 2, color: "rgba(0, 122, 255, .25)" }}>{particle.icon}</span>
                     </div>
                 ))}
-                <div className="ca-parse-overlay" />
+                <div className="absolute inset-0 bg-[rgba(8,10,13,.6)] backdrop-blur-[2px]" />
             </div>
 
-            <header className="ca-parse-nav">
-                <div className="ca-parse-brand">
-                    <span className="ca-brand-mark">✦</span>
-                    <span className="ca-brand-word">CODE ATLAS</span>
+            <header className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-4 border-b border-[#30363d] bg-[rgba(8,10,13,.8)] backdrop-blur-[12px]">
+                <div className="flex items-center gap-[10px]">
+                    <span className="w-7 h-7 bg-[#007aff] text-white grid place-items-center text-[15px]">✦</span>
+                    <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">CODE ATLAS</span>
                     <span style={{ width: 1, height: 16, background: "#30363d", margin: "0 8px" }} />
-                    <span className="ca-label" style={{ color: "#c1c6d7" }}>Ingestion Engine V4.0</span>
+                    <span className="font-jet tracking-[.05em] uppercase" style={{ color: "#c1c6d7" }}>Ingestion Engine V4.0</span>
                 </div>
-                <div className="ca-nav-right">
-                    <span className="ca-parse-conn"><span className="ping" />STABLE CONNECTION</span>
-                    <button className="ca-parse-cancel" onClick={handleCancel}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>Cancel</button>
+                <div className="flex items-center gap-[14px]">
+                    <span className="flex items-center gap-2 font-jet text-xs text-[#10b981]"><span className="w-2 h-2 rounded-full bg-[#10b981] animate-ping" />STABLE CONNECTION</span>
+                    <button className="flex items-center gap-2 px-4 py-2 border border-[#30363d] bg-transparent text-[#c1c6d7] font-jet text-[10px] tracking-[.08em] uppercase cursor-pointer transition-[border-color,color] duration-200 hover:border-[#007aff] hover:text-[#dfe2eb]" onClick={handleCancel}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>Cancel</button>
                 </div>
             </header>
 
-            <main className="ca-parse-main">
-                <div className="ca-parse-wrap">
-                    <div className="ca-parse-card">
-                        <div className="ca-parse-glow" />
-                        <div className="ca-parse-card-inner">
-                            <div className="ca-parse-scanner">
-                                <div className="ca-parse-scanline" />
-                                <span className="ca-parse-corner tl" />
-                                <span className="ca-parse-corner tr" />
-                                <span className="ca-parse-corner bl" />
-                                <span className="ca-parse-corner br" />
-                                <div className="ca-parse-scanner-inner"><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>folder_zip</span></div>
+            <main className="relative z-10 h-[calc(100vh-56px-32px)] flex items-center justify-center p-4 overflow-hidden">
+                <div className="w-full max-w-[880px] flex flex-col gap-6 max-h-full">
+                    <div className="relative">
+                        <div className="absolute -inset-1 bg-[linear-gradient(90deg,rgba(0,122,255,.2),rgba(139,92,246,.2))] blur-[18px] opacity-25" />
+                        <div className="relative bg-[#10141a] border border-[#30363d] p-8 flex gap-8 items-center overflow-hidden max-[760px]:flex-col max-[760px]:items-start">
+                            <div className="relative w-[176px] h-[176px] flex-[0_0_176px] bg-[#181c22] border border-[#30363d] overflow-hidden max-[760px]:w-[120px] max-[760px]:h-[120px]">
+                                <div className="absolute left-0 right-0 h-[2px] bg-[linear-gradient(to_right,transparent,#007aff,transparent)] animate-scanline" />
+                                <span className="absolute w-2 h-2 top-0 left-0 border-t border-l border-[#007aff]" />
+                                <span className="absolute w-2 h-2 top-0 right-0 border-t border-r border-[#007aff]" />
+                                <span className="absolute w-2 h-2 bottom-0 left-0 border-b border-l border-[#007aff]" />
+                                <span className="absolute w-2 h-2 bottom-0 right-0 border-b border-r border-[#007aff]" />
+                                <div className="absolute inset-4 border border-[rgba(0,122,255,.2)] flex items-center justify-center"><span className="material-symbols-outlined text-[#007aff]" style={{ fontSize: 44, fontVariationSettings: "'FILL' 1" }}>folder_zip</span></div>
                             </div>
-                            <div className="ca-parse-progress">
-                                <div className="ca-parse-title-row">
+                            <div className="flex-1 flex flex-col gap-6">
+                                <div className="flex justify-between items-end">
                                     <div>
-                                        <h1>Parsing Repository Archive</h1>
-                                        <p className="ca-parse-file">Project: <strong style={{ color: "#dfe2eb" }}>{file.name}</strong></p>
+                                        <h1 className="font-space text-xl font-semibold mt-0 mb-0">Parsing Repository Archive</h1>
+                                        <p className="text-sm text-[#c1c6d7] mt-1 mb-0">Project: <strong style={{ color: "#dfe2eb" }}>{file.name}</strong></p>
                                     </div>
-                                    <span className="pct">{progress.toFixed(1)}%</span>
+                                    <span className="font-jet text-base text-[#007aff]">{progress.toFixed(1)}%</span>
                                 </div>
                                 <div>
-                                    <div className="ca-parse-bar"><div className="ca-parse-bar-fill" style={{ width: `${progress}%` }}><div className="ca-parse-bar-march" /></div></div>
-                                    <div className="ca-parse-phase" style={{ marginTop: 8 }}>
+                                    <div className="h-3 bg-[#31353c] border border-[#30363d] overflow-hidden relative"><div className="h-full bg-[#007aff] relative transition-[width] duration-300 after:content-[''] after:absolute after:top-0 after:right-0 after:bottom-0 after:w-4 after:bg-[rgba(255,255,255,.2)] after:blur-[4px]" style={{ width: `${progress}%` }}><div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(0,122,255,.15)_25%,transparent_25%,transparent_50%,rgba(0,122,255,.15)_50%,rgba(0,122,255,.15)_75%,transparent_75%,transparent)] bg-[size:20px_20px] animate-march" /></div></div>
+                                    <div className="flex justify-between font-jet text-[10px] tracking-[.08em] uppercase text-[#c1c6d7]" style={{ marginTop: 8 }}>
                                         <span>{phaseLabel}</span>
                                         <span>EST. {estimatedRemaining}s REMAINING</span>
                                     </div>
@@ -216,34 +226,34 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
                         </div>
                     </div>
 
-                    <div className="ca-parse-bottom-grid">
-                        <div className="ca-parse-logs">
-                            <div className="ca-parse-logs-head">
+                    <div className="grid grid-cols-2 gap-6 max-[760px]:grid-cols-1">
+                        <div className="bg-[#181c22] border border-[#30363d] h-[192px] flex flex-col">
+                            <div className="flex justify-between items-center px-4 py-2 border-b border-[#30363d] bg-[#10141a] font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">
                                 <span>PARSING_LOGS.EXE</span>
-                                <span className="dots"><i /><i /></span>
+                                <span className="flex gap-1"><i className="w-2 h-2 bg-[#30363d]" /><i className="w-2 h-2 bg-[#30363d]" /></span>
                             </div>
-                            <div className="ca-parse-log-body" ref={logRef}>
-                                {logs.map((line, index) => <span key={index} className="ca-parse-log-line">{line}</span>)}
+                            <div className="flex-1 p-4 overflow-hidden font-jet text-xs text-[rgba(193,198,215,.8)] flex flex-col gap-1.5 [mask-image:linear-gradient(to_bottom,transparent,black_18%,black_82%,transparent)]" ref={logRef}>
+                                {logs.map((line, index) => <span key={index} className="animate-slide">{line}</span>)}
                             </div>
                         </div>
-                        <div className="ca-parse-metrics">
-                            <div className="ca-parse-metric">
-                                <span className="k">FILE_COUNT</span>
-                                <span className="v">{filesProcessed.toLocaleString()}</span>
-                                <span className="badge">PROCESSED</span>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-[#10141a] border border-[#30363d] p-4 flex flex-col justify-between min-h-[88px]">
+                                <span className="font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">FILE_COUNT</span>
+                                <span className="font-space text-[32px] font-bold leading-none text-[#007aff]">{filesProcessed.toLocaleString()}</span>
+                                <span className="mt-2 w-fit font-jet text-[9px] text-[#4c1a00] bg-[#ef6719] px-1.5 py-0.5">PROCESSED</span>
                             </div>
-                            <div className="ca-parse-metric green">
-                                <span className="k">DATA_READ</span>
-                                <span className="v">{formatBytes(bytesProcessed)}</span>
-                                <span className="badge">EXTRACTED</span>
+                            <div className="bg-[#10141a] border border-[#30363d] p-4 flex flex-col justify-between min-h-[88px]">
+                                <span className="font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">DATA_READ</span>
+                                <span className="font-space text-[32px] font-bold leading-none text-[#10b981]">{formatBytes(bytesProcessed)}</span>
+                                <span className="mt-2 w-fit font-jet text-[9px] text-[#00311f] bg-[#00a572] px-1.5 py-0.5">EXTRACTED</span>
                             </div>
-                            <div className="ca-parse-throughput">
+                            <div className="col-span-2 bg-[#10141a] border border-[#30363d] p-4 flex justify-between items-center">
                                 <div>
-                                    <span className="k">THROUGHPUT</span>
-                                    <div className="val" style={{ marginTop: 6 }}>{throughput.toFixed(1)} MB/s</div>
+                                    <span className="font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">THROUGHPUT</span>
+                                    <div className="font-jet text-sm text-[#dfe2eb]" style={{ marginTop: 6 }}>{throughput.toFixed(1)} MB/s</div>
                                 </div>
-                                <div className="ca-parse-bars">
-                                    {barHeights.map((height, index) => <i key={index} style={{ height: `${height * 100}%` }} />)}
+                                <div className="flex gap-1 h-8 items-end">
+                                    {barHeights.map((height, index) => <i key={index} className="w-1 bg-[#007aff]" style={{ height: `${height * 100}%` }} />)}
                                 </div>
                             </div>
                         </div>
@@ -251,14 +261,14 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
                 </div>
             </main>
 
-            <footer className="ca-parse-footer">
+            <footer className="fixed bottom-0 left-0 right-0 z-50 h-8 flex items-center justify-between px-4 border-t border-[#30363d] bg-[#181c22] font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">
                 <div>
-                    <span className="ca-parse-footer">● ENGINE: ACTIVE</span>
+                    <span>● ENGINE: ACTIVE</span>
                     <span style={{ opacity: .5 }}>HEARTBEAT: 12ms</span>
                 </div>
                 <div>
                     <span>EST. SIZE: {formatBytes(totalBytes)}</span>
-                    <span className="blue" style={{ marginLeft: 16 }}>SYSTEM_READY_PENDING_INGESTION</span>
+                    <span className="text-[#007aff]" style={{ marginLeft: 16 }}>SYSTEM_READY_PENDING_INGESTION</span>
                 </div>
             </footer>
         </div>

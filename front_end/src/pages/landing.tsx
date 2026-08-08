@@ -164,20 +164,19 @@ function Landing({ onGetStarted }: LandingProps) {
 
             <footer className="bg-[#080a0d] border-t border-[#30363d] px-4 pb-12 pt-24">
                 <div className="max-w-[1160px] mx-auto grid grid-cols-[4fr_2fr_2fr_4fr] gap-12 pb-20 max-[900px]:grid-cols-2 max-[900px]:gap-8">
-                    <div className="ca-footer-brand">
+                    <div>
                         <span className="inline-grid w-7 h-7 bg-[#007aff] text-white place-items-center text-[15px]">✦</span>
                         <p className="text-[#c1c6d7] text-sm leading-[1.6] max-w-[320px] mt-4 mb-6">Building the future of software comprehension. Understand anything, build everything.</p>
                     </div>
-                    <div className="ca-footer-col">
-                        <h5 className="font-jet text-[10px] tracking-[.05em] uppercase text-[#dfe2eb] mt-0 mb-6">Product</h5>
-                        <ul className="list-none mt-0 mb-0 p-0 flex flex-col gap-4">
+                    <div>
+                        <h5 className="font-jet text-[10px] tracking-[.05em] uppercase text-[#dfe2eb] mt-0 mb-6">Product</h5>                        <ul className="list-none mt-0 mb-0 p-0 flex flex-col gap-4">
                             <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Features</a></li>
                             <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Pricing</a></li>
                             <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">API Docs</a></li>
                             <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Security</a></li>
                         </ul>
                     </div>
-                    <div className="ca-footer-col">
+                    <div>
                         <h5 className="font-jet text-[10px] tracking-[.05em] uppercase text-[#dfe2eb] mt-0 mb-6">Company</h5>
                         <ul className="list-none mt-0 mb-0 p-0 flex flex-col gap-4">
                             <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">About</a></li>
@@ -186,7 +185,7 @@ function Landing({ onGetStarted }: LandingProps) {
                             <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Contact</a></li>
                         </ul>
                     </div>
-                    <div className="ca-footer-col">
+                    <div>
                         <h5 className="font-jet text-[10px] tracking-[.05em] uppercase text-[#dfe2eb] mt-0 mb-6">Stay in the Flow</h5>
                         <p style={{ color: "#c1c6d7", fontSize: 12, margin: 0 }}>Get architecture tips and platform updates.</p>
                         <form className="flex border border-[#30363d] bg-[#10141a] p-1 mt-6" onSubmit={(event) => event.preventDefault()}>

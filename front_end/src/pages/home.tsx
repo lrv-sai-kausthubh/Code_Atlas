@@ -1,12 +1,4 @@
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import {
   applyNodeChanges,
@@ -37,13 +29,10 @@ import StateLab from "../components/state-lab";
 import { projectFileUrl } from "../services/api";
 import { toastEmpty, toastProcessing } from "../services/toast";
 import type {
-  FunctionCall,
   ProjectGraph,
   ProjectNode,
   RepositoryAnalysis,
 } from "../types/project";
-
-/* ── Colour palette ─────────────────────────────────────────────────────────── */
 
 const colors: Record<ProjectNode["type"], string> = {
   project: "#f2b84b",
@@ -62,8 +51,6 @@ const MUTED = "text-[#4e5854] light:text-[#71807a]";
 const LIVE_DOT =
   "mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#64d5c4] shadow-[0_0_12px_#64d5c4]";
 
-/* ── Types ──────────────────────────────────────────────────────────────────── */
-
 type AtlasNodeData = ProjectNode & {
   onSelect: (node: ProjectNode) => void;
   onToggle: (nodeId: string) => void;
@@ -71,10 +58,43 @@ type AtlasNodeData = ProjectNode & {
 };
 type AtlasNode = Node<AtlasNodeData, "atlas">;
 type NodeMovement = { id: string; delta: XYPosition };
-/** Imperative handle exposed by GraphCanvas so the explorer can pan/flash nodes. */
-type GraphCanvasHandle = { focusNode: (nodeId: string) => void };
 
-/* ── File icon helpers ──────────────────────────────────────────────────────── */
+function AtlasNodeView({ data }: NodeProps<AtlasNode>) {
+  const color = colors[data.type];
+  return (
+    <div
+      className={`atlas-node atlas-node-${data.type} ${data.selected ? "is-selected" : ""}`}
+      style={{ "--node-color": color } as CSSProperties}
+      onClick={() => data.onSelect(data)}
+    >
+      <Handle type="target" position={Position.Top} className="atlas-handle" />
+      <div
+        className={`atlas-node-dot ${data.type === "file" ? fileIcon(data.label).className : ""}`}
+      >
+        <span className="material-symbols-outlined">
+          {data.type === "project"
+            ? "account_tree"
+            : data.type === "folder"
+              ? "folder"
+              : fileIcon(data.label).name}
+        </span>
+      </div>
+      <div className="atlas-node-label" title={data.path || data.label}>
+        {data.label}
+      </div>
+      {data.type !== "file" && (
+        <div className="atlas-node-kind">{data.type}</div>
+      )}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="atlas-handle"
+      />
+    </div>
+  );
+}
+
+const nodeTypes = { atlas: AtlasNodeView };
 
 function fileIcon(label: string) {
   const extension = label.toLowerCase().split(".").pop() ?? "";
@@ -129,57 +149,6 @@ function isPreviewable(node: ProjectNode) {
   return IMAGE_EXTENSIONS.has(extension) || extension === PDF_EXTENSION;
 }
 
-function getFilename(path: string): string {
-  return path.split("/").pop() ?? path;
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/* ── Atlas Node (React Flow custom node) ────────────────────────────────────── */
-
-function AtlasNodeView({ data }: NodeProps<AtlasNode>) {
-  const color = colors[data.type];
-  return (
-    <div
-      className={`atlas-node atlas-node-${data.type} ${data.selected ? "is-selected" : ""}`}
-      style={{ "--node-color": color } as CSSProperties}
-      onClick={() => data.onSelect(data)}
-    >
-      <Handle type="target" position={Position.Top} className="atlas-handle" />
-      <div
-        className={`atlas-node-dot ${data.type === "file" ? fileIcon(data.label).className : ""}`}
-      >
-        <span className="material-symbols-outlined">
-          {data.type === "project"
-            ? "account_tree"
-            : data.type === "folder"
-              ? "folder"
-              : fileIcon(data.label).name}
-        </span>
-      </div>
-      <div className="atlas-node-label" title={data.path || data.label}>
-        {data.label}
-      </div>
-      {data.type !== "file" && (
-        <div className="atlas-node-kind">{data.type}</div>
-      )}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="atlas-handle"
-      />
-    </div>
-  );
-}
-
-const nodeTypes = { atlas: AtlasNodeView };
-
-/* ── File Preview (images / PDFs in inspector) ──────────────────────────────── */
-
 function FilePreview({
   node,
   projectId,
@@ -215,77 +184,11 @@ function FilePreview({
   );
 }
 
-/* ── Function Call Panel ────────────────────────────────────────────────────── */
-
-function FunctionCallRow({ call }: { call: FunctionCall }) {
-  return (
-    <div className="fn-call-row">
-      <div className="fn-call-header">
-        <span className="fn-call-badge">{call.callee_name}</span>
-        {call.is_external && call.external_lib && (
-          <span className="fn-ext-badge">{call.external_lib}</span>
-        )}
-        {!call.is_external && call.callee_file && (
-          <span className="fn-target-file">→ {getFilename(call.callee_file)}</span>
-        )}
-      </div>
-      {call.params.length > 0 && (
-        <div className="fn-params">
-          {call.params.map((param, i) => (
-            <span key={i} className="fn-param-chip">
-              <span className="fn-param-name">{param}</span>
-              <span className={`fn-type-chip fn-type-${(call.param_types[i] ?? "any").toLowerCase()}`}>
-                {call.param_types[i] ?? "any"}
-              </span>
-            </span>
-          ))}
-        </div>
-      )}
-      <p className="fn-call-desc">{call.description}</p>
-    </div>
-  );
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-
-function FunctionCallsPanel({
-  filePath,
-  functionCalls,
-}: {
-  filePath: string;
-  functionCalls: FunctionCall[];
-}) {
-  const calls = useMemo(
-    () => functionCalls.filter((c) => c.caller_file === filePath),
-    [functionCalls, filePath],
-  );
-  const localCalls = calls.filter((c) => !c.is_external);
-  const externalCalls = calls.filter((c) => c.is_external);
-  if (!calls.length) return null;
-  return (
-    <div className="fn-panel">
-      <div className="fn-panel-head">
-        FUNCTION CALLS<span className="fn-count">{calls.length}</span>
-      </div>
-      {localCalls.length > 0 && (
-        <>
-          <div className="fn-section-label">OUTBOUND · {localCalls.length}</div>
-          {localCalls.map((call, i) => (
-            <FunctionCallRow key={i} call={call} />
-          ))}
-        </>
-      )}
-      {externalCalls.length > 0 && (
-        <>
-          <div className="fn-section-label">LIBRARY USAGE · {externalCalls.length}</div>
-          {externalCalls.map((call, i) => (
-            <FunctionCallRow key={i} call={call} />
-          ))}
-        </>
-      )}
-    </div>
-  );
-}
-
-/* ── Analysis Drawer ────────────────────────────────────────────────────────── */
 
 function AnalysisDrawer({ analysis }: { analysis: RepositoryAnalysis }) {
   const scoreColor =
@@ -446,8 +349,6 @@ function AnalysisDrawer({ analysis }: { analysis: RepositoryAnalysis }) {
   );
 }
 
-/* ── Explorer Sidebar Tree ──────────────────────────────────────────────────── */
-
 function ExplorerTree({
   graph,
   query,
@@ -522,8 +423,6 @@ function ExplorerTree({
     );
   return <>{(children.get("root") ?? []).map((node) => renderNode(node, 0))}</>;
 }
-
-/* ── Graph Layout ───────────────────────────────────────────────────────────── */
 
 function makeLayout(
   graph: ProjectGraph,
@@ -616,24 +515,25 @@ function makeLayout(
   return { nodes, edges };
 }
 
-/* ── Graph Canvas (React Flow wrapper) ──────────────────────────────────────── */
-
-const GraphCanvas = forwardRef<
-  GraphCanvasHandle,
-  {
-    graph: ProjectGraph;
-    collapsed: Set<string>;
-    selected: ProjectNode | null;
-    onSelect: (node: ProjectNode) => void;
-    onToggle: (nodeId: string) => void;
-    compact: boolean;
-    positionOffsets: ReadonlyMap<string, XYPosition>;
-    onMoveNodes: (movements: NodeMovement[]) => void;
-  }
->(function GraphCanvas(
-  { graph, collapsed, selected, onSelect, onToggle, compact, positionOffsets, onMoveNodes },
-  ref,
-) {
+function GraphCanvas({
+  graph,
+  collapsed,
+  selected,
+  onSelect,
+  onToggle,
+  compact,
+  positionOffsets,
+  onMoveNodes,
+}: {
+  graph: ProjectGraph;
+  collapsed: Set<string>;
+  selected: ProjectNode | null;
+  onSelect: (node: ProjectNode) => void;
+  onToggle: (nodeId: string) => void;
+  compact: boolean;
+  positionOffsets: ReadonlyMap<string, XYPosition>;
+  onMoveNodes: (movements: NodeMovement[]) => void;
+}) {
   const { fitView, zoomIn, zoomOut } = useReactFlow();
   const parentById = useMemo(() => {
     const parents = new Map<string, string>();
@@ -668,20 +568,6 @@ const GraphCanvas = forwardRef<
   const previousCompact = useRef(compact);
   const nodesRef = useRef(nodes);
   const dragStart = useRef<Map<string, XYPosition>>(new Map());
-
-  /* Expose focusNode() to parent via ref so the explorer sidebar can pan + flash */
-  useImperativeHandle(ref, () => ({
-    focusNode: (nodeId: string) => {
-      fitView({ nodes: [{ id: nodeId }], padding: 0.35, duration: 500 });
-      setTimeout(() => {
-        const el = document.querySelector(`[data-id="${nodeId}"] .atlas-node`);
-        if (el) {
-          el.classList.add("is-flashing");
-          setTimeout(() => el.classList.remove("is-flashing"), 1600);
-        }
-      }, 200);
-    },
-  }), [fitView]);
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -895,15 +781,10 @@ const GraphCanvas = forwardRef<
       </div>
     </div>
   );
-});
-
-/* ── Home Page (root workspace) ─────────────────────────────────────────────── */
+}
 
 function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
-  /** Ref to the graph canvas — used to programmatically pan + flash a node. */
-  const graphRef = useRef<GraphCanvasHandle>(null);
-
   const [graph, setGraph] = useState<ProjectGraph | null>(null);
   const [parsingFile, setParsingFile] = useState<File | null>(null);
   const [parsingUploadId, setParsingUploadId] = useState("");
@@ -1020,29 +901,18 @@ function Home() {
     });
   };
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("codeatlas-theme", theme);
-  }, [theme]);
+    useEffect(() => {
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem("codeatlas-theme", theme);
+    }, [theme]);
 
-  const toggleFolder = useCallback((nodeId: string) => {
-    setCollapsed((current) => {
-      const next = new Set(current);
-      if (next.has(nodeId)) next.delete(nodeId);
-      else next.add(nodeId);
-      return next;
-    });
-  }, []);
+    const handleSelect = useCallback((node: ProjectNode) => {
+        setSelected(node);
+    }, []);
 
-  /**
-   * Explorer sidebar click handler.
-   * Selects the node AND pans / flashes it in the graph canvas.
-   * Also opens the inspector if it is collapsed.
-   */
   const handleSelect = useCallback(
     (node: ProjectNode) => {
       setSelected(node);
-      graphRef.current?.focusNode(node.id);
       if (inspectorCollapsed) {
         localStorage.setItem("ca-inspector-collapsed", "0");
         setInspectorCollapsed(false);
@@ -1129,81 +999,29 @@ function Home() {
     };
   }, [collapsed, graph]);
 
-  const chooseFile = async (file?: File) => {
-    if (!file) return;
-    setError("");
-    const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    setParsingUploadId(uploadId);
-    setParsingFile(file);
-  };
+    const chooseFile = async (file?: File) => {
+        if (!file) return;
+        setError("");
+        const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        setParsingUploadId(uploadId);
+        setParsingFile(file);
+    };
 
-  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    void chooseFile(event.target.files?.[0]);
-    event.target.value = "";
-  };
+    const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        void chooseFile(event.target.files?.[0]);
+        event.target.value = "";
+    };
 
-  const folderIds = useMemo(
-    () =>
-      graph?.nodes
-        .filter((node) => node.type === "folder")
-        .map((node) => node.id) ?? [],
-    [graph],
-  );
-  const collapseAll = useCallback(
-    () => setCollapsed(new Set(folderIds)),
-    [folderIds],
-  );
-  const expandAll = useCallback(() => setCollapsed(new Set()), []);
-
-  const gridCols = explorerCollapsed
-    ? inspectorCollapsed
-      ? "grid-cols-[0_0_minmax(0,1fr)_0_0]"
-      : "grid-cols-[0_0_minmax(0,1fr)_4px_var(--inspector-width,245px)]"
-    : inspectorCollapsed
-      ? "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_0_0]"
-      : "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_4px_var(--inspector-width,245px)]";
-  const gridRows = analysisOpen
-    ? "grid-rows-[minmax(0,1fr)_4px_auto]"
-    : "grid-rows-[minmax(0,1fr)_0_0]";
-
-  return (
-    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">
-      <header className="relative z-[2] flex h-[72px] items-center justify-between border-b border-[#2b3030] px-[42px] light:border-[#d6dfda] max-[850px]:px-[18px]">
-        <div className="flex items-center gap-[11px] font-dm text-[14px] font-medium tracking-[.16em] light:text-[#202824]">
-          <span className="text-[22px] text-[#f2b84b]">✦</span>
-          <span>CODEATLAS</span>
-          <small className="ml-3 text-[9px] tracking-[.1em] text-[#777e7d] light:text-[#71807a] max-[850px]:hidden">
-            V1 / MILESTONE 1
-          </small>
-        </div>
-        <div className="flex items-center gap-[27px] font-dm text-[11px]">
-          <span className="text-[#7d8784] light:text-[#71807a] max-[850px]:hidden">
-            <i className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#64d5c4] shadow-[0_0_12px_#64d5c4]" />{" "}
-            API CONNECTED
-          </span>
-          <button
-            className="border border-[#596260] bg-transparent px-3 py-[10px] font-dm text-[10px] tracking-[.05em] text-[#aeb8b3] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:text-[#405149] max-[850px]:hidden"
-            onClick={() =>
-              setTheme((value) => (value === "dark" ? "light" : "dark"))
-            }
-            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-          >
-            {theme === "dark" ? "☼ LIGHT" : "◐ DARK"}
-          </button>
-          <button
-            className="border border-[#596260] bg-transparent px-3 py-[10px] font-dm text-[10px] tracking-[.05em] text-[#aeb8b3] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:text-[#405149] max-[850px]:hidden"
-            onClick={() => setStateLabOpen((value) => !value)}
-          >
-            STATE LAB
-          </button>
-          <button
-            className="border border-[#596260] bg-transparent px-[14px] py-[10px] font-dm text-[11px] tracking-[.04em] text-[#eff0ed] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:text-[#202824]"
-            onClick={() => inputRef.current?.click()}
-          >
-            + NEW PROJECT
-          </button>
-        </div>
-      </header>
+    return (
+        <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">
+            <TopBar
+                theme={theme}
+                onToggleTheme={() =>
+                    setTheme((value) => (value === "dark" ? "light" : "dark"))
+                }
+                onToggleStateLab={() => setStateLabOpen((value) => !value)}
+                onNewProject={() => inputRef.current?.click()}
+            />
 
       {parsingFile ? (
         <ParsingScreen
@@ -1300,7 +1118,6 @@ function Home() {
             } as CSSProperties
           }
         >
-          {/* ── Left: Project Explorer ── */}
           <aside
             className={`${PANEL} relative overflow-hidden overflow-y-auto px-4 py-5 col-start-1 row-start-1 max-[850px]:order-2 max-[850px]:min-h-[220px]`}
           >
@@ -1336,9 +1153,8 @@ function Home() {
                 <div className="mt-[15px] max-h-[calc(100vh-250px)] overflow-auto pr-0.5 max-[850px]:max-h-[180px]">
                   <ExplorerTree
                     graph={graph}
-                    query={query}
+                    projectId={projectId}
                     selected={selected}
-                    collapsed={collapsed}
                     onSelect={handleSelect}
                     onToggle={toggleFolder}
                   />
@@ -1375,8 +1191,6 @@ function Home() {
             className={`relative z-[5] col-start-2 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "explorer" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} max-[850px]:hidden`}
             onPointerDown={startResize("explorer")}
           />
-
-          {/* ── Centre: Graph Canvas ── */}
           <div
             className={`${PANEL} relative col-start-3 row-start-1 flex flex-col overflow-hidden max-[850px]:min-h-[600px]`}
           >
@@ -1426,7 +1240,6 @@ function Home() {
             </div>
             <ReactFlowProvider>
               <GraphCanvas
-                ref={graphRef}
                 graph={graph}
                 collapsed={collapsed}
                 selected={selected}
@@ -1438,13 +1251,10 @@ function Home() {
               />
             </ReactFlowProvider>
           </div>
-
           <div
             className={`relative z-[5] col-start-4 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "inspector" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} max-[850px]:hidden`}
             onPointerDown={startResize("inspector")}
           />
-
-          {/* ── Right: Inspector ── */}
           <aside
             className={`${PANEL} relative overflow-hidden px-4 py-5 col-start-5 row-start-1 max-[850px]:order-3 max-[850px]:min-h-[300px]`}
           >
@@ -1553,16 +1363,6 @@ function Home() {
                         CONTAINS / IMPORTS
                       </strong>
                     </div>
-                    {/* Function call intelligence panel */}
-                    {selected.type === "file" &&
-                      graph.function_calls &&
-                      graph.function_calls.length > 0 && (
-                        <FunctionCallsPanel
-                          filePath={selected.path}
-                          functionCalls={graph.function_calls}
-                        />
-                      )}
-                    {/* Image / PDF preview */}
                     {projectId && isPreviewable(selected) && (
                       <FilePreview node={selected} projectId={projectId} />
                     )}

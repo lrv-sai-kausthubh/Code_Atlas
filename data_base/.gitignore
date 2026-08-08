@@ -1,2 +1,3 @@
 uploads/
 users.json
+.secret_key

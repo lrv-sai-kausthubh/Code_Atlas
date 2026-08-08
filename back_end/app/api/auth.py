@@ -17,6 +17,7 @@ from .routes import _download_github_repo_zip, _extract_and_analyze, _new_upload
 router = APIRouter()
 
 USERS_FILE = Path(__file__).resolve().parents[3] / "data_base" / "users.json"
+SECRET_KEY_FILE = Path(__file__).resolve().parents[3] / "data_base" / ".secret_key"
 AUTH_LOCK = threading.Lock()
 
 SESSIONS: dict[str, dict] = {}
@@ -26,6 +27,50 @@ GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "")
 GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 BACKEND_BASE = os.environ.get("BACKEND_BASE", "http://localhost:8000")
+
+
+def _get_fernet():
+    """Return a Fernet instance for encrypting OAuth tokens at rest.
+
+    Uses CODEATLAS_SECRET_KEY if set; otherwise loads (or creates) a random
+    key file at data_base/.secret_key. The key file is git-ignored.
+    """
+    from cryptography.fernet import Fernet
+
+    key = os.environ.get("CODEATLAS_SECRET_KEY", "").strip()
+    if not key:
+        if SECRET_KEY_FILE.exists():
+            key = SECRET_KEY_FILE.read_text(encoding="utf-8").strip()
+        else:
+            SECRET_KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            key = Fernet.generate_key().decode("ascii")
+            SECRET_KEY_FILE.write_text(key, encoding="utf-8")
+            try:
+                os.chmod(SECRET_KEY_FILE, 0o600)
+            except OSError:
+                pass
+    return Fernet(key.encode("ascii"))
+
+
+def _encrypt_token(token: str) -> str:
+    if not token:
+        return token
+    return _get_fernet().encrypt(token.encode("utf-8")).decode("ascii")
+
+
+def _decrypt_token(blob: str) -> str:
+    if not blob:
+        return blob
+    if not blob.startswith("gAAAA"):
+        return blob  # legacy plaintext token (already migrated in-memory on load)
+    try:
+        return _get_fernet().decrypt(blob.encode("ascii")).decode("utf-8")
+    except Exception:
+        return ""
+
+
+def _github_token_for_user(user: dict) -> str:
+    return _decrypt_token((user or {}).get("github_access_token", "") or "")
 
 
 class RegisterRequest(BaseModel):
@@ -54,7 +99,16 @@ def _load_users() -> None:
         return
     try:
         with open(USERS_FILE, "r", encoding="utf-8") as file:
-            USERS.update(json.load(file))
+            loaded = json.load(file)
+        migrated = False
+        for user in loaded.values():
+            token = user.get("github_access_token", "")
+            if token and not token.startswith("gAAAA"):
+                user["github_access_token"] = _encrypt_token(token)
+                migrated = True
+        USERS.update(loaded)
+        if migrated:
+            _save_users()
     except (json.JSONDecodeError, OSError):
         USERS.clear()
 
@@ -155,7 +209,7 @@ def github_callback(code: str):
         if user:
             user["name"] = name
             user["github_login"] = login
-            user["github_access_token"] = access_token
+            user["github_access_token"] = _encrypt_token(access_token)
             user["avatar_url"] = user_info.get("avatar_url")
         else:
             salt = secrets.token_hex(8)
@@ -165,7 +219,7 @@ def github_callback(code: str):
                 "salt": salt,
                 "password_hash": _hash_password(secrets.token_hex(16), salt),
                 "github_login": login,
-                "github_access_token": access_token,
+                "github_access_token": _encrypt_token(access_token),
                 "avatar_url": user_info.get("avatar_url"),
                 "created_at": time.time(),
             }
@@ -239,7 +293,7 @@ def github_repos(token: str):
     if not session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     user = USERS.get(session.get("email"))
-    access_token = (user or {}).get("github_access_token")
+    access_token = _github_token_for_user(user)
     if not access_token:
         raise HTTPException(status_code=400, detail="Connect a GitHub account to list your repositories.")
     try:
@@ -283,7 +337,7 @@ def _import_github_repo(upload_id: str, repo_url: str, token: str) -> None:
             _update_upload_task(upload_id, status="error", error="Session expired.")
             return
         user = USERS.get(session.get("email"))
-        access_token = (user or {}).get("github_access_token")
+        access_token = _github_token_for_user(user)
         if not access_token:
             _update_upload_task(upload_id, status="error", error="Connect a GitHub account first.")
             return

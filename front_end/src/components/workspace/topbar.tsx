@@ -3,11 +3,13 @@ function TopBar({
     onToggleTheme,
     onToggleStateLab,
     onNewProject,
+    onLogout,
 }: {
     theme: "dark" | "light";
     onToggleTheme: () => void;
     onToggleStateLab: () => void;
     onNewProject: () => void;
+    onLogout: () => void;
 }) {
     return (
         <header className="relative z-[2] flex h-[72px] items-center justify-between border-b border-[#2b3030] px-[42px] light:border-[#d6dfda] max-[850px]:px-[18px]">
@@ -41,6 +43,13 @@ function TopBar({
                     onClick={onNewProject}
                 >
                     + NEW PROJECT
+                </button>
+                <button
+                    className="border border-[#596260] bg-transparent px-[14px] py-[10px] font-dm text-[11px] tracking-[.04em] text-[#aeb8b3] transition-colors hover:border-[#f17c71] hover:text-[#f17c71] light:border-[#b8c8c0] light:text-[#405149]"
+                    onClick={onLogout}
+                    aria-label="Sign out"
+                >
+                    LOG OUT
                 </button>
             </div>
         </header>

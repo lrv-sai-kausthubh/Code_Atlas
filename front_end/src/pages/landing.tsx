@@ -1,4 +1,5 @@
 import Navbar from "../components/navbar";
+import { toastLoading, toastSuccess, toastValidation } from "../services/toast";
 
 type LandingProps = {
     onGetStarted: () => void;
@@ -37,9 +38,20 @@ function CanvasMock() {
 }
 
 function Landing({ onGetStarted }: LandingProps) {
+    const bookDemo = () => toastLoading("Opening demo scheduler…");
+    const showAssistant = () => toastSuccess("AI Assistant will guide you through your codebase once you sign in.");
+    const showSettings = () => toastValidation("Settings are available from your workspace after signing in.");
+    const comingSoon = (label: string) => (event: { preventDefault: () => void }) => {
+        event.preventDefault();
+        toastLoading(`${label} is coming soon.`);
+    };
+    const joinNewsletter = (event: { preventDefault: () => void }) => {
+        event.preventDefault();
+        toastSuccess("Subscribed. Watch your inbox for architecture insights.");
+    };
     return (
         <div className="min-h-screen bg-[#080a0d] text-[#dfe2eb] font-inter overflow-x-hidden">
-            <Navbar onGetStarted={onGetStarted} />
+            <Navbar onGetStarted={onGetStarted} onAssistant={showAssistant} onSettings={showSettings} />
 
             <section className="relative min-h-screen flex items-center justify-center pt-14 overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(rgba(48,54,61,.5)_1px,transparent_1px)] bg-[size:24px_24px] opacity-20" />
@@ -48,8 +60,8 @@ function Landing({ onGetStarted }: LandingProps) {
                     <h1 className="font-space text-[clamp(40px,7vw,64px)] leading-[1.05] tracking-[-.02em] font-bold mt-0 mb-6">Map Your Architecture, <span className="text-[#007aff]">Not Just Your Files.</span></h1>
                     <p className="text-[#c1c6d7] text-[15px] leading-[1.6] max-w-[620px] mx-auto mt-0 mb-10">The first AI-native semantic engine that visualizes your codebase&apos;s hidden logic. Traverse dependencies, debug flows, and refactor with surgical precision.</p>
                     <div className="flex gap-4 justify-center flex-wrap">
-                        <button className="px-8 py-4 font-space text-base font-semibold border border-[#007aff] bg-[#007aff] text-white cursor-pointer shadow-[4px_4px_0_0_#00285c] transition-[filter,box-shadow,transform] duration-150 hover:brightness-110 active:shadow-none active:translate-x-1 active:translate-y-1" onClick={onGetStarted}>Get Started for Free</button>
-                        <button className="px-8 py-4 font-space text-base font-semibold border border-[#30363d] bg-transparent text-[#dfe2eb] cursor-pointer backdrop-blur-[6px] transition-colors duration-150 hover:bg-[#262a31]">Book a Demo</button>
+                        <button onClick={onGetStarted} className="px-8 py-4 font-space text-base font-semibold border border-[#007aff] bg-[#007aff] text-white cursor-pointer shadow-[4px_4px_0_0_#00285c] transition-[filter,box-shadow,transform] duration-150 hover:brightness-110 active:shadow-none active:translate-x-1 active:translate-y-1">Get Started for Free</button>
+                        <button onClick={bookDemo} className="px-8 py-4 font-space text-base font-semibold border border-[#30363d] bg-transparent text-[#dfe2eb] cursor-pointer backdrop-blur-[6px] transition-colors duration-150 hover:bg-[#262a31]">Book a Demo</button>
                     </div>
                 </div>
             </section>
@@ -170,25 +182,25 @@ function Landing({ onGetStarted }: LandingProps) {
                     </div>
                     <div>
                         <h5 className="font-jet text-[10px] tracking-[.05em] uppercase text-[#dfe2eb] mt-0 mb-6">Product</h5>                        <ul className="list-none mt-0 mb-0 p-0 flex flex-col gap-4">
-                            <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Features</a></li>
-                            <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Pricing</a></li>
-                            <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">API Docs</a></li>
-                            <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Security</a></li>
+                            <li><a href="#" onClick={comingSoon("Features")} className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Features</a></li>
+                            <li><a href="#" onClick={comingSoon("Pricing")} className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Pricing</a></li>
+                            <li><a href="#" onClick={comingSoon("API Docs")} className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">API Docs</a></li>
+                            <li><a href="#" onClick={comingSoon("Security")} className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Security</a></li>
                         </ul>
                     </div>
                     <div>
                         <h5 className="font-jet text-[10px] tracking-[.05em] uppercase text-[#dfe2eb] mt-0 mb-6">Company</h5>
                         <ul className="list-none mt-0 mb-0 p-0 flex flex-col gap-4">
-                            <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">About</a></li>
-                            <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Blog</a></li>
-                            <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Careers</a></li>
-                            <li><a href="#" className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Contact</a></li>
+                            <li><a href="#" onClick={comingSoon("About")} className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">About</a></li>
+                            <li><a href="#" onClick={comingSoon("Blog")} className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Blog</a></li>
+                            <li><a href="#" onClick={comingSoon("Careers")} className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Careers</a></li>
+                            <li><a href="#" onClick={comingSoon("Contact")} className="text-[#c1c6d7] text-xs no-underline transition-colors duration-150 hover:text-[#007aff]">Contact</a></li>
                         </ul>
                     </div>
                     <div>
                         <h5 className="font-jet text-[10px] tracking-[.05em] uppercase text-[#dfe2eb] mt-0 mb-6">Stay in the Flow</h5>
                         <p style={{ color: "#c1c6d7", fontSize: 12, margin: 0 }}>Get architecture tips and platform updates.</p>
-                        <form className="flex border border-[#30363d] bg-[#10141a] p-1 mt-6" onSubmit={(event) => event.preventDefault()}>
+                        <form className="flex border border-[#30363d] bg-[#10141a] p-1 mt-6" onSubmit={joinNewsletter}>
                             <input type="email" placeholder="email@company.com" className="flex-1 bg-transparent border-0 outline-none text-[#dfe2eb] px-3 py-2 font-inter text-xs" />
                             <button type="submit" className="bg-[#007aff] text-white border-0 px-5 py-2 font-jet text-[10px] tracking-[.05em] uppercase cursor-pointer">Join</button>
                         </form>
@@ -197,8 +209,8 @@ function Landing({ onGetStarted }: LandingProps) {
                 <div className="max-w-[1160px] mx-auto flex flex-wrap gap-6 justify-between items-center pt-8 border-t border-[rgba(48,54,61,.5)] text-[10px] text-[#c1c6d7]">
                     <span>© 2026 CODE ATLAS TECHNOLOGIES INC. ALL RIGHTS RESERVED.</span>
                     <div style={{ display: "flex", gap: 24 }}>
-                        <a href="#" className="text-[#c1c6d7] no-underline transition-colors duration-150 hover:text-[#dfe2eb]">Privacy Policy</a>
-                        <a href="#" className="text-[#c1c6d7] no-underline transition-colors duration-150 hover:text-[#dfe2eb]">Terms of Service</a>
+                        <a href="#" onClick={comingSoon("Privacy Policy")} className="text-[#c1c6d7] no-underline transition-colors duration-150 hover:text-[#dfe2eb]">Privacy Policy</a>
+                        <a href="#" onClick={comingSoon("Terms of Service")} className="text-[#c1c6d7] no-underline transition-colors duration-150 hover:text-[#dfe2eb]">Terms of Service</a>
                     </div>
                 </div>
             </footer>

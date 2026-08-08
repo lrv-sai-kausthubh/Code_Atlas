@@ -56,4 +56,28 @@ export const projectFileUrl = (projectId: string, path: string) =>
 
 export const listPreviewableFiles = (projectId: string) => api.get<{ files: string[] }>(`/api/projects/${encodeURIComponent(projectId)}/previewable`);
 
+export type GitHubRepo = {
+    full_name: string;
+    name: string;
+    private: boolean;
+    language: string | null;
+    description: string | null;
+    default_branch: string;
+};
+
+export const register = (name: string, email: string, password: string) =>
+    api.post<{ token: string; user: { email: string; name: string; github_login?: string | null } }>("/api/auth/register", { name, email, password });
+
+export const login = (email: string, password: string) =>
+    api.post<{ token: string; user: { email: string; name: string; github_login?: string | null } }>("/api/auth/login", { email, password });
+
+export const logout = (token: string) => api.post<{ status: string }>("/api/auth/logout", { token });
+
+export const getMe = (token: string) => api.get<{ user: { email: string; name: string; github_login?: string | null } }>("/api/auth/me", { params: { token } });
+
+export const listGitHubRepos = (token: string) => api.get<{ repos: GitHubRepo[] }>("/api/auth/github/repos", { params: { token }, silent: true } as AtlasRequestConfig);
+
+export const importConnectedRepo = (repoUrl: string, uploadId: string, token: string) =>
+    api.post<{ upload_id: string; status: string }>("/api/auth/github/import", { repo_url: repoUrl, upload_id: uploadId, token });
+
 export default api;

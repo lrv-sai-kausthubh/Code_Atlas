@@ -8,14 +8,17 @@ import TopBar from "../components/workspace/topbar";
 import WorkspaceLayout from "../components/workspace/workspace-layout";
 import { toastEmpty } from "../services/toast";
 import type { ProjectGraph, ProjectNode } from "../types/project";
+import type { GitHubRepo } from "../services/api";
 
-function Home() {
+function Home({ onLogout }: { onLogout: () => void }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [graph, setGraph] = useState<ProjectGraph | null>(null);
     const [parsingFile, setParsingFile] = useState<File | null>(null);
     const [parsingRepoUrl, setParsingRepoUrl] = useState("");
+    const [parsingConnectedRepo, setParsingConnectedRepo] = useState<GitHubRepo | null>(null);
     const [parsingUploadId, setParsingUploadId] = useState("");
     const [githubUrl, setGithubUrl] = useState("");
+    const [githubToken] = useState(() => localStorage.getItem("codeatlas-token") ?? "");
     const [projectId, setProjectId] = useState("");
     const [selected, setSelected] = useState<ProjectNode | null>(null);
     const [positionOffsets, setPositionOffsets] = useState<
@@ -49,6 +52,7 @@ function Home() {
         setParsingUploadId(uploadId);
         setParsingFile(file);
         setParsingRepoUrl("");
+        setParsingConnectedRepo(null);
     };
 
     const chooseGithubUrl = () => {
@@ -62,11 +66,33 @@ function Home() {
         setParsingUploadId(uploadId);
         setParsingRepoUrl(url);
         setParsingFile(null);
+        setParsingConnectedRepo(null);
+    };
+
+    const chooseConnectedRepo = (repo: GitHubRepo) => {
+        setError("");
+        const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        setParsingUploadId(uploadId);
+        setParsingConnectedRepo(repo);
+        setParsingFile(null);
+        setParsingRepoUrl("");
     };
 
     const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         void chooseFile(event.target.files?.[0]);
         event.target.value = "";
+    };
+
+    const goBackToUpload = () => {
+        setGraph(null);
+        setProjectId("");
+        setSelected(null);
+        setPositionOffsets(new Map());
+        setError("");
+        setGithubUrl("");
+        setParsingFile(null);
+        setParsingRepoUrl("");
+        setParsingConnectedRepo(null);
     };
 
     return (
@@ -77,13 +103,16 @@ function Home() {
                     setTheme((value) => (value === "dark" ? "light" : "dark"))
                 }
                 onToggleStateLab={() => setStateLabOpen((value) => !value)}
-                onNewProject={() => inputRef.current?.click()}
+                onNewProject={goBackToUpload}
+                onLogout={onLogout}
             />
 
-            {parsingFile || parsingRepoUrl ? (
+            {parsingFile || parsingRepoUrl || parsingConnectedRepo ? (
                 <ParsingScreen
                     file={parsingFile ?? undefined}
                     repoUrl={parsingRepoUrl || undefined}
+                    connectedRepo={parsingConnectedRepo ?? undefined}
+                    authToken={parsingConnectedRepo ? githubToken : undefined}
                     uploadId={parsingUploadId}
                     onComplete={(nextGraph) => {
                         setGraph(nextGraph);
@@ -92,6 +121,7 @@ function Home() {
                         setSelected(nextGraph.nodes[0] ?? null);
                         setParsingFile(null);
                         setParsingRepoUrl("");
+                        setParsingConnectedRepo(null);
                         setGithubUrl("");
                         if (!nextGraph.files || nextGraph.files === 0) {
                             toastEmpty("This archive contains no analyzable files.");
@@ -101,10 +131,12 @@ function Home() {
                         setError(message);
                         setParsingFile(null);
                         setParsingRepoUrl("");
+                        setParsingConnectedRepo(null);
                     }}
                     onCancel={() => {
                         setParsingFile(null);
                         setParsingRepoUrl("");
+                        setParsingConnectedRepo(null);
                         setError("Upload cancelled.");
                     }}
                 />
@@ -113,6 +145,7 @@ function Home() {
                     dragging={dragging}
                     error={error}
                     githubUrl={githubUrl}
+                    githubToken={githubToken}
                     onBrowse={() => inputRef.current?.click()}
                     onDragOver={(event) => {
                         event.preventDefault();
@@ -126,6 +159,7 @@ function Home() {
                     }}
                     onGitHubUrlChange={setGithubUrl}
                     onGitHubImport={chooseGithubUrl}
+                    onGitHubRepoImport={chooseConnectedRepo}
                 />
             ) : (
                 <WorkspaceLayout

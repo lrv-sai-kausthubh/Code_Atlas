@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { cancelUpload, getUploadProgress, getUploadResult, importGithubProject, uploadProject } from "../services/api";
+import { cancelUpload, getUploadProgress, getUploadResult, importConnectedRepo, importGithubProject, uploadProject } from "../services/api";
+import type { GitHubRepo } from "../services/api";
 import { toastLoading, toastSuccess, toastDismiss } from "../services/toast";
 import type { ProjectGraph, UploadProgress } from "../types/project";
 
@@ -35,6 +36,8 @@ function formatBytes(bytes: number) {
 type ParsingScreenProps = {
     file?: File;
     repoUrl?: string;
+    connectedRepo?: GitHubRepo;
+    authToken?: string;
     uploadId: string;
     onComplete: (graph: ProjectGraph) => void;
     onError: (message: string) => void;
@@ -46,9 +49,14 @@ function repoDisplayName(repoUrl: string) {
     return parts[parts.length - 1] || repoUrl;
 }
 
-export default function ParsingScreen({ file, repoUrl, uploadId, onComplete, onError, onCancel }: ParsingScreenProps) {
-    const isGithub = Boolean(repoUrl);
-    const projectName = isGithub ? repoDisplayName(repoUrl as string) : file?.name ?? "";
+export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken, uploadId, onComplete, onError, onCancel }: ParsingScreenProps) {
+    const isGithub = Boolean(repoUrl) || Boolean(connectedRepo);
+    const isConnectedRepo = Boolean(connectedRepo);
+    const projectName = isConnectedRepo
+        ? (connectedRepo as GitHubRepo).full_name
+        : isGithub
+            ? repoDisplayName(repoUrl as string)
+            : file?.name ?? "";
     const [serverProgress, setServerProgress] = useState<UploadProgress | null>(null);
     const [networkPct, setNetworkPct] = useState(0);
     const [uploadStartedAt] = useState(() => Date.now());
@@ -74,11 +82,13 @@ export default function ParsingScreen({ file, repoUrl, uploadId, onComplete, onE
 
     useEffect(() => {
         const loadingId = toastLoading(`Analyzing ${projectName}…`);
-        const startRequest = isGithub
-            ? importGithubProject(repoUrl as string, uploadId)
-            : uploadProject(file as File, uploadId, (event) => {
-                if (event.total) setNetworkPct((event.loaded / event.total) * 100);
-            });
+        const startRequest = isConnectedRepo
+            ? importConnectedRepo(`https://github.com/${(connectedRepo as GitHubRepo).full_name}`, uploadId, authToken as string)
+            : isGithub
+                ? importGithubProject(repoUrl as string, uploadId)
+                : uploadProject(file as File, uploadId, (event) => {
+                    if (event.total) setNetworkPct((event.loaded / event.total) * 100);
+                });
         void startRequest.then((response) => {
             const body = response.data as { status?: string };
             if (body.status === "error") {
@@ -94,7 +104,7 @@ export default function ParsingScreen({ file, repoUrl, uploadId, onComplete, onE
         return () => {
             toastDismiss(loadingId);
         };
-    }, [file, isGithub, onError, projectName, repoUrl, uploadId]);
+    }, [authToken, connectedRepo, file, isConnectedRepo, isGithub, onError, projectName, repoUrl, uploadId]);
 
     useEffect(() => {
         const interval = setInterval(() => {

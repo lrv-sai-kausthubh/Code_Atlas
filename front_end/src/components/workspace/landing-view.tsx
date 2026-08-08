@@ -3,17 +3,23 @@ import type { DragEvent } from "react";
 function LandingView({
     dragging,
     error,
+    githubUrl,
     onBrowse,
     onDragOver,
     onDragLeave,
     onDrop,
+    onGitHubUrlChange,
+    onGitHubImport,
 }: {
     dragging: boolean;
     error: string;
+    githubUrl: string;
     onBrowse: () => void;
     onDragOver: (event: DragEvent) => void;
     onDragLeave: () => void;
     onDrop: (event: DragEvent) => void;
+    onGitHubUrlChange: (value: string) => void;
+    onGitHubImport: () => void;
 }) {
     return (
         <section className="relative mx-auto max-w-[850px] px-[30px] pb-20 pt-[126px] max-[850px]:pt-[90px]">
@@ -45,6 +51,31 @@ function LandingView({
                 </span>
             </button>
             {error && <p className="font-dm text-xs text-[#f28b78]">{error}</p>}
+            <div className="my-5 flex w-full max-w-[570px] items-center gap-4 font-dm text-[11px] tracking-[.14em] text-[#65706c]">
+                <span className="h-px flex-1 bg-[#2a3330] light:bg-[#d3ddd6]" />
+                <span>OR</span>
+                <span className="h-px flex-1 bg-[#2a3330] light:bg-[#d3ddd6]" />
+            </div>
+            <div className="flex w-full max-w-[570px] gap-3">
+                <input
+                    type="text"
+                    value={githubUrl}
+                    onChange={(event) => onGitHubUrlChange(event.target.value)}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter") onGitHubImport();
+                    }}
+                    placeholder="https://github.com/owner/repository"
+                    className="min-w-0 flex-1 border border-[#626b66] bg-[rgba(27,33,32,.6)] px-4 py-3 font-dm text-[13px] text-[#eef0eb] outline-none transition-[border-color] duration-200 placeholder:text-[#7e8985] focus:border-[#64d5c4] light:border-[#8ba49a] light:bg-[rgba(246,248,245,.86)] light:text-[#202824] light:placeholder:text-[#61716a] light:focus:border-[#398f83]"
+                />
+                <button
+                    type="button"
+                    onClick={onGitHubImport}
+                    disabled={!githubUrl.trim()}
+                    className="border border-[#64d5c4] bg-[rgba(48,82,77,.22)] px-6 py-3 font-dm text-[13px] tracking-[.08em] text-[#64d5c4] transition-[background,border-color,opacity] duration-200 hover:bg-[rgba(100,213,196,.3)] disabled:pointer-events-none disabled:opacity-40 light:border-[#398f83] light:bg-[#e3ece7] light:text-[#398f83]"
+                >
+                    IMPORT
+                </button>
+            </div>
             <div className="mt-[38px] flex gap-[34px] font-dm text-[11px] text-[#65706c]">
                 <span>
                     <b className="mr-[7px] font-normal text-[#f2b84b]">01</b> Upload

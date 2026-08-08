@@ -6,6 +6,8 @@ from pathlib import Path, PurePosixPath
 import re
 import shutil
 import uuid
+import urllib.error
+import urllib.request
 import zipfile
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
@@ -584,13 +586,22 @@ def _progress_snapshot(task: dict) -> dict:
     return {key: value for key, value in task.items() if key != "result"}
 
 
-def _extract_and_analyze(upload_id: str, content: bytes, filename: str) -> None:
+def _extract_and_analyze(upload_id: str, content: bytes, filename: str, strip_root: bool = False) -> None:
     started = time.monotonic()
     project_id = uuid.uuid4().hex
     PROJECTS_ROOT.mkdir(parents=True, exist_ok=True)
     extraction_root = (PROJECTS_ROOT / project_id).resolve()
     try:
         with zipfile.ZipFile(BytesIO(content)) as archive:
+            root_prefix = None
+            if strip_root:
+                first_components = {
+                    PurePosixPath(info.filename).parts[0]
+                    for info in archive.infolist()
+                    if PurePosixPath(info.filename).parts
+                }
+                if len(first_components) == 1:
+                    root_prefix = next(iter(first_components))
             infos = [info for info in archive.infolist() if not info.is_dir() and not is_ignored(PurePosixPath(info.filename))]
             total_files = len(infos)
             total_uncompressed = sum(info.file_size for info in infos)
@@ -605,6 +616,8 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str) -> None:
             file_lines = {}
             for info in archive.infolist():
                 member_path = PurePosixPath(info.filename)
+                if root_prefix and member_path.parts and member_path.parts[0] == root_prefix:
+                    member_path = PurePosixPath(*member_path.parts[1:])
                 if member_path.is_absolute() or ".." in member_path.parts or is_ignored(member_path):
                     continue
                 destination = (extraction_root / Path(*member_path.parts)).resolve()
@@ -735,6 +748,72 @@ async def upload_project(file: UploadFile = File(...), upload_id: str = Form(...
 
     task = _new_upload_task(upload_id)
     threading.Thread(target=_extract_and_analyze, args=(upload_id, content, file.filename), daemon=True).start()
+    return {"upload_id": upload_id, "status": task["status"]}
+
+
+def _parse_github_url(url: str) -> tuple[str, str, str] | None:
+    """Extract (owner, repo, branch) from common GitHub URLs."""
+    cleaned = url.strip().rstrip("/")
+    if cleaned.endswith(".git"):
+        cleaned = cleaned[:-4]
+    match = re.match(r"^https?://github\.com/([^/\s]+)/([^/\s#?]+)(?:/tree/([^/\s]+))?$", cleaned)
+    if match:
+        owner, repo, branch = match.groups()
+        return owner, repo, branch or "main"
+    match = re.match(r"^git@github\.com:([^/\s]+)/([^/\s]+)(?:\.git)?$", url.strip())
+    if match:
+        owner, repo = match.groups()
+        return owner, repo.removesuffix(".git"), "main"
+    return None
+
+
+def _download_github_repo_zip(owner: str, repo: str, branch: str) -> bytes:
+    """Download a repository as a ZIP archive from GitHub's codeload endpoint."""
+    headers = {"User-Agent": "CodeAtlas"}
+    errors: list[str] = []
+    for candidate_branch in (branch, "main", "master"):
+        url = f"https://codeload.github.com/{owner}/{repo}/zip/refs/heads/{candidate_branch}"
+        try:
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, timeout=60) as response:
+                content = response.read()
+            if not content.startswith(b"PK\x03\x04"):
+                errors.append(f"Repository returned an invalid archive for branch '{candidate_branch}'.")
+                continue
+            return content
+        except urllib.error.HTTPError as error:
+            errors.append(f"Branch '{candidate_branch}' returned HTTP {error.code}.")
+        except urllib.error.URLError as error:
+            errors.append(f"Network error for branch '{candidate_branch}': {error.reason}")
+    raise HTTPException(status_code=400, detail="Could not download the repository: " + " ".join(errors))
+
+
+def _import_github_and_analyze(upload_id: str, url: str) -> None:
+    """Download a GitHub repository and run it through the standard analysis pipeline."""
+    try:
+        parsed = _parse_github_url(url)
+        if not parsed:
+            _update_upload_task(upload_id, status="error", error="Invalid GitHub repository URL.")
+            return
+        owner, repo, branch = parsed
+        _update_upload_task(upload_id, status="processing", phase="downloading", progress=5.0, current_file=url)
+        content = _download_github_repo_zip(owner, repo, branch)
+        if len(content) > MAX_ZIP_BYTES:
+            _update_upload_task(upload_id, status="error", error="Project ZIPs must be smaller than 200 MB.")
+            return
+        _extract_and_analyze(upload_id, content, repo, strip_root=True)
+    except HTTPException as error:
+        _update_upload_task(upload_id, status="error", error=error.detail)
+
+
+@router.post("/api/upload/github")
+async def import_github_project(repo_url: str = Form(...), upload_id: str = Form(...)):
+    """Download a GitHub repository by URL and analyze it with live progress."""
+    parsed = _parse_github_url(repo_url)
+    if not parsed:
+        raise HTTPException(status_code=400, detail="Invalid GitHub repository URL. Use a link like https://github.com/owner/repo.")
+    task = _new_upload_task(upload_id)
+    threading.Thread(target=_import_github_and_analyze, args=(upload_id, repo_url), daemon=True).start()
     return {"upload_id": upload_id, "status": task["status"]}
 
 

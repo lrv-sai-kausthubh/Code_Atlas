@@ -10,6 +10,7 @@ import {
     useEdgesState,
     useNodesState,
     useReactFlow,
+    useViewport,
 } from "@xyflow/react";
 import type { NodeChange, OnNodeDrag, XYPosition } from "@xyflow/react";
 import type { ProjectGraph, ProjectNode } from "../../types/project";
@@ -25,6 +26,15 @@ import type {
 import { makeLayout } from "./graph-layout";
 
 export const IMAGE_DROP_MIME = "application/x-codeatlas-image";
+
+function ZoomBadge() {
+    const { zoom } = useViewport();
+    return (
+        <div className="absolute top-[14px] right-[160px] z-[5] font-dm text-[10px] text-[var(--graph-label)] max-[850px]:right-[126px]">
+            {Math.round(zoom * 100)}%
+        </div>
+    );
+}
 
 export type ImageDropPayload = {
     src: string;
@@ -79,7 +89,6 @@ function GraphCanvas({
     const [nodes, setNodes] = useNodesState<AtlasNode>(initial.nodes);
     const [imageNodes, setImageNodes] = useState<ImageAtlasNode[]>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
-    const [zoom, setZoom] = useState(1);
     const [isDragging, setIsDragging] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
     const hasFittedInitialView = useRef(false);
@@ -122,12 +131,16 @@ function GraphCanvas({
     }, [compact, hiddenIds, initial, setEdges, setNodes]);
 
     useEffect(() => {
-        setNodes((currentNodes) =>
-            currentNodes.map((node) => ({
-                ...node,
-                data: { ...node.data, selected: node.id === selected?.id },
-            })),
-        );
+        setNodes((currentNodes) => {
+            let changed = false;
+            const nextNodes = currentNodes.map((node) => {
+                const isSelected = node.id === selected?.id;
+                if (node.data.selected === isSelected) return node;
+                changed = true;
+                return { ...node, data: { ...node.data, selected: isSelected } };
+            });
+            return changed ? nextNodes : currentNodes;
+        });
     }, [selected?.id, setNodes]);
 
     const descendantsById = useMemo(() => {
@@ -326,7 +339,7 @@ function GraphCanvas({
                 selectionOnDrag
                 selectionMode={SelectionMode.Partial}
                 panOnDrag={[1, 2]}
-                onMove={(_, viewport) => setZoom(viewport.zoom)}
+                onlyRenderVisibleElements
                 minZoom={0.08}
                 maxZoom={2.5}
                 proOptions={{ hideAttribution: true }}
@@ -355,9 +368,7 @@ function GraphCanvas({
                 DRAG ON CANVAS TO LASSO <span>·</span> MIDDLE-CLICK TO PAN{" "}
                 <span>·</span> DRAG NODES
             </div>
-            <div className="absolute top-[14px] right-[160px] z-[5] font-dm text-[10px] text-[var(--graph-label)] max-[850px]:right-[126px]">
-                {Math.round(zoom * 100)}%
-            </div>
+            <ZoomBadge />
             <div className="absolute top-[10px] right-5 z-[6] flex gap-1.5">
                 <button className="border border-[var(--graph-edge)] bg-[var(--graph-surface)] px-[9px] py-[6px] font-dm text-[10px] text-[var(--graph-label)] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:bg-[#f6f8f5] light:text-[#405149] light:hover:bg-[#e3ece7]" onClick={() => zoomIn({ duration: 200 })}>
                     +

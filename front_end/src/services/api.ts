@@ -38,6 +38,13 @@ export const uploadProject = (file: File, uploadId: string, onUploadProgress?: U
     return api.post("/api/upload", data, { onUploadProgress });
 };
 
+export const importGithubProject = (repoUrl: string, uploadId: string) => {
+    const data = new FormData();
+    data.append("repo_url", repoUrl);
+    data.append("upload_id", uploadId);
+    return api.post("/api/upload/github", data);
+};
+
 export const getUploadProgress = (uploadId: string) => api.get(`/api/upload/${encodeURIComponent(uploadId)}/progress`, { silent: true } as AtlasRequestConfig);
 
 export const getUploadResult = (uploadId: string) => api.get(`/api/upload/${encodeURIComponent(uploadId)}/result`, { silent: true } as AtlasRequestConfig);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { cancelUpload, getUploadProgress, getUploadResult, uploadProject } from "../services/api";
+import { cancelUpload, getUploadProgress, getUploadResult, importGithubProject, uploadProject } from "../services/api";
 import { toastLoading, toastSuccess, toastDismiss } from "../services/toast";
 import type { ProjectGraph, UploadProgress } from "../types/project";
 
@@ -7,6 +7,7 @@ const PARTICLE_ICONS = ["code", "javascript", "css", "html", "terminal", "functi
 
 const PHASES: Record<UploadProgress["phase"], { label: string; range: [number, number] }> = {
     uploading: { label: "Phase 00: Uploading Archive", range: [0, 30] },
+    downloading: { label: "Phase 00: Fetching Repository", range: [0, 30] },
     extracting: { label: "Phase 01: Extracting Archive", range: [30, 82] },
     analyzing: { label: "Phase 02: Graph Assembly", range: [82, 98] },
     done: { label: "Phase 03: Complete", range: [98, 100] },
@@ -32,14 +33,22 @@ function formatBytes(bytes: number) {
 }
 
 type ParsingScreenProps = {
-    file: File;
+    file?: File;
+    repoUrl?: string;
     uploadId: string;
     onComplete: (graph: ProjectGraph) => void;
     onError: (message: string) => void;
     onCancel: () => void;
 };
 
-export default function ParsingScreen({ file, uploadId, onComplete, onError, onCancel }: ParsingScreenProps) {
+function repoDisplayName(repoUrl: string) {
+    const parts = repoUrl.trim().replace(/\.git$/, "").replace(/\/$/, "").split("/");
+    return parts[parts.length - 1] || repoUrl;
+}
+
+export default function ParsingScreen({ file, repoUrl, uploadId, onComplete, onError, onCancel }: ParsingScreenProps) {
+    const isGithub = Boolean(repoUrl);
+    const projectName = isGithub ? repoDisplayName(repoUrl as string) : file?.name ?? "";
     const [serverProgress, setServerProgress] = useState<UploadProgress | null>(null);
     const [networkPct, setNetworkPct] = useState(0);
     const [uploadStartedAt] = useState(() => Date.now());
@@ -64,10 +73,13 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
     }), []);
 
     useEffect(() => {
-        const loadingId = toastLoading(`Analyzing ${file.name}…`);
-        void uploadProject(file, uploadId, (event) => {
-            if (event.total) setNetworkPct((event.loaded / event.total) * 100);
-        }).then((response) => {
+        const loadingId = toastLoading(`Analyzing ${projectName}…`);
+        const startRequest = isGithub
+            ? importGithubProject(repoUrl as string, uploadId)
+            : uploadProject(file as File, uploadId, (event) => {
+                if (event.total) setNetworkPct((event.loaded / event.total) * 100);
+            });
+        void startRequest.then((response) => {
             const body = response.data as { status?: string };
             if (body.status === "error") {
                 toastDismiss(loadingId);
@@ -82,7 +94,7 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
         return () => {
             toastDismiss(loadingId);
         };
-    }, [file, onError, uploadId]);
+    }, [file, isGithub, onError, projectName, repoUrl, uploadId]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -103,7 +115,7 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
                 if (snapshot.phase === "done" && !doneRef.current) {
                     doneRef.current = true;
                     const resultResponse = await getUploadResult(uploadId);
-                    toastSuccess(`Project "${file.name}" mapped successfully.`);
+                    toastSuccess(`Project "${projectName}" mapped successfully.`);
                     if (alive) onComplete(resultResponse.data as ProjectGraph);
                     return;
                 }
@@ -127,7 +139,7 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
         void poll();
         const interval = setInterval(() => void poll(), 500);
         return () => { alive = false; clearInterval(interval); };
-    }, [file, onComplete, onError, uploadId]);
+    }, [projectName, onComplete, onError, uploadId]);
 
     useEffect(() => {
         if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -139,15 +151,15 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
 
     const elapsedSeconds = serverProgress?.elapsed_seconds ?? (Date.now() - uploadStartedAt) / 1000;
     let estimatedRemaining = serverProgress?.remaining_seconds ?? 0;
-    if (!serverProgress && networkPct > 0) {
+    if (!serverProgress && networkPct > 0 && file) {
         const elapsed = (Date.now() - uploadStartedAt) / 1000;
         const remainingBytes = file.size * (1 - networkPct / 100);
         estimatedRemaining = Math.round(remainingBytes / (file.size / elapsed));
     }
     estimatedRemaining = Math.max(0, Math.round(estimatedRemaining));
 
-    const bytesProcessed = serverProgress?.bytes_processed ?? (file.size * networkPct) / 100;
-    const totalBytes = serverProgress?.total_bytes ?? file.size;
+    const bytesProcessed = serverProgress?.bytes_processed ?? (file ? (file.size * networkPct) / 100 : 0);
+    const totalBytes = serverProgress?.total_bytes ?? file?.size ?? 0;
     const filesProcessed = serverProgress?.files_processed ?? (serverProgress?.phase === "extracting" ? serverProgress.files_processed : 0);
     const throughput = (bytesProcessed / (elapsedSeconds || 1)) / (1024 * 1024);
 
@@ -210,8 +222,8 @@ export default function ParsingScreen({ file, uploadId, onComplete, onError, onC
                             <div className="flex-1 flex flex-col gap-6">
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <h1 className="font-space text-xl font-semibold mt-0 mb-0">Parsing Repository Archive</h1>
-                                        <p className="text-sm text-[#c1c6d7] mt-1 mb-0">Project: <strong style={{ color: "#dfe2eb" }}>{file.name}</strong></p>
+                                        <h1 className="font-space text-xl font-semibold mt-0 mb-0">{isGithub ? "Importing Repository From GitHub" : "Parsing Repository Archive"}</h1>
+                                        <p className="text-sm text-[#c1c6d7] mt-1 mb-0">Project: <strong style={{ color: "#dfe2eb" }}>{projectName}</strong></p>
                                     </div>
                                     <span className="font-jet text-base text-[#007aff]">{progress.toFixed(1)}%</span>
                                 </div>

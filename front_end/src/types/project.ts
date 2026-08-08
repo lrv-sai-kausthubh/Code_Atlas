@@ -71,7 +71,7 @@ export type ProjectGraph = {
 
 export type UploadProgress = {
     status: "uploading" | "processing" | "complete" | "error" | "cancelled";
-    phase: "uploading" | "extracting" | "analyzing" | "done" | "error";
+    phase: "uploading" | "downloading" | "extracting" | "analyzing" | "done" | "error";
     progress: number;
     files_processed: number;
     total_files: number;

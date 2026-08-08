@@ -13,7 +13,9 @@ function Home() {
     const inputRef = useRef<HTMLInputElement>(null);
     const [graph, setGraph] = useState<ProjectGraph | null>(null);
     const [parsingFile, setParsingFile] = useState<File | null>(null);
+    const [parsingRepoUrl, setParsingRepoUrl] = useState("");
     const [parsingUploadId, setParsingUploadId] = useState("");
+    const [githubUrl, setGithubUrl] = useState("");
     const [projectId, setProjectId] = useState("");
     const [selected, setSelected] = useState<ProjectNode | null>(null);
     const [positionOffsets, setPositionOffsets] = useState<
@@ -46,6 +48,20 @@ function Home() {
         const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         setParsingUploadId(uploadId);
         setParsingFile(file);
+        setParsingRepoUrl("");
+    };
+
+    const chooseGithubUrl = () => {
+        const url = githubUrl.trim();
+        if (!url) {
+            setError("Enter a GitHub repository URL.");
+            return;
+        }
+        setError("");
+        const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        setParsingUploadId(uploadId);
+        setParsingRepoUrl(url);
+        setParsingFile(null);
     };
 
     const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -64,9 +80,10 @@ function Home() {
                 onNewProject={() => inputRef.current?.click()}
             />
 
-            {parsingFile ? (
+            {parsingFile || parsingRepoUrl ? (
                 <ParsingScreen
-                    file={parsingFile}
+                    file={parsingFile ?? undefined}
+                    repoUrl={parsingRepoUrl || undefined}
                     uploadId={parsingUploadId}
                     onComplete={(nextGraph) => {
                         setGraph(nextGraph);
@@ -74,6 +91,8 @@ function Home() {
                         setPositionOffsets(new Map());
                         setSelected(nextGraph.nodes[0] ?? null);
                         setParsingFile(null);
+                        setParsingRepoUrl("");
+                        setGithubUrl("");
                         if (!nextGraph.files || nextGraph.files === 0) {
                             toastEmpty("This archive contains no analyzable files.");
                         }
@@ -81,9 +100,11 @@ function Home() {
                     onError={(message) => {
                         setError(message);
                         setParsingFile(null);
+                        setParsingRepoUrl("");
                     }}
                     onCancel={() => {
                         setParsingFile(null);
+                        setParsingRepoUrl("");
                         setError("Upload cancelled.");
                     }}
                 />
@@ -91,6 +112,7 @@ function Home() {
                 <LandingView
                     dragging={dragging}
                     error={error}
+                    githubUrl={githubUrl}
                     onBrowse={() => inputRef.current?.click()}
                     onDragOver={(event) => {
                         event.preventDefault();
@@ -102,6 +124,8 @@ function Home() {
                         setDragging(false);
                         void chooseFile(event.dataTransfer.files[0]);
                     }}
+                    onGitHubUrlChange={setGithubUrl}
+                    onGitHubImport={chooseGithubUrl}
                 />
             ) : (
                 <WorkspaceLayout

@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import { applyNodeChanges, Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, SelectionMode, useEdgesState, useNodesState, useReactFlow } from "@xyflow/react";
 import type { Edge, Node, NodeChange, NodeProps, OnNodeDrag, XYPosition } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import ParsingScreen from "../components/parsing";
 import { projectFileUrl } from "../services/api";
-import type { ProjectGraph, ProjectNode, RepositoryAnalysis } from "../types/project";
+import type { FunctionCall, ProjectGraph, ProjectNode, RepositoryAnalysis } from "../types/project";
+
+/* ── Colour palette ─────────────────────────────────────────────────────────── */
 
 const colors: Record<ProjectNode["type"], string> = {
     project: "#f2b84b",
@@ -13,26 +15,15 @@ const colors: Record<ProjectNode["type"], string> = {
     file: "#9ca9ff",
 };
 
+/* ── Types ──────────────────────────────────────────────────────────────────── */
+
 type AtlasNodeData = ProjectNode & { onSelect: (node: ProjectNode) => void; onToggle: (nodeId: string) => void; selected: boolean };
 type AtlasNode = Node<AtlasNodeData, "atlas">;
 type NodeMovement = { id: string; delta: XYPosition };
+/** Imperative handle exposed by GraphCanvas so the explorer can pan/flash nodes. */
+type GraphCanvasHandle = { focusNode: (nodeId: string) => void };
 
-function AtlasNodeView({ data }: NodeProps<AtlasNode>) {
-    const color = colors[data.type];
-    return (
-        <div className={`atlas-node atlas-node-${data.type} ${data.selected ? "is-selected" : ""}`} style={{ "--node-color": color } as CSSProperties} onClick={() => data.onSelect(data)}>
-            <Handle type="target" position={Position.Top} className="atlas-handle" />
-            <div className={`atlas-node-dot ${data.type === "file" ? fileIcon(data.label).className : ""}`}>
-                <span className="material-symbols-outlined">{data.type === "project" ? "account_tree" : data.type === "folder" ? "folder" : fileIcon(data.label).name}</span>
-            </div>
-            <div className="atlas-node-label" title={data.path || data.label}>{data.label}</div>
-            {data.type !== "file" && <div className="atlas-node-kind">{data.type}</div>}
-            <Handle type="source" position={Position.Bottom} className="atlas-handle" />
-        </div>
-    );
-}
-
-const nodeTypes = { atlas: AtlasNodeView };
+/* ── File icon helpers ──────────────────────────────────────────────────────── */
 
 function fileIcon(label: string) {
     const extension = label.toLowerCase().split(".").pop() ?? "";
@@ -67,13 +58,43 @@ function fileIcon(label: string) {
 }
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
-const PDF_EXTENSION = "pdf";
 
 function isPreviewable(node: ProjectNode) {
     if (node.type !== "file") return false;
     const extension = node.label.toLowerCase().split(".").pop() ?? "";
-    return IMAGE_EXTENSIONS.has(extension) || extension === PDF_EXTENSION;
+    return IMAGE_EXTENSIONS.has(extension) || extension === "pdf";
 }
+
+function getFilename(path: string): string {
+    return path.split("/").pop() ?? path;
+}
+
+function formatBytes(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/* ── Atlas Node (React Flow custom node) ────────────────────────────────────── */
+
+function AtlasNodeView({ data }: NodeProps<AtlasNode>) {
+    const color = colors[data.type];
+    return (
+        <div className={`atlas-node atlas-node-${data.type} ${data.selected ? "is-selected" : ""}`} style={{ "--node-color": color } as CSSProperties} onClick={() => data.onSelect(data)}>
+            <Handle type="target" position={Position.Top} className="atlas-handle" />
+            <div className={`atlas-node-dot ${data.type === "file" ? fileIcon(data.label).className : ""}`}>
+                <span className="material-symbols-outlined">{data.type === "project" ? "account_tree" : data.type === "folder" ? "folder" : fileIcon(data.label).name}</span>
+            </div>
+            <div className="atlas-node-label" title={data.path || data.label}>{data.label}</div>
+            {data.type !== "file" && <div className="atlas-node-kind">{data.type}</div>}
+            <Handle type="source" position={Position.Bottom} className="atlas-handle" />
+        </div>
+    );
+}
+
+const nodeTypes = { atlas: AtlasNodeView };
+
+/* ── File Preview (images / PDFs in inspector) ──────────────────────────────── */
 
 function FilePreview({ node, projectId }: { node: ProjectNode; projectId: string }) {
     const extension = node.label.toLowerCase().split(".").pop() ?? "";
@@ -87,16 +108,74 @@ function FilePreview({ node, projectId }: { node: ProjectNode; projectId: string
     );
 }
 
-function formatBytes(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/* ── Function Call Panel ────────────────────────────────────────────────────── */
+
+function FunctionCallRow({ call }: { call: FunctionCall }) {
+    return (
+        <div className="fn-call-row">
+            <div className="fn-call-header">
+                <span className="fn-call-badge">{call.callee_name}</span>
+                {call.is_external && call.external_lib && (
+                    <span className="fn-ext-badge">{call.external_lib}</span>
+                )}
+                {!call.is_external && call.callee_file && (
+                    <span className="fn-target-file">→ {getFilename(call.callee_file)}</span>
+                )}
+            </div>
+            {call.params.length > 0 && (
+                <div className="fn-params">
+                    {call.params.map((param, i) => (
+                        <span key={i} className="fn-param-chip">
+                            <span className="fn-param-name">{param}</span>
+                            <span className={`fn-type-chip fn-type-${(call.param_types[i] ?? "any").toLowerCase()}`}>
+                                {call.param_types[i] ?? "any"}
+                            </span>
+                        </span>
+                    ))}
+                </div>
+            )}
+            <p className="fn-call-desc">{call.description}</p>
+        </div>
+    );
 }
+
+function FunctionCallsPanel({ filePath, functionCalls }: { filePath: string; functionCalls: FunctionCall[] }) {
+    const calls = useMemo(
+        () => functionCalls.filter(c => c.caller_file === filePath),
+        [functionCalls, filePath],
+    );
+    const localCalls = calls.filter(c => !c.is_external);
+    const externalCalls = calls.filter(c => c.is_external);
+    if (!calls.length) return null;
+    return (
+        <div className="fn-panel">
+            <div className="fn-panel-head">
+                FUNCTION CALLS<span className="fn-count">{calls.length}</span>
+            </div>
+            {localCalls.length > 0 && (
+                <>
+                    <div className="fn-section-label">OUTBOUND · {localCalls.length}</div>
+                    {localCalls.map((call, i) => <FunctionCallRow key={i} call={call} />)}
+                </>
+            )}
+            {externalCalls.length > 0 && (
+                <>
+                    <div className="fn-section-label">LIBRARY USAGE · {externalCalls.length}</div>
+                    {externalCalls.map((call, i) => <FunctionCallRow key={i} call={call} />)}
+                </>
+            )}
+        </div>
+    );
+}
+
+/* ── Analysis Drawer ────────────────────────────────────────────────────────── */
 
 function AnalysisDrawer({ analysis }: { analysis: RepositoryAnalysis }) {
     const scoreColor = analysis.health_score >= 80 ? "#64d5c4" : analysis.health_score >= 60 ? "#f2b84b" : "#f17c71";
     return <section className="analysis-drawer"><div className="analysis-summary"><div className="health-score" style={{ "--score-color": scoreColor, "--score-angle": `${analysis.health_score * 3.6}deg` } as CSSProperties}><strong>{analysis.health_score}</strong><span>/ 100</span></div><div><p className="analysis-kicker">ARCHITECTURE HEALTH</p><h2>{analysis.health_score >= 80 ? "Healthy foundation" : analysis.health_score >= 60 ? "Worth investigating" : "Needs attention"}</h2><p className="analysis-muted">Calculated from dependency cycles, orphan files, and oversized modules.</p></div></div><div className="analysis-metrics"><div><span>LINES OF CODE</span><strong>{analysis.total_lines.toLocaleString()}</strong></div><div><span>IMPORTS</span><strong>{analysis.total_imports}</strong></div><div><span>AVG DEPENDENCIES</span><strong>{analysis.average_dependencies}</strong></div><div><span>LONGEST CHAIN</span><strong>{analysis.longest_import_chain.length} files</strong></div></div><div className="analysis-findings"><div><span className="finding-label">CIRCULAR DEPENDENCIES</span><strong className={analysis.circular_dependencies.length ? "finding-bad" : "finding-good"}>{analysis.circular_dependencies.length || "None detected"}</strong>{analysis.circular_dependencies.length > 0 && <small>{analysis.circular_dependencies[0].join(" → ")}</small>}</div><div><span className="finding-label">ORPHAN FILES</span><strong className={analysis.orphan_files.length ? "finding-warn" : "finding-good"}>{analysis.orphan_files.length}</strong>{analysis.orphan_files.length > 0 && <small>{analysis.orphan_files.slice(0, 2).join(" · ")}{analysis.orphan_files.length > 2 ? " · ..." : ""}</small>}</div><div><span className="finding-label">LARGEST FILE</span><strong>{analysis.largest_file?.path ?? "-"}</strong><small>{analysis.largest_file ? `${analysis.largest_file.lines.toLocaleString()} lines · ${formatBytes(analysis.largest_file.size_bytes)}` : "No files"}</small></div></div></section>;
 }
+
+/* ── Explorer Sidebar Tree ──────────────────────────────────────────────────── */
 
 function ExplorerTree({ graph, query, selected, collapsed, onSelect, onToggle }: { graph: ProjectGraph; query: string; selected: ProjectNode | null; collapsed: Set<string>; onSelect: (node: ProjectNode) => void; onToggle: (nodeId: string) => void }) {
     const children = new Map<string, ProjectNode[]>();
@@ -112,6 +191,8 @@ function ExplorerTree({ graph, query, selected, collapsed, onSelect, onToggle }:
     if (query) return <>{graph.nodes.filter((node) => node.label.toLowerCase().includes(query.toLowerCase()) && node.id !== "root").map((node) => renderNode(node, 0))}</>;
     return <>{(children.get("root") ?? []).map((node) => renderNode(node, 0))}</>;
 }
+
+/* ── Graph Layout ───────────────────────────────────────────────────────────── */
 
 function makeLayout(graph: ProjectGraph, onSelect: (node: ProjectNode) => void, onToggle: (nodeId: string) => void, compact: boolean, positionOffsets: ReadonlyMap<string, XYPosition>) {
     const children = new Map<string, string[]>();
@@ -136,8 +217,8 @@ function makeLayout(graph: ProjectGraph, onSelect: (node: ProjectNode) => void, 
         const width = widths.get(nodeId) ?? 1;
         const childIds = children.get(nodeId) ?? [];
         const center = start + width / 2;
-            const offset = positionOffsets.get(node.id) ?? { x: 0, y: 0 };
-            nodes.push({ id: node.id, type: "atlas", position: { x: center * (compact ? 112 : 150) + offset.x, y: depth * (compact ? 122 : 160) + offset.y }, data: { ...node, onSelect, onToggle, selected: false } });
+        const offset = positionOffsets.get(node.id) ?? { x: 0, y: 0 };
+        nodes.push({ id: node.id, type: "atlas", position: { x: center * (compact ? 112 : 150) + offset.x, y: depth * (compact ? 122 : 160) + offset.y }, data: { ...node, onSelect, onToggle, selected: false } });
         let childStart = start;
         childIds.forEach((childId) => {
             place(childId, depth + 1, childStart);
@@ -167,7 +248,18 @@ function makeLayout(graph: ProjectGraph, onSelect: (node: ProjectNode) => void, 
     return { nodes, edges };
 }
 
-function GraphCanvas({ graph, collapsed, selected, onSelect, onToggle, compact, positionOffsets, onMoveNodes }: { graph: ProjectGraph; collapsed: Set<string>; selected: ProjectNode | null; onSelect: (node: ProjectNode) => void; onToggle: (nodeId: string) => void; compact: boolean; positionOffsets: ReadonlyMap<string, XYPosition>; onMoveNodes: (movements: NodeMovement[]) => void }) {
+/* ── Graph Canvas (React Flow wrapper) ──────────────────────────────────────── */
+
+const GraphCanvas = forwardRef<GraphCanvasHandle, {
+    graph: ProjectGraph;
+    collapsed: Set<string>;
+    selected: ProjectNode | null;
+    onSelect: (node: ProjectNode) => void;
+    onToggle: (nodeId: string) => void;
+    compact: boolean;
+    positionOffsets: ReadonlyMap<string, XYPosition>;
+    onMoveNodes: (movements: NodeMovement[]) => void;
+}>(function GraphCanvas({ graph, collapsed, selected, onSelect, onToggle, compact, positionOffsets, onMoveNodes }, ref) {
     const { fitView, zoomIn, zoomOut } = useReactFlow();
     const parentById = useMemo(() => {
         const parents = new Map<string, string>();
@@ -179,10 +271,7 @@ function GraphCanvas({ graph, collapsed, selected, onSelect, onToggle, compact, 
         graph.nodes.forEach((node) => {
             let parent = parentById.get(node.id);
             while (parent) {
-                if (collapsed.has(parent)) {
-                    hidden.add(node.id);
-                    break;
-                }
+                if (collapsed.has(parent)) { hidden.add(node.id); break; }
                 parent = parentById.get(parent);
             }
         });
@@ -198,9 +287,22 @@ function GraphCanvas({ graph, collapsed, selected, onSelect, onToggle, compact, 
     const nodesRef = useRef(nodes);
     const dragStart = useRef<Map<string, XYPosition>>(new Map());
 
-    useEffect(() => {
-        nodesRef.current = nodes;
-    }, [nodes]);
+    /* Expose focusNode() to parent via ref */
+    useImperativeHandle(ref, () => ({
+        focusNode: (nodeId: string) => {
+            fitView({ nodes: [{ id: nodeId }], padding: 0.35, duration: 500 });
+            // After the pan animation settles, flash the node with a CSS keyframe
+            setTimeout(() => {
+                const el = document.querySelector(`[data-id="${nodeId}"] .atlas-node`);
+                if (el) {
+                    el.classList.add("is-flashing");
+                    setTimeout(() => el.classList.remove("is-flashing"), 1600);
+                }
+            }, 200);
+        },
+    }), [fitView]);
+
+    useEffect(() => { nodesRef.current = nodes; }, [nodes]);
 
     useEffect(() => {
         const frame = requestAnimationFrame(() => {
@@ -237,10 +339,7 @@ function GraphCanvas({ graph, collapsed, selected, onSelect, onToggle, compact, 
             graph.nodes.forEach((candidate) => {
                 let parent = parentById.get(candidate.id);
                 while (parent) {
-                    if (parent === ancestor.id) {
-                        members.add(candidate.id);
-                        break;
-                    }
+                    if (parent === ancestor.id) { members.add(candidate.id); break; }
                     parent = parentById.get(parent);
                 }
             });
@@ -296,20 +395,47 @@ function GraphCanvas({ graph, collapsed, selected, onSelect, onToggle, compact, 
 
     return (
         <div className="react-flow-shell">
-            <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeDragStart={onNodeDragStart} onNodeDragStop={onNodeDragStop} onNodeClick={(_, node) => { onSelect(node.data); if (node.data.type === "folder") onToggle(node.id); }} nodesDraggable nodesConnectable={false} selectionOnDrag selectionMode={SelectionMode.Partial} panOnDrag={[1, 2]} onMove={(_, viewport) => setZoom(viewport.zoom)} minZoom={0.08} maxZoom={2.5} proOptions={{ hideAttribution: true }}>
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDragStop={onNodeDragStop}
+                onNodeClick={(_, node) => { onSelect(node.data); if (node.data.type === "folder") onToggle(node.id); }}
+                nodesDraggable
+                nodesConnectable={false}
+                selectionOnDrag
+                selectionMode={SelectionMode.Partial}
+                panOnDrag={[1, 2]}
+                onMove={(_, viewport) => setZoom(viewport.zoom)}
+                minZoom={0.08}
+                maxZoom={2.5}
+                proOptions={{ hideAttribution: true }}
+            >
                 <Background color="var(--graph-grid)" gap={28} size={1} />
                 <Controls showInteractive={false} />
                 {!isDragging && <MiniMap nodeColor={(node) => colors[(node.data as AtlasNodeData).type]} maskColor="var(--minimap-mask)" pannable zoomable />}
             </ReactFlow>
             <div className="graph-hint">DRAG ON CANVAS TO LASSO <span>·</span> MIDDLE-CLICK TO PAN <span>·</span> DRAG NODES</div>
             <div className="graph-zoom-readout">{Math.round(zoom * 100)}%</div>
-            <div className="graph-toolbar-buttons"><button onClick={() => zoomIn({ duration: 200 })}>+</button><button onClick={() => zoomOut({ duration: 200 })}>−</button><button onClick={() => fitView({ padding: 0.18, duration: 350 })}>FIT</button></div>
+            <div className="graph-toolbar-buttons">
+                <button onClick={() => zoomIn({ duration: 200 })}>+</button>
+                <button onClick={() => zoomOut({ duration: 200 })}>−</button>
+                <button onClick={() => fitView({ padding: 0.18, duration: 350 })}>FIT</button>
+            </div>
         </div>
     );
-}
+});
+
+/* ── Home Page (root workspace) ─────────────────────────────────────────────── */
 
 function Home() {
     const inputRef = useRef<HTMLInputElement>(null);
+    /** Ref to the graph canvas — used to programmatically pan + flash a node. */
+    const graphRef = useRef<GraphCanvasHandle>(null);
+
     const [graph, setGraph] = useState<ProjectGraph | null>(null);
     const [parsingFile, setParsingFile] = useState<File | null>(null);
     const [parsingUploadId, setParsingUploadId] = useState("");
@@ -338,6 +464,16 @@ function Home() {
         });
     }, []);
 
+    /**
+     * Explorer sidebar click handler.
+     * Selects the node AND pans / flashes it in the graph canvas.
+     * Folder toggling is handled separately by onToggle inside ExplorerTree.
+     */
+    const handleExplorerSelect = useCallback((node: ProjectNode) => {
+        setSelected(node);
+        graphRef.current?.focusNode(node.id);
+    }, []);
+
     const parentById = useMemo(() => {
         const parents = new Map<string, string>();
         graph?.edges.filter((edge) => edge.relation !== "IMPORTS").forEach((edge) => parents.set(edge.target, edge.source));
@@ -358,7 +494,9 @@ function Home() {
         setPositionOffsets((current) => {
             const next = new Map(current);
             graph.nodes.forEach((node) => {
-                const movement = roots.filter((root) => node.id === root.id || isDescendant(node.id, root.id)).reduce((total, root) => ({ x: total.x + root.delta.x, y: total.y + root.delta.y }), { x: 0, y: 0 });
+                const movement = roots
+                    .filter((root) => node.id === root.id || isDescendant(node.id, root.id))
+                    .reduce((total, root) => ({ x: total.x + root.delta.x, y: total.y + root.delta.y }), { x: 0, y: 0 });
                 if (!movement.x && !movement.y) return;
                 const offset = next.get(node.id) ?? { x: 0, y: 0 };
                 next.set(node.id, { x: offset.x + movement.x, y: offset.y + movement.y });
@@ -405,14 +543,100 @@ function Home() {
         <main className="app-shell">
             <header className="topbar">
                 <div className="brand"><span className="brand-mark">✦</span><span>CODEATLAS</span><small>V1 / MILESTONE 1</small></div>
-                <div className="topbar-actions"><span className="api-status"><i /> API CONNECTED</span><button className="theme-toggle" onClick={() => setTheme((value) => value === "dark" ? "light" : "dark")} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>{theme === "dark" ? "☼ LIGHT" : "◐ DARK"}</button><button className="new-project" onClick={() => inputRef.current?.click()}>+ NEW PROJECT</button></div>
+                <div className="topbar-actions">
+                    <span className="api-status"><i /> API CONNECTED</span>
+                    <button className="theme-toggle" onClick={() => setTheme((value) => value === "dark" ? "light" : "dark")} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>{theme === "dark" ? "☼ LIGHT" : "◐ DARK"}</button>
+                    <button className="new-project" onClick={() => inputRef.current?.click()}>+ NEW PROJECT</button>
+                </div>
             </header>
 
-            {parsingFile ? <ParsingScreen file={parsingFile} uploadId={parsingUploadId} onComplete={(nextGraph) => { setGraph(nextGraph); setProjectId(nextGraph.project_id ?? ""); setCollapsed(new Set()); setCompact(false); setPositionOffsets(new Map()); setSelected(nextGraph.nodes[0] ?? null); setParsingFile(null); }} onError={(message) => { setError(message); setParsingFile(null); }} onCancel={() => { setParsingFile(null); setError("Upload cancelled."); }} /> : !graph ? <section className="landing"><div className="eyebrow">SOFTWARE ARCHITECTURE / 001</div><h1>See the shape<br /><em>of your code.</em></h1><p className="intro">Upload a project archive and turn its structure into a living map. Start with the files. Discover the system.</p><button className="drop-zone" onClick={() => inputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void chooseFile(event.dataTransfer.files[0]); }}><span className="upload-icon">↑</span><strong>{dragging ? "DROP TO MAP" : "DROP YOUR ZIP HERE"}</strong><span>or <u>browse files</u> · max 200 MB</span></button>{error && <p className="error-message">{error}</p>}<div className="landing-notes"><span><b>01</b> Upload archive</span><span><b>02</b> Scan structure</span><span><b>03</b> Explore graph</span></div><div className="orbit orbit-one" /><div className="orbit orbit-two" /></section> : <section className="workspace">
-                <aside className="explorer panel"><div className="panel-heading"><span>PROJECT EXPLORER</span><span className="muted">{graph.files} FILES</span></div><div className="project-name"><span className="folder-dot" />{graph.project}</div><input className="search" placeholder="Filter files..." value={query} onChange={(event) => setQuery(event.target.value)} /><div className="file-list"><ExplorerTree graph={graph} query={query} selected={selected} collapsed={collapsed} onSelect={setSelected} onToggle={toggleFolder} /></div><div className="legend"><span><i style={{ background: colors.file }} /> FILE</span><span><i style={{ background: colors.folder }} /> FOLDER</span></div></aside>
-                 <div className="graph-panel panel"><div className="graph-toolbar"><div><span className="live-dot" /> STRUCTURE MAP <span className="toolbar-separator">/</span> {visibleGraph?.nodes.length ?? 0} OF {graph.nodes.length} NODES</div><div className="graph-actions"><button className={analysisOpen ? "active" : ""} onClick={() => setAnalysisOpen((value) => !value)}>ANALYSIS</button><button className={compact ? "active" : ""} onClick={() => setCompact((value) => !value)}>{compact ? "RELAX" : "TIGHTEN"}</button><button onClick={collapseAll}>COLLAPSE ALL</button><button onClick={expandAll}>EXPAND ALL</button></div></div>{analysisOpen && <AnalysisDrawer analysis={graph.analysis} />}<ReactFlowProvider><GraphCanvas graph={graph} collapsed={collapsed} selected={selected} onSelect={setSelected} onToggle={toggleFolder} compact={compact} positionOffsets={positionOffsets} onMoveNodes={moveNodes} /></ReactFlowProvider></div>
-                 <aside className="inspector panel"><div className="panel-heading"><span>INSPECTOR</span><span className="muted">{selected ? selected.type.toUpperCase() : "NONE"}</span></div><div className="stats"><div><strong>{graph.files}</strong><span>FILES</span></div><div><strong>{graph.folders}</strong><span>FOLDERS</span></div><div><strong>{Object.keys(graph.languages).length}</strong><span>LANGUAGES</span></div></div>{selected ? <><div className="inspector-icon" style={{ color: colors[selected.type] }}><span className="material-symbols-outlined">{selected.type === "file" ? fileIcon(selected.label).name : selected.type === "folder" ? "folder" : "account_tree"}</span></div><h2>{selected.label}</h2><p className="path">{selected.path || "/"}</p><div className="detail-block"><span>NODE TYPE</span><strong>{selected.type}</strong></div>{selected.language && <div className="detail-block"><span>LANGUAGE</span><strong>{selected.language}</strong></div>}{selected.type === "file" && <><div className="detail-block"><span>LINES</span><strong>{selected.lines?.toLocaleString() ?? "-"}</strong></div><div className="detail-block"><span>SIZE</span><strong>{selected.size_bytes === undefined ? "-" : formatBytes(selected.size_bytes)}</strong></div></>}<div className="detail-block"><span>RELATIONSHIP</span><strong>CONTAINS / IMPORTS</strong></div>{projectId && isPreviewable(selected) && <FilePreview node={selected} projectId={projectId} />}</> : <p className="empty-inspector">Select a node in the map to see its details.</p>}</aside>
-            </section>}
+            {parsingFile
+                ? <ParsingScreen file={parsingFile} uploadId={parsingUploadId} onComplete={(nextGraph) => { setGraph(nextGraph); setProjectId(nextGraph.project_id ?? ""); setCollapsed(new Set()); setCompact(false); setPositionOffsets(new Map()); setSelected(nextGraph.nodes[0] ?? null); setParsingFile(null); }} onError={(message) => { setError(message); setParsingFile(null); }} onCancel={() => { setParsingFile(null); setError("Upload cancelled."); }} />
+                : !graph
+                    ? <section className="landing"><div className="eyebrow">SOFTWARE ARCHITECTURE / 001</div><h1>See the shape<br /><em>of your code.</em></h1><p className="intro">Upload a project archive and turn its structure into a living map. Start with the files. Discover the system.</p><button className="drop-zone" onClick={() => inputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void chooseFile(event.dataTransfer.files[0]); }}><span className="upload-icon">↑</span><strong>{dragging ? "DROP TO MAP" : "DROP YOUR ZIP HERE"}</strong><span>or <u>browse files</u> · max 200 MB</span></button>{error && <p className="error-message">{error}</p>}<div className="landing-notes"><span><b>01</b> Upload archive</span><span><b>02</b> Scan structure</span><span><b>03</b> Explore graph</span></div><div className="orbit orbit-one" /><div className="orbit orbit-two" /></section>
+                    : <section className="workspace">
+                        {/* ── Left: Project Explorer ── */}
+                        <aside className="explorer panel">
+                            <div className="panel-heading"><span>PROJECT EXPLORER</span><span className="muted">{graph.files} FILES</span></div>
+                            <div className="project-name"><span className="folder-dot" />{graph.project}</div>
+                            <input className="search" placeholder="Filter files..." value={query} onChange={(event) => setQuery(event.target.value)} />
+                            <div className="file-list">
+                                <ExplorerTree
+                                    graph={graph}
+                                    query={query}
+                                    selected={selected}
+                                    collapsed={collapsed}
+                                    onSelect={handleExplorerSelect}
+                                    onToggle={toggleFolder}
+                                />
+                            </div>
+                            <div className="legend"><span><i style={{ background: colors.file }} /> FILE</span><span><i style={{ background: colors.folder }} /> FOLDER</span></div>
+                        </aside>
+
+                        {/* ── Centre: Graph Canvas ── */}
+                        <div className="graph-panel panel">
+                            <div className="graph-toolbar">
+                                <div><span className="live-dot" /> STRUCTURE MAP <span className="toolbar-separator">/</span> {visibleGraph?.nodes.length ?? 0} OF {graph.nodes.length} NODES</div>
+                                <div className="graph-actions">
+                                    <button className={analysisOpen ? "active" : ""} onClick={() => setAnalysisOpen((value) => !value)}>ANALYSIS</button>
+                                    <button className={compact ? "active" : ""} onClick={() => setCompact((value) => !value)}>{compact ? "RELAX" : "TIGHTEN"}</button>
+                                    <button onClick={collapseAll}>COLLAPSE ALL</button>
+                                    <button onClick={expandAll}>EXPAND ALL</button>
+                                </div>
+                            </div>
+                            {analysisOpen && <AnalysisDrawer analysis={graph.analysis} />}
+                            <ReactFlowProvider>
+                                <GraphCanvas
+                                    ref={graphRef}
+                                    graph={graph}
+                                    collapsed={collapsed}
+                                    selected={selected}
+                                    onSelect={setSelected}
+                                    onToggle={toggleFolder}
+                                    compact={compact}
+                                    positionOffsets={positionOffsets}
+                                    onMoveNodes={moveNodes}
+                                />
+                            </ReactFlowProvider>
+                        </div>
+
+                        {/* ── Right: Inspector ── */}
+                        <aside className="inspector panel">
+                            <div className="panel-heading"><span>INSPECTOR</span><span className="muted">{selected ? selected.type.toUpperCase() : "NONE"}</span></div>
+                            <div className="stats">
+                                <div><strong>{graph.files}</strong><span>FILES</span></div>
+                                <div><strong>{graph.folders}</strong><span>FOLDERS</span></div>
+                                <div><strong>{Object.keys(graph.languages).length}</strong><span>LANGUAGES</span></div>
+                            </div>
+                            {selected ? (
+                                <>
+                                    <div className="inspector-icon" style={{ color: colors[selected.type] }}>
+                                        <span className="material-symbols-outlined">{selected.type === "file" ? fileIcon(selected.label).name : selected.type === "folder" ? "folder" : "account_tree"}</span>
+                                    </div>
+                                    <h2>{selected.label}</h2>
+                                    <p className="path">{selected.path || "/"}</p>
+                                    <div className="detail-block"><span>NODE TYPE</span><strong>{selected.type}</strong></div>
+                                    {selected.language && <div className="detail-block"><span>LANGUAGE</span><strong>{selected.language}</strong></div>}
+                                    {selected.type === "file" && (
+                                        <>
+                                            <div className="detail-block"><span>LINES</span><strong>{selected.lines?.toLocaleString() ?? "-"}</strong></div>
+                                            <div className="detail-block"><span>SIZE</span><strong>{selected.size_bytes === undefined ? "-" : formatBytes(selected.size_bytes)}</strong></div>
+                                        </>
+                                    )}
+                                    <div className="detail-block"><span>RELATIONSHIP</span><strong>CONTAINS / IMPORTS</strong></div>
+                                    {/* Function call intelligence panel */}
+                                    {selected.type === "file" && graph.function_calls && graph.function_calls.length > 0 && (
+                                        <FunctionCallsPanel filePath={selected.path} functionCalls={graph.function_calls} />
+                                    )}
+                                    {/* Image / PDF preview */}
+                                    {projectId && isPreviewable(selected) && <FilePreview node={selected} projectId={projectId} />}
+                                </>
+                            ) : (
+                                <p className="empty-inspector">Select a node in the map to see its details.</p>
+                            )}
+                        </aside>
+                    </section>
+            }
             <input ref={inputRef} type="file" accept=".zip,application/zip" hidden onChange={onFileChange} />
         </main>
     );

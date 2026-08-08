@@ -351,3 +351,65 @@ button { cursor: pointer; }
 .file-preview iframe { display: block; width: 100%; height: 300px; border: 0; background: #dfe2eb; }
 .file-preview .preview-fallback { padding: 28px 16px; text-align: center; font: 11px 'DM Mono', monospace; color: var(--graph-label); }
 .file-preview .preview-fallback .material-symbols-outlined { font-size: 34px; margin-bottom: 8px; opacity: .6; }
+
+/* ===================================================================
+   Function Call Intelligence Panel
+   =================================================================== */
+
+/* Make the inspector scrollable so long call lists don't overflow */
+.inspector { overflow-y: auto; }
+
+/* Panel wrapper */
+.fn-panel { margin-top: 16px; border-top: 1px solid #252f2d; padding-top: 14px; }
+
+/* "FUNCTION CALLS 12" heading */
+.fn-panel-head { display: flex; align-items: center; gap: 7px; font: 700 9px 'DM Mono', monospace; letter-spacing: .12em; color: #5d6964; text-transform: uppercase; margin-bottom: 12px; }
+.fn-count { background: #1e2a28; color: #64d5c4; font: 700 8px 'DM Mono', monospace; padding: 1px 5px; border-radius: 3px; }
+
+/* Sub-heading: OUTBOUND · 4 */
+.fn-section-label { font: 700 8px 'DM Mono', monospace; letter-spacing: .1em; color: #404f4b; text-transform: uppercase; margin: 10px 0 6px; }
+
+/* Call card */
+.fn-call-row { background: #101918; border: 1px solid #252f2d; padding: 9px 10px 8px; margin-bottom: 7px; border-radius: 4px; transition: border-color .15s, background .15s; }
+.fn-call-row:hover { border-color: #354540; background: #141f1d; }
+
+/* Row header */
+.fn-call-header { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.fn-call-badge { font: 600 10px 'DM Mono', monospace; color: #9ca9ff; background: rgba(156,169,255,.10); border: 1px solid rgba(156,169,255,.18); padding: 1px 7px; border-radius: 3px; }
+.fn-ext-badge { font: 600 8px 'DM Mono', monospace; color: #64d5c4; background: rgba(100,213,196,.09); border: 1px solid rgba(100,213,196,.18); padding: 1px 5px; border-radius: 3px; }
+.fn-target-file { font: 9px 'DM Mono', monospace; color: #5d6964; }
+
+/* Parameter chips */
+.fn-params { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.fn-param-chip { display: inline-flex; align-items: center; gap: 3px; }
+.fn-param-name { font: 9px 'DM Mono', monospace; color: #9eaaa4; }
+.fn-type-chip { font: 700 7.5px 'DM Mono', monospace; padding: 1px 5px; border-radius: 2px; letter-spacing: .05em; text-transform: uppercase; }
+
+/* Per-type colours */
+.fn-type-json     { color: #bb9be9; background: rgba(187,155,233,.12); }
+.fn-type-vector   { color: #64d5c4; background: rgba(100,213,196,.12); }
+.fn-type-array    { color: #52c5b4; background: rgba(82,197,180,.12); }
+.fn-type-url      { color: #ef8354; background: rgba(239,131,84,.12); }
+.fn-type-file     { color: #f2b84b; background: rgba(242,184,75,.12); }
+.fn-type-string   { color: #90c070; background: rgba(144,192,112,.12); }
+.fn-type-number   { color: #5a9ee8; background: rgba(90,158,232,.12); }
+.fn-type-boolean  { color: #f17c71; background: rgba(241,124,113,.12); }
+.fn-type-function { color: #f2b84b; background: rgba(242,184,75,.12); }
+.fn-type-event    { color: #ef8354; background: rgba(239,131,84,.12); }
+.fn-type-element  { color: #9ca9ff; background: rgba(156,169,255,.12); }
+.fn-type-any      { color: #454f4b; background: rgba(93,105,100,.12); }
+
+/* Description line */
+.fn-call-desc { font: 9px 'DM Mono', monospace; color: #566260; line-height: 1.45; margin: 0; }
+
+/* ===================================================================
+   Node flash animation (triggered by explorer click via DOM classList)
+   =================================================================== */
+@keyframes node-flash {
+    0%   { box-shadow: 0 0 0 0 rgba(242,184,75,0); }
+    12%  { box-shadow: 0 0 0 6px rgba(242,184,75,.45), 0 0 20px rgba(242,184,75,.30); border-color: #f2b84b !important; }
+    50%  { box-shadow: 0 0 0 3px rgba(242,184,75,.2), 0 0 10px rgba(242,184,75,.15); border-color: #c49539 !important; }
+    100% { box-shadow: 0 0 0 0 rgba(242,184,75,0); }
+}
+.atlas-node.is-flashing { animation: node-flash 1.5s ease-out forwards; z-index: 999; }
+

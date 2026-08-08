@@ -1,13 +1,27 @@
+import threading
+import time
 from collections import Counter
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 import re
-import tempfile
+import shutil
+import uuid
 import zipfile
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 
 router = APIRouter()
+
+PREVIEW_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".pdf"}
+PROJECTS_ROOT = Path(__file__).resolve().parents[3] / "data_base" / "uploads"
+PROJECT_STORES: dict[str, dict] = {}
+
+MAX_ZIP_BYTES = 200 * 1024 * 1024
+MAX_EXTRACTED_BYTES = 250 * 1024 * 1024
+
+UPLOAD_TASKS: dict[str, dict] = {}
+UPLOAD_TASKS_LOCK = threading.Lock()
 
 
 @router.get("/")
@@ -160,46 +174,108 @@ def build_analysis(file_paths: list[PurePosixPath], edges: list[dict], file_size
     }
 
 
-@router.post("/api/upload")
-async def upload_project(file: UploadFile = File(...)):
-    """Extract a ZIP project and return a visualizable project tree."""
-    if not file.filename or not file.filename.lower().endswith(".zip"):
-        raise HTTPException(status_code=400, detail="Please upload a .zip project file.")
+def _new_upload_task(upload_id: str) -> dict:
+    task = {
+        "status": "uploading",
+        "phase": "uploading",
+        "progress": 0.0,
+        "files_processed": 0,
+        "total_files": 0,
+        "bytes_processed": 0,
+        "total_bytes": 0,
+        "current_file": "",
+        "elapsed_seconds": 0.0,
+        "remaining_seconds": 0,
+        "error": None,
+        "result": None,
+    }
+    with UPLOAD_TASKS_LOCK:
+        UPLOAD_TASKS[upload_id] = task
+    return task
 
-    content = await file.read()
-    if len(content) > 50 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Project ZIPs must be smaller than 50 MB.")
 
+def _update_upload_task(upload_id: str, **changes) -> None:
+    with UPLOAD_TASKS_LOCK:
+        task = UPLOAD_TASKS.get(upload_id)
+        if task:
+            task.update(changes)
+
+
+def _progress_snapshot(task: dict) -> dict:
+    return {key: value for key, value in task.items() if key != "result"}
+
+
+def _extract_and_analyze(upload_id: str, content: bytes, filename: str) -> None:
+    started = time.monotonic()
+    project_id = uuid.uuid4().hex
+    PROJECTS_ROOT.mkdir(parents=True, exist_ok=True)
+    extraction_root = (PROJECTS_ROOT / project_id).resolve()
     try:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            extraction_root = Path(temporary_directory).resolve()
-            with zipfile.ZipFile(BytesIO(content)) as archive:
-                members = []
-                source_contents = {}
-                file_sizes = {}
-                file_lines = {}
-                for info in archive.infolist():
-                    member_path = PurePosixPath(info.filename)
-                    if member_path.is_absolute() or ".." in member_path.parts or is_ignored(member_path):
-                        continue
-                    destination = (extraction_root / Path(*member_path.parts)).resolve()
-                    if extraction_root not in destination.parents and destination != extraction_root:
-                        continue
-                    members.append((info, member_path, destination))
-                    if info.is_dir():
-                        destination.mkdir(parents=True, exist_ok=True)
-                    else:
-                        destination.parent.mkdir(parents=True, exist_ok=True)
-                        file_content = archive.read(info)
-                        destination.write_bytes(file_content)
-                        file_sizes[member_path] = len(file_content)
-                        file_lines[member_path] = len(file_content.decode("utf-8", errors="ignore").splitlines())
-                        if member_path.suffix.lower() in SOURCE_EXTENSIONS:
-                            source_contents[member_path] = file_content.decode("utf-8", errors="ignore")
-    except zipfile.BadZipFile as error:
-        raise HTTPException(status_code=400, detail="The uploaded file is not a valid ZIP archive.") from error
+        with zipfile.ZipFile(BytesIO(content)) as archive:
+            infos = [info for info in archive.infolist() if not info.is_dir() and not is_ignored(PurePosixPath(info.filename))]
+            total_files = len(infos)
+            total_uncompressed = sum(info.file_size for info in infos)
+            if total_uncompressed > MAX_EXTRACTED_BYTES:
+                raise HTTPException(status_code=413, detail="Extracted project exceeds the 250 MB limit.")
 
-    nodes = [{"id": "root", "label": Path(file.filename).stem, "path": "", "type": "project"}]
+            _update_upload_task(upload_id, status="processing", phase="extracting", total_files=total_files, total_bytes=total_uncompressed)
+
+            members = []
+            source_contents = {}
+            file_sizes = {}
+            file_lines = {}
+            for info in archive.infolist():
+                member_path = PurePosixPath(info.filename)
+                if member_path.is_absolute() or ".." in member_path.parts or is_ignored(member_path):
+                    continue
+                destination = (extraction_root / Path(*member_path.parts)).resolve()
+                if extraction_root not in destination.parents and destination != extraction_root:
+                    continue
+                members.append((info, member_path, destination))
+                if info.is_dir():
+                    destination.mkdir(parents=True, exist_ok=True)
+                else:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    file_content = archive.read(info)
+                    destination.write_bytes(file_content)
+                    file_sizes[member_path] = len(file_content)
+                    file_lines[member_path] = len(file_content.decode("utf-8", errors="ignore").splitlines())
+                    if member_path.suffix.lower() in SOURCE_EXTENSIONS:
+                        source_contents[member_path] = file_content.decode("utf-8", errors="ignore")
+
+                    bytes_done = sum(file_sizes.values())
+                    percent = min(bytes_done / total_uncompressed, 1.0) if total_uncompressed else 1.0
+                    elapsed = time.monotonic() - started
+                    rate = bytes_done / elapsed if elapsed > 0 else 0
+                    remaining = int((1 - percent) * total_uncompressed / rate) if rate > 0 else 0
+                    _update_upload_task(
+                        upload_id,
+                        status="processing",
+                        phase="extracting",
+                        progress=round(percent * 100, 1),
+                        bytes_processed=bytes_done,
+                        files_processed=len(file_sizes),
+                        current_file=member_path.as_posix(),
+                        elapsed_seconds=round(elapsed, 1),
+                        remaining_seconds=remaining,
+                    )
+        preview_files = [
+            member_path for info, member_path, _destination in members
+            if not info.is_dir() and member_path.suffix.lower() in PREVIEW_EXTENSIONS
+        ]
+        PROJECT_STORES[project_id] = {"root": extraction_root, "preview_files": sorted(preview_files, key=lambda path: path.as_posix())}
+    except HTTPException as error:
+        shutil.rmtree(extraction_root, ignore_errors=True)
+        _update_upload_task(upload_id, status="error", error=error.detail)
+        return
+    except zipfile.BadZipFile:
+        shutil.rmtree(extraction_root, ignore_errors=True)
+        _update_upload_task(upload_id, status="error", error="The uploaded file is not a valid ZIP archive.")
+        return
+
+    _update_upload_task(upload_id, phase="analyzing", progress=90.0, current_file="", remaining_seconds=0)
+
+    nodes = [{"id": "root", "label": Path(filename).stem, "path": "", "type": "project"}]
     edges = []
     directories = {PurePosixPath()}
     file_paths = []
@@ -248,8 +324,9 @@ async def upload_project(file: UploadFile = File(...)):
         node["size_bytes"] = file_sizes.get(path, 0)
         node["lines"] = file_lines.get(path, 0)
 
-    return {
-        "project": Path(file.filename).stem,
+    result = {
+        "project_id": project_id,
+        "project": Path(filename).stem,
         "files": len(file_paths),
         "folders": max(len(directories) - 1, 0),
         "languages": dict(language_counts.most_common()),
@@ -257,3 +334,89 @@ async def upload_project(file: UploadFile = File(...)):
         "edges": edges,
         "analysis": analysis,
     }
+    elapsed = time.monotonic() - started
+    _update_upload_task(upload_id, status="complete", phase="done", progress=100.0, files_processed=len(file_paths), elapsed_seconds=round(elapsed, 1), remaining_seconds=0, result=result)
+
+
+@router.post("/api/upload")
+async def upload_project(file: UploadFile = File(...), upload_id: str = Form(...)):
+    """Start extracting a ZIP project and stream progress via /api/upload/{upload_id}/progress."""
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Please upload a .zip project file.")
+
+    content = await file.read()
+    if len(content) > MAX_ZIP_BYTES:
+        raise HTTPException(status_code=413, detail="Project ZIPs must be smaller than 200 MB.")
+
+    task = _new_upload_task(upload_id)
+    threading.Thread(target=_extract_and_analyze, args=(upload_id, content, file.filename), daemon=True).start()
+    return {"upload_id": upload_id, "status": task["status"]}
+
+
+@router.get("/api/upload/{upload_id}/progress")
+def get_upload_progress(upload_id: str):
+    """Return the live progress snapshot for an in-flight upload."""
+    with UPLOAD_TASKS_LOCK:
+        task = UPLOAD_TASKS.get(upload_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Upload not found or expired.")
+        return _progress_snapshot(task)
+
+
+@router.get("/api/upload/{upload_id}/result")
+def get_upload_result(upload_id: str):
+    """Return the final graph once processing is complete."""
+    with UPLOAD_TASKS_LOCK:
+        task = UPLOAD_TASKS.get(upload_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Upload not found or expired.")
+        if task["status"] == "error":
+            raise HTTPException(status_code=422, detail=task["error"] or "Project processing failed.")
+        if task["status"] != "complete":
+            raise HTTPException(status_code=409, detail="Project is still processing.")
+        return task["result"]
+
+
+@router.delete("/api/upload/{upload_id}")
+def cancel_upload(upload_id: str):
+    """Cancel an in-flight upload and discard its extracted files."""
+    with UPLOAD_TASKS_LOCK:
+        task = UPLOAD_TASKS.get(upload_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Upload not found or expired.")
+        result = task.get("result")
+        task["status"] = "cancelled"
+        UPLOAD_TASKS.pop(upload_id, None)
+    if result:
+        project_id = result.get("project_id")
+        if project_id:
+            PROJECT_STORES.pop(project_id, None)
+            shutil.rmtree((PROJECTS_ROOT / project_id).resolve(), ignore_errors=True)
+    return {"status": "cancelled"}
+
+
+@router.get("/api/projects/{project_id}/file")
+def get_project_file(project_id: str, path: str = Query(...)):
+    """Serve a raw file (image/PDF) from a previously uploaded project for preview."""
+    store = PROJECT_STORES.get(project_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Project not found or expired.")
+    requested = PurePosixPath(path)
+    if requested.is_absolute() or ".." in requested.parts:
+        raise HTTPException(status_code=400, detail="Invalid file path.")
+    root = store["root"]
+    candidate = (root / Path(*requested.parts)).resolve()
+    if root not in candidate.parents and candidate != root:
+        raise HTTPException(status_code=400, detail="Invalid file path.")
+    if not candidate.is_file():
+        raise HTTPException(status_code=404, detail="File not found.")
+    return FileResponse(candidate)
+
+
+@router.get("/api/projects/{project_id}/previewable")
+def list_previewable_files(project_id: str):
+    """List files in the uploaded project that support in-app preview."""
+    store = PROJECT_STORES.get(project_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Project not found or expired.")
+    return {"files": store["preview_files"]}

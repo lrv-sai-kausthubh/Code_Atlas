@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Code Atlas | Project Alpha Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-primary": "#002e69",
+                "crimson-error": "#EF4444",
+                "secondary-fixed-dim": "#4edea3",
+                "canvas-bg": "#080A0D",
+                "on-tertiary": "#571e00",
+                "on-surface": "#dfe2eb",
+                "primary-fixed-dim": "#adc6ff",
+                "surface-container-highest": "#31353c",
+                "surface-variant": "#31353c",
+                "electric-blue": "#007AFF",
+                "surface-container-high": "#262a31",
+                "outline-variant": "#414755",
+                "on-background": "#dfe2eb",
+                "inverse-surface": "#dfe2eb",
+                "vibrant-orange": "#F97316",
+                "on-secondary-fixed-variant": "#005236",
+                "on-secondary-fixed": "#002113",
+                "on-tertiary-fixed-variant": "#7c2e00",
+                "on-primary-container": "#00285c",
+                "surface-bright": "#353940",
+                "tertiary-fixed-dim": "#ffb595",
+                "on-surface-variant": "#c1c6d7",
+                "on-secondary": "#003824",
+                "tertiary-container": "#ef6719",
+                "surface-stroke": "#30363D",
+                "tertiary": "#ffb595",
+                "secondary-container": "#00a572",
+                "royal-purple": "#8B5CF6",
+                "on-error": "#690005",
+                "on-primary-fixed": "#001a41",
+                "surface-tint": "#adc6ff",
+                "primary-container": "#4b8eff",
+                "tertiary-fixed": "#ffdbcc",
+                "inverse-on-surface": "#2d3137",
+                "surface-container-lowest": "#0a0e14",
+                "emerald-green": "#10B981",
+                "outline": "#8b90a0",
+                "surface-dim": "#10141a",
+                "on-primary-fixed-variant": "#004493",
+                "on-tertiary-fixed": "#351000",
+                "inverse-primary": "#005bc1",
+                "primary": "#adc6ff",
+                "primary-fixed": "#d8e2ff",
+                "secondary": "#4edea3",
+                "on-secondary-container": "#00311f",
+                "utility-yellow": "#FACC15",
+                "error-container": "#93000a",
+                "surface": "#10141a",
+                "on-tertiary-container": "#4c1a00",
+                "error": "#ffb4ab",
+                "on-error-container": "#ffdad6",
+                "background": "#10141a",
+                "surface-container": "#1c2026",
+                "secondary-fixed": "#6ffbbe",
+                "surface-container-low": "#181c22"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "unit": "4px",
+                "sidebar-width": "280px",
+                "edge-thickness": "1.5px",
+                "drawer-width": "360px",
+                "gutter": "16px"
+            },
+            "fontFamily": {
+                "body-sm": ["Inter"],
+                "code-md": ["JetBrains Mono"],
+                "label-caps": ["JetBrains Mono"],
+                "headline-md": ["Space Grotesk"],
+                "body-md": ["Inter"],
+                "headline-sm": ["Space Grotesk"],
+                "display-lg": ["Space Grotesk"]
+            },
+            "fontSize": {
+                "body-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                "code-md": ["13px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                "label-caps": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                "headline-sm": ["18px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .grid-bg {
+            background-image: radial-gradient(circle, #30363D 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .glow-blue {
+            box-shadow: 0 0 12px rgba(0, 122, 255, 0.4);
+        }
+        .marching-ants {
+            stroke-dasharray: 4;
+            animation: dash 5s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -100; }
+        }
+        .glass-panel {
+            background: rgba(28, 32, 38, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #30363D; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #414755; }
+    </style>
+</head>
+<body class="bg-canvas-bg text-on-surface font-body-md selection:bg-electric-blue selection:text-white overflow-hidden h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 h-14 bg-canvas-bg border-b border-surface-stroke flex justify-between items-center px-gutter w-full">
+<div class="flex items-center gap-8">
+<span class="font-headline-md text-headline-md font-bold text-electric-blue tracking-tighter">CODE ATLAS</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="font-label-caps text-label-caps text-electric-blue border-b-2 border-electric-blue pb-1" href="#">Explorer</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface transition-colors" href="#">Architecture</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface transition-colors" href="#">Flows</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-low border border-surface-stroke rounded-none pl-10 pr-4 py-1.5 text-body-sm focus:border-electric-blue focus:ring-0 w-64 transition-all" placeholder="Search components..." type="text"/>
+</div>
+<button class="bg-electric-blue text-on-primary px-4 py-1.5 font-label-caps text-label-caps font-bold hover:opacity-90 active:scale-[0.98] transition-transform">UPLOAD</button>
+<div class="flex gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-highest transition-all duration-150"><span class="material-symbols-outlined">settings</span></button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-highest transition-all duration-150"><span class="material-symbols-outlined">help</span></button>
+</div>
+</div>
+</header>
+<div class="flex flex-1 mt-14 overflow-hidden">
+<!-- SideNavBar (Left) -->
+<aside class="w-sidebar-width bg-surface border-r border-surface-stroke flex flex-col h-full overflow-hidden">
+<div class="p-4 border-b border-surface-stroke">
+<div class="flex items-center justify-between mb-1">
+<span class="font-headline-sm text-headline-sm text-on-surface">Project Alpha</span>
+<span class="material-symbols-outlined text-on-surface-variant text-base cursor-pointer">expand_more</span>
+</div>
+<div class="text-on-surface-variant text-[11px] font-code-md">v2.4.0-stable</div>
+</div>
+<div class="flex-1 overflow-y-auto pt-2">
+<!-- Navigation Tabs -->
+<div class="flex px-2 gap-1 mb-4">
+<button class="flex-1 py-2 bg-surface-container-highest text-electric-blue border-l-2 border-electric-blue flex flex-col items-center justify-center gap-1">
+<span class="material-symbols-outlined text-lg">folder_open</span>
+<span class="font-label-caps text-[9px]">Explorer</span>
+</button>
+<button class="flex-1 py-2 text-on-surface-variant hover:bg-surface-container-low flex flex-col items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-lg">filter_list</span>
+<span class="font-label-caps text-[9px]">Filters</span>
+</button>
+<button class="flex-1 py-2 text-on-surface-variant hover:bg-surface-container-low flex flex-col items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-lg">history</span>
+<span class="font-label-caps text-[9px]">Recent</span>
+</button>
+<button class="flex-1 py-2 text-on-surface-variant hover:bg-surface-container-low flex flex-col items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-lg">layers</span>
+<span class="font-label-caps text-[9px]">Layers</span>
+</button>
+</div>
+<!-- File Tree -->
+<div class="px-2 space-y-0.5">
+<div class="flex items-center gap-2 p-1.5 hover:bg-surface-container-high cursor-pointer transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">keyboard_arrow_down</span>
+<span class="material-symbols-outlined text-utility-yellow text-sm">folder</span>
+<span class="font-code-md text-code-md text-on-surface">src</span>
+</div>
+<div class="pl-4">
+<div class="flex items-center gap-2 p-1.5 hover:bg-surface-container-high cursor-pointer transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">keyboard_arrow_down</span>
+<span class="material-symbols-outlined text-utility-yellow text-sm">folder</span>
+<span class="font-code-md text-code-md text-on-surface">services</span>
+</div>
+<div class="pl-4">
+<div class="flex items-center gap-2 p-1.5 bg-surface-container-highest border-l-2 border-electric-blue cursor-pointer group">
+<span class="material-symbols-outlined text-electric-blue text-sm">description</span>
+<span class="font-code-md text-code-md text-electric-blue">auth_service.ts</span>
+</div>
+<div class="flex items-center gap-2 p-1.5 hover:bg-surface-container-high cursor-pointer transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">description</span>
+<span class="font-code-md text-code-md text-on-surface">db_connector.ts</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 p-1.5 hover:bg-surface-container-high cursor-pointer transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">keyboard_arrow_right</span>
+<span class="material-symbols-outlined text-utility-yellow text-sm">folder</span>
+<span class="font-code-md text-code-md text-on-surface">tests</span>
+</div>
+<div class="flex items-center gap-2 p-1.5 hover:bg-surface-container-high cursor-pointer transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">description</span>
+<span class="font-code-md text-code-md text-on-surface">package.json</span>
+</div>
+</div>
+</div>
+<div class="mt-auto border-t border-surface-stroke p-2">
+<button class="w-full bg-surface-container-low border border-surface-stroke py-2 flex items-center justify-center gap-2 font-label-caps text-label-caps hover:bg-surface-container-high transition-colors mb-2">
+<span class="material-symbols-outlined text-sm">add</span>
+                    New Branch
+                </button>
+<div class="flex justify-around py-1">
+<button class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">terminal</span>
+<span class="font-label-caps text-[9px]">Terminal</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">bug_report</span>
+<span class="font-label-caps text-[9px]">Debug</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="flex-1 relative bg-canvas-bg grid-bg overflow-hidden cursor-grab active:cursor-grabbing">
+<!-- SVG Graph Connections Layer -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none">
+<defs>
+<marker id="arrow" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="10" refy="5" viewbox="0 0 10 10">
+<path d="M 0 0 L 10 5 L 0 10 z" fill="#007AFF"></path>
+</marker>
+</defs>
+<!-- Connections -->
+<line class="marching-ants opacity-60" marker-end="url(#arrow)" stroke="#007AFF" stroke-width="1.5" x1="300" x2="500" y1="200" y2="150"></line>
+<line class="marching-ants opacity-60" marker-end="url(#arrow)" stroke="#007AFF" stroke-width="1.5" x1="300" x2="450" y1="200" y2="350"></line>
+<line stroke="#30363D" stroke-width="1.5" x1="500" x2="650" y1="150" y2="150"></line>
+<line stroke="#30363D" stroke-width="1.5" x1="450" x2="600" y1="350" y2="400"></line>
+<line opacity="0.3" stroke="#007AFF" stroke-width="1.5" x1="650" x2="700" y1="150" y2="300"></line>
+</svg>
+<!-- Nodes -->
+<!-- Selected File Node: auth_service.ts -->
+<div class="absolute left-[220px] top-[160px] w-48 p-3 bg-surface border-2 border-electric-blue glow-blue group cursor-pointer z-10">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-electric-blue text-lg">description</span>
+<span class="font-label-caps text-[10px] bg-primary-container/20 text-electric-blue px-1.5 py-0.5">FILE</span>
+</div>
+<div class="font-code-md text-code-md text-on-surface truncate">auth_service.ts</div>
+<div class="mt-2 flex gap-1">
+<div class="h-1 flex-1 bg-emerald-green opacity-80"></div>
+<div class="h-1 flex-1 bg-emerald-green opacity-40"></div>
+<div class="h-1 flex-1 bg-surface-stroke"></div>
+</div>
+</div>
+<!-- Function Node 1 -->
+<div class="absolute left-[500px] top-[130px] w-12 h-12 rounded-full bg-surface border border-royal-purple/50 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer" title="validateToken()">
+<span class="material-symbols-outlined text-royal-purple text-xl" style="font-variation-settings: 'FILL' 1;">function</span>
+</div>
+<!-- Function Node 2 -->
+<div class="absolute left-[450px] top-[340px] w-12 h-12 rounded-full bg-surface border border-royal-purple/50 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer" title="encryptPassword()">
+<span class="material-symbols-outlined text-royal-purple text-xl" style="font-variation-settings: 'FILL' 1;">function</span>
+</div>
+<!-- Generic File Node -->
+<div class="absolute left-[650px] top-[130px] w-40 p-3 bg-surface border border-surface-stroke hover:border-on-surface-variant transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">description</span>
+<span class="font-code-md text-code-md text-on-surface truncate">db_connector.ts</span>
+</div>
+</div>
+<!-- Generic File Node 2 -->
+<div class="absolute left-[600px] top-[390px] w-40 p-3 bg-surface border border-surface-stroke hover:border-on-surface-variant transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">description</span>
+<span class="font-code-md text-code-md text-on-surface truncate">user_model.ts</span>
+</div>
+</div>
+<!-- Search Highlight Effect -->
+<div class="absolute left-[220px] top-[160px] w-48 h-20 -m-1 pointer-events-none">
+<div class="absolute inset-0 border-2 border-electric-blue animate-ping opacity-25"></div>
+</div>
+<!-- Floating Toolbar -->
+<div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1 p-1.5 glass-panel rounded-lg shadow-2xl z-20">
+<button class="p-2 hover:bg-white/10 text-on-surface rounded transition-colors"><span class="material-symbols-outlined">zoom_in</span></button>
+<button class="p-2 hover:bg-white/10 text-on-surface rounded transition-colors"><span class="material-symbols-outlined">zoom_out</span></button>
+<div class="w-px bg-surface-stroke mx-1"></div>
+<button class="p-2 hover:bg-white/10 text-on-surface rounded transition-colors"><span class="material-symbols-outlined">center_focus_strong</span></button>
+<button class="p-2 hover:bg-white/10 text-electric-blue rounded transition-colors"><span class="material-symbols-outlined">account_tree</span></button>
+<div class="w-px bg-surface-stroke mx-1"></div>
+<button class="p-2 hover:bg-white/10 text-on-surface rounded transition-colors"><span class="material-symbols-outlined">fullscreen</span></button>
+</div>
+<!-- Minimap -->
+<div class="absolute bottom-6 right-6 w-48 h-32 glass-panel border border-surface-stroke overflow-hidden shadow-2xl z-20">
+<div class="relative w-full h-full opacity-40 p-2">
+<div class="absolute top-4 left-4 w-6 h-4 bg-electric-blue"></div>
+<div class="absolute top-2 left-10 w-2 h-2 rounded-full bg-royal-purple"></div>
+<div class="absolute top-8 left-8 w-2 h-2 rounded-full bg-royal-purple"></div>
+<div class="absolute top-2 left-14 w-6 h-4 bg-on-surface-variant"></div>
+<div class="absolute top-10 left-12 w-6 h-4 bg-on-surface-variant"></div>
+<!-- Viewport Indicator -->
+<div class="absolute top-0 left-0 w-32 h-20 border border-electric-blue/50 bg-electric-blue/5"></div>
+</div>
+</div>
+</main>
+<!-- Information Panel (Right) -->
+<aside class="w-drawer-width bg-surface border-l border-surface-stroke flex flex-col h-full overflow-hidden">
+<div class="p-6 border-b border-surface-stroke bg-surface-container-low">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-electric-blue text-2xl">description</span>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">auth_service.ts</h2>
+<p class="font-code-md text-xs text-on-surface-variant">/src/services/auth_service.ts</p>
+</div>
+</div>
+<button class="p-1 hover:bg-surface-container-highest transition-colors rounded"><span class="material-symbols-outlined text-on-surface-variant">close</span></button>
+</div>
+<div class="flex gap-4 border-b border-surface-stroke mb-4">
+<button class="pb-2 border-b-2 border-electric-blue text-electric-blue font-label-caps text-label-caps">OVERVIEW</button>
+<button class="pb-2 text-on-surface-variant hover:text-on-surface font-label-caps text-label-caps transition-colors">REFERENCES</button>
+<button class="pb-2 text-on-surface-variant hover:text-on-surface font-label-caps text-label-caps transition-colors">HISTORY</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-8">
+<!-- AI Summary -->
+<section>
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-royal-purple text-sm">auto_awesome</span>
+<h3 class="font-label-caps text-label-caps text-on-surface tracking-wider">AI INSIGHTS</h3>
+</div>
+<div class="p-4 bg-surface-container-lowest border border-surface-stroke text-body-sm leading-relaxed text-on-surface-variant">
+                        This service handles all authentication logic including JWT issuance, password hashing via Argon2, and session management. It acts as the primary gateway for identity verification.
+                        <div class="mt-4 flex items-center gap-2 text-royal-purple">
+<span class="material-symbols-outlined text-xs">tips_and_updates</span>
+<span class="font-code-md text-[11px] italic">Potential optimization: Implement refresh token rotation.</span>
+</div>
+</div>
+</section>
+<!-- Imports/Exports Bento Style -->
+<section>
+<h3 class="font-label-caps text-label-caps text-on-surface tracking-wider mb-3">STRUCTURE</h3>
+<div class="grid grid-cols-2 gap-3">
+<div class="p-3 bg-surface-container-low border border-surface-stroke">
+<div class="text-[10px] font-label-caps text-on-surface-variant mb-2">IMPORTS</div>
+<div class="space-y-1 font-code-md text-[11px] text-on-surface">
+<div class="flex items-center gap-2"><span class="w-1 h-1 bg-electric-blue"></span> crypto</div>
+<div class="flex items-center gap-2"><span class="w-1 h-1 bg-electric-blue"></span> jsonwebtoken</div>
+<div class="flex items-center gap-2"><span class="w-1 h-1 bg-electric-blue"></span> config</div>
+</div>
+</div>
+<div class="p-3 bg-surface-container-low border border-surface-stroke">
+<div class="text-[10px] font-label-caps text-on-surface-variant mb-2">EXPORTS</div>
+<div class="space-y-1 font-code-md text-[11px] text-on-surface">
+<div class="flex items-center gap-2"><span class="w-1 h-1 bg-royal-purple"></span> AuthService</div>
+<div class="flex items-center gap-2"><span class="w-1 h-1 bg-royal-purple"></span> AuthError</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Functions List -->
+<section>
+<h3 class="font-label-caps text-label-caps text-on-surface tracking-wider mb-3">FUNCTIONS (4)</h3>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-2.5 bg-surface-container-low border border-surface-stroke hover:bg-surface-container-high transition-colors group cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-royal-purple text-sm" style="font-variation-settings: 'FILL' 1;">function</span>
+<span class="font-code-md text-code-md">validateToken</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm opacity-0 group-hover:opacity-100">arrow_forward</span>
+</div>
+<div class="flex items-center justify-between p-2.5 bg-surface-container-low border border-surface-stroke hover:bg-surface-container-high transition-colors group cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-royal-purple text-sm" style="font-variation-settings: 'FILL' 1;">function</span>
+<span class="font-code-md text-code-md">encryptPassword</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm opacity-0 group-hover:opacity-100">arrow_forward</span>
+</div>
+<div class="flex items-center justify-between p-2.5 bg-surface-container-low border border-surface-stroke hover:bg-surface-container-high transition-colors group cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-royal-purple text-sm" style="font-variation-settings: 'FILL' 1;">function</span>
+<span class="font-code-md text-code-md">issueJWT</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm opacity-0 group-hover:opacity-100">arrow_forward</span>
+</div>
+</div>
+</section>
+</div>
+<!-- Quick Action Chat Footer -->
+<div class="p-4 border-t border-surface-stroke bg-surface-container-low">
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-surface-stroke px-4 py-2 text-body-sm focus:border-electric-blue focus:ring-0 rounded-none pr-10" placeholder="Ask AI about this file..." type="text"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-royal-purple hover:text-white transition-colors">
+<span class="material-symbols-outlined text-lg">send</span>
+</button>
+</div>
+</div>
+</aside>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.querySelector('main');
+            let isDragging = false;
+            let startX, startY, scrollLeft, scrollTop;
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.pageX - canvas.offsetLeft;
+                startY = e.pageY - canvas.offsetTop;
+                scrollLeft = canvas.scrollLeft;
+                scrollTop = canvas.scrollTop;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                isDragging = false;
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const x = e.pageX - canvas.offsetLeft;
+                const y = e.pageY - canvas.offsetTop;
+                const walkX = (x - startX) * 1.5;
+                const walkY = (y - startY) * 1.5;
+                // In a real app we'd translate the inner container or use a canvas transform
+                // For this demo, we'll just simulate movement feel
+            });
+
+            // Handle Node Clicks
+            const nodes = document.querySelectorAll('.cursor-pointer');
+            nodes.forEach(node => {
+                node.addEventListener('click', () => {
+                    // Logic to update right sidebar would go here
+                    console.log('Node selected:', node.textContent.trim());
+                });
+            });
+        });
+    </script>
+</body></html>

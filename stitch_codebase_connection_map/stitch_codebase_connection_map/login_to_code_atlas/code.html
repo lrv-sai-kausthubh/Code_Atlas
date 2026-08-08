@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Code Atlas | Login</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#00285c",
+                        "on-surface": "#dfe2eb",
+                        "surface-container-lowest": "#0a0e14",
+                        "surface-dim": "#10141a",
+                        "on-error": "#690005",
+                        "on-tertiary-container": "#4c1a00",
+                        "surface-bright": "#353940",
+                        "surface-container-high": "#262a31",
+                        "royal-purple": "#8B5CF6",
+                        "canvas-bg": "#080A0D",
+                        "surface-container-highest": "#31353c",
+                        "on-secondary-fixed-variant": "#005236",
+                        "error-container": "#93000a",
+                        "outline-variant": "#414755",
+                        "surface-container-low": "#181c22",
+                        "background": "#10141a",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "emerald-green": "#10B981",
+                        "utility-yellow": "#FACC15",
+                        "on-surface-variant": "#c1c6d7",
+                        "on-primary-fixed": "#001a41",
+                        "inverse-on-surface": "#2d3137",
+                        "surface": "#10141a",
+                        "on-secondary": "#003824",
+                        "on-tertiary-fixed": "#351000",
+                        "inverse-primary": "#005bc1",
+                        "error": "#ffb4ab",
+                        "secondary-container": "#00a572",
+                        "primary-container": "#4b8eff",
+                        "primary": "#adc6ff",
+                        "crimson-error": "#EF4444",
+                        "tertiary": "#ffb595",
+                        "tertiary-fixed-dim": "#ffb595",
+                        "surface-tint": "#adc6ff",
+                        "surface-stroke": "#30363D",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary": "#571e00",
+                        "outline": "#8b90a0",
+                        "on-background": "#dfe2eb",
+                        "primary-fixed-dim": "#adc6ff",
+                        "secondary": "#4edea3",
+                        "primary-fixed": "#d8e2ff",
+                        "vibrant-orange": "#F97316",
+                        "secondary-fixed-dim": "#4edea3",
+                        "surface-container": "#1c2026",
+                        "secondary-fixed": "#6ffbbe",
+                        "surface-variant": "#31353c",
+                        "on-secondary-fixed": "#002113",
+                        "on-secondary-container": "#00311f",
+                        "tertiary-fixed": "#ffdbcc",
+                        "electric-blue": "#007AFF",
+                        "inverse-surface": "#dfe2eb",
+                        "tertiary-container": "#ef6719",
+                        "on-primary": "#002e69"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sidebar-width": "280px",
+                        "edge-thickness": "1.5px",
+                        "drawer-width": "360px",
+                        "unit": "4px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-sm": ["Space Grotesk"],
+                        "headline-md": ["Space Grotesk"],
+                        "display-lg": ["Space Grotesk"],
+                        "code-md": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-sm": ["18px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "code-md": ["13px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                        "label-caps": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #080A0D;
+            color: #dfe2eb;
+            overflow: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glow-border:focus-within {
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.5), 0 0 8px rgba(0, 122, 255, 0.3);
+        }
+        .glass-panel {
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 5;
+            background: linear-gradient(0deg, rgba(0, 122, 255, 0) 0%, rgba(0, 122, 255, 0.05) 50%, rgba(0, 122, 255, 0) 100%);
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            animation: scanline 8s linear infinite;
+        }
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: -100px; }
+        }
+        .dot-grid {
+            background-image: radial-gradient(circle, #30363D 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- Left Section: Visual & Branding (60%) -->
+<section class="relative hidden md:flex flex-[0.6] bg-canvas-bg overflow-hidden border-r border-surface-stroke">
+<!-- Background Grid -->
+<div class="absolute inset-0 dot-grid opacity-30"></div>
+<!-- Background Shader/Visual -->
+<div class="absolute inset-0 z-0">
+
+</div>
+<!-- Scanline effect -->
+<div class="scanline"></div>
+<!-- Content Overlay -->
+<div class="relative z-10 flex flex-col justify-between p-12 w-full">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 bg-electric-blue flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-white text-[20px]" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+</div>
+<span class="font-headline-md text-headline-md text-electric-blue tracking-tighter uppercase">CODE ATLAS</span>
+</div>
+<div class="max-w-xl">
+<h1 class="font-display-lg text-display-lg mb-6 leading-tight">
+                    The Knowledge Graph for your <span class="text-electric-blue">Codebase</span>.
+                </h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md">
+                    Navigate architectural complexity with AI-driven insights. Visualize flows, manage dependencies, and ship better code faster.
+                </p>
+<!-- Micro-visual indicator -->
+<div class="mt-12 flex items-center space-x-4 opacity-50">
+<div class="flex items-center space-x-1">
+<span class="w-2 h-2 rounded-full bg-emerald-green"></span>
+<span class="font-label-caps text-label-caps">STABLE V2.4</span>
+</div>
+<div class="w-[1px] h-3 bg-surface-stroke"></div>
+<div class="flex items-center space-x-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">NODE_ENGINE: RUNNING</span>
+</div>
+</div>
+</div>
+<div class="font-code-md text-code-md text-on-surface-variant/40 flex justify-between items-end">
+<span>0x1A4F_SYSTEM_CORE</span>
+<span>© 2024 CODE ATLAS LABS</span>
+</div>
+</div>
+</section>
+<!-- Right Section: Login Form (40%) -->
+<section class="flex flex-col flex-1 md:flex-[0.4] bg-surface items-center justify-center p-6 sm:p-12">
+<div class="w-full max-w-[400px]">
+<!-- Mobile Brand Header -->
+<div class="flex md:hidden items-center space-x-2 mb-12">
+<div class="w-6 h-6 bg-electric-blue flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-white text-[16px]" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+</div>
+<span class="font-headline-sm text-headline-sm text-electric-blue tracking-tighter">CODE ATLAS</span>
+</div>
+<div class="mb-10">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-2">Welcome back</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Sign in to your development workspace.</p>
+</div>
+<!-- Social Logins -->
+<div class="space-y-3 mb-8">
+<button class="w-full h-11 bg-on-surface text-surface-container-lowest font-bold flex items-center justify-center space-x-3 transition-all hover:bg-white active:scale-[0.98]">
+<svg class="w-5 h-5" fill="currentColor" viewbox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
+<span class="font-body-md">Continue with GitHub</span>
+</button>
+<button class="w-full h-11 bg-surface-container-low border border-surface-stroke text-on-surface font-semibold flex items-center justify-center space-x-3 transition-all hover:bg-surface-container-high active:scale-[0.98]">
+<svg class="w-5 h-5" viewbox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"></path><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path></svg>
+<span class="font-body-md">Continue with Google</span>
+</button>
+</div>
+<div class="flex items-center space-x-4 mb-8">
+<div class="h-[1px] flex-1 bg-surface-stroke"></div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Or with email</span>
+<div class="h-[1px] flex-1 bg-surface-stroke"></div>
+</div>
+<!-- Email Login Form -->
+<form class="space-y-6" onsubmit="return false;">
+<div class="space-y-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase ml-0.5">Email Address</label>
+<div class="relative glow-border">
+<input class="w-full bg-surface-container-low border border-surface-stroke focus:border-electric-blue focus:ring-0 text-on-surface font-body-md px-4 py-3 outline-none transition-all placeholder:text-on-surface-variant/30" placeholder="dev@company.com" type="email"/>
+</div>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between items-center px-0.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Password</label>
+<a class="font-label-caps text-label-caps text-electric-blue hover:underline" href="#">Forgot?</a>
+</div>
+<div class="relative glow-border">
+<input class="w-full bg-surface-container-low border border-surface-stroke focus:border-electric-blue focus:ring-0 text-on-surface font-body-md px-4 py-3 outline-none transition-all placeholder:text-on-surface-variant/30" placeholder="••••••••" type="password"/>
+</div>
+</div>
+<div class="flex items-center space-x-2">
+<input class="w-4 h-4 bg-surface-container-low border-surface-stroke text-electric-blue rounded-none focus:ring-offset-background" id="remember" type="checkbox"/>
+<label class="font-body-sm text-body-sm text-on-surface-variant cursor-pointer select-none" for="remember">Remember this device for 30 days</label>
+</div>
+<button class="group relative w-full h-12 bg-electric-blue text-white font-bold flex items-center justify-center overflow-hidden active:scale-[0.98] transition-transform">
+<span class="relative z-10 font-body-md uppercase tracking-wider">Authorize Access</span>
+<div class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+</button>
+</form>
+<!-- Footer Links -->
+<div class="mt-10 pt-10 border-t border-surface-stroke flex flex-col items-center space-y-4">
+<p class="font-body-md text-body-md text-on-surface-variant">
+                    New to Code Atlas? <a class="text-electric-blue font-semibold hover:underline" href="#">Create an account</a>
+</p>
+<div class="flex space-x-4">
+<a class="font-label-caps text-label-caps text-on-surface-variant/60 hover:text-on-surface transition-colors" href="#">Privacy Policy</a>
+<span class="text-surface-stroke">•</span>
+<a class="font-label-caps text-label-caps text-on-surface-variant/60 hover:text-on-surface transition-colors" href="#">Terms of Service</a>
+</div>
+</div>
+</div>
+</section>
+<!-- Floating Atmosphere Elements -->
+<div class="fixed top-8 right-8 pointer-events-none opacity-20">
+<div class="font-code-md text-code-md text-on-surface-variant flex flex-col items-end">
+<span>SECURE_SHELL_ESTABLISHED</span>
+<span id="timestamp">2024-05-24 14:32:01</span>
+</div>
+</div>
+<script>
+        // Interactive Micro-interactions
+        const timestampEl = document.getElementById('timestamp');
+        function updateTimestamp() {
+            const now = new Date();
+            timestampEl.textContent = now.toISOString().replace('T', ' ').split('.')[0];
+        }
+        setInterval(updateTimestamp, 1000);
+        updateTimestamp();
+
+        // Simulate a small "glitch" or typing effect on inputs focus
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                // Subtle feedback if needed
+            });
+        });
+    </script>
+</body></html>

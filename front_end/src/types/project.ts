@@ -39,6 +39,7 @@ export type ProjectEdge = {
 };
 
 export type ProjectGraph = {
+    project_id: string;
     project: string;
     files: number;
     folders: number;
@@ -46,4 +47,18 @@ export type ProjectGraph = {
     nodes: ProjectNode[];
     edges: ProjectEdge[];
     analysis: RepositoryAnalysis;
+};
+
+export type UploadProgress = {
+    status: "uploading" | "processing" | "complete" | "error" | "cancelled";
+    phase: "uploading" | "extracting" | "analyzing" | "done" | "error";
+    progress: number;
+    files_processed: number;
+    total_files: number;
+    bytes_processed: number;
+    total_bytes: number;
+    current_file: string;
+    elapsed_seconds: number;
+    remaining_seconds: number;
+    error?: string | null;
 };

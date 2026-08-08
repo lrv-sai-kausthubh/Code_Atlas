@@ -1,0 +1,392 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>CODE ATLAS | Processing Repository</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;700&amp;family=Space+Grotesk:wght@600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..900&amp;family=Space+Grotesk:wght@100..900&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#002e69",
+                        "crimson-error": "#EF4444",
+                        "secondary-fixed-dim": "#4edea3",
+                        "canvas-bg": "#080A0D",
+                        "on-tertiary": "#571e00",
+                        "on-surface": "#dfe2eb",
+                        "primary-fixed-dim": "#adc6ff",
+                        "surface-container-highest": "#31353c",
+                        "surface-variant": "#31353c",
+                        "electric-blue": "#007AFF",
+                        "surface-container-high": "#262a31",
+                        "outline-variant": "#414755",
+                        "on-background": "#dfe2eb",
+                        "inverse-surface": "#dfe2eb",
+                        "vibrant-orange": "#F97316",
+                        "on-secondary-fixed-variant": "#005236",
+                        "on-secondary-fixed": "#002113",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "on-primary-container": "#00285c",
+                        "surface-bright": "#353940",
+                        "tertiary-fixed-dim": "#ffb595",
+                        "on-surface-variant": "#c1c6d7",
+                        "on-secondary": "#003824",
+                        "tertiary-container": "#ef6719",
+                        "surface-stroke": "#30363D",
+                        "tertiary": "#ffb595",
+                        "secondary-container": "#00a572",
+                        "royal-purple": "#8B5CF6",
+                        "on-error": "#690005",
+                        "on-primary-fixed": "#001a41",
+                        "surface-tint": "#adc6ff",
+                        "primary-container": "#4b8eff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "inverse-on-surface": "#2d3137",
+                        "surface-container-lowest": "#0a0e14",
+                        "emerald-green": "#10B981",
+                        "outline": "#8b90a0",
+                        "surface-dim": "#10141a",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-tertiary-fixed": "#351000",
+                        "inverse-primary": "#005bc1",
+                        "primary": "#adc6ff",
+                        "primary-fixed": "#d8e2ff",
+                        "secondary": "#4edea3",
+                        "on-secondary-container": "#00311f",
+                        "utility-yellow": "#FACC15",
+                        "error-container": "#93000a",
+                        "surface": "#10141a",
+                        "on-tertiary-container": "#4c1a00",
+                        "error": "#ffb4ab",
+                        "on-error-container": "#ffdad6",
+                        "background": "#10141a",
+                        "surface-container": "#1c2026",
+                        "secondary-fixed": "#6ffbbe",
+                        "surface-container-low": "#181c22"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "sidebar-width": "280px",
+                        "edge-thickness": "1.5px",
+                        "drawer-width": "360px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "body-sm": ["Inter"],
+                        "code-md": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-md": ["Space Grotesk"],
+                        "body-md": ["Inter"],
+                        "headline-sm": ["Space Grotesk"],
+                        "display-lg": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                        "code-md": ["13px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-caps": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-sm": ["18px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .scan-line {
+            background: linear-gradient(to right, transparent, #007AFF, transparent);
+            height: 2px;
+            width: 100%;
+            position: absolute;
+            top: -2px;
+            animation: scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .marching-ants {
+            background-size: 20px 20px;
+            background-image: linear-gradient(45deg, rgba(0,122,255,0.1) 25%, transparent 25%, transparent 50%, rgba(0,122,255,0.1) 50%, rgba(0,122,255,0.1) 75%, transparent 75%, transparent);
+            animation: move-ants 1s linear infinite;
+        }
+
+        @keyframes move-ants {
+            0% { background-position: 0 0; }
+            100% { background-position: 20px 0; }
+        }
+
+        .glow-active {
+            box-shadow: 0 0 15px rgba(0, 122, 255, 0.4);
+        }
+
+        .floating-particles {
+            pointer-events: none;
+        }
+
+        @keyframes absorb {
+            0% { transform: scale(1.5) translate(var(--tw-translate-x), var(--tw-translate-y)); opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { transform: scale(0) translate(0, 0); opacity: 0; }
+        }
+
+        .absorbing-node {
+            animation: absorb 4s infinite linear;
+        }
+
+        .terminal-scroll {
+            mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+        }
+    </style>
+</head>
+<body class="bg-canvas-bg text-on-surface overflow-hidden">
+<!-- Background Layer: The Atlas Core & Absorbing Visualization -->
+<div class="fixed inset-0 z-0 overflow-hidden">
+<!-- Dot Grid Canvas -->
+<div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#30363D 1px, transparent 1px); background-size: 24px 24px;"></div>
+<!-- Central Atlas Core (Simplified abstraction for background) -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border border-surface-stroke opacity-10 flex items-center justify-center">
+<div class="w-[400px] h-[400px] rounded-full border-2 border-electric-blue/20 animate-pulse"></div>
+<div class="absolute w-1 h-1 bg-electric-blue rounded-full glow-active"></div>
+</div>
+<!-- Floating Particles / Absorbing Nodes -->
+<div class="absolute inset-0" id="particle-container">
+<!-- Particles injected via JS -->
+<div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 27.0588px; height: 27.0588px; left: 678.963px; top: 212.973px; --tw-translate-x: 38.963360482318876px; --tw-translate-y: -299.02652646336423px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 13.529415031600024px">html</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 46.835px; height: 46.835px; left: 173.748px; top: 205.021px; --tw-translate-x: -466.2517428885644px; --tw-translate-y: -306.97885425786274px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 23.417487109548652px">settings</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 26.7694px; height: 26.7694px; left: 484.263px; top: 873.156px; --tw-translate-x: -155.73679419425645px; --tw-translate-y: 361.15562746517276px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 13.384685750965353px">javascript</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 46.7347px; height: 46.7347px; left: 782.386px; top: 651.508px; --tw-translate-x: 142.3855624733086px; --tw-translate-y: 139.50755261346126px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 23.367373994535246px">settings</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 25.7518px; height: 25.7518px; left: 920.311px; top: 589.111px; --tw-translate-x: 280.31090768135937px; --tw-translate-y: 77.11056591856175px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 12.875924706208737px">code</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 21.1041px; height: 21.1041px; left: 183.959px; top: 394.734px; --tw-translate-x: -456.0412664328922px; --tw-translate-y: -117.26648955974883px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 10.552050517477706px">javascript</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 43.6183px; height: 43.6183px; left: 333.473px; top: 821.179px; --tw-translate-x: -306.52675223143007px; --tw-translate-y: 309.1792238647024px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 21.809125861569086px">functions</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 20.0413px; height: 20.0413px; left: 899.768px; top: 760.611px; --tw-translate-x: 259.7680777087702px; --tw-translate-y: 248.61055381506117px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 10.02066445946789px">settings</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 35.8091px; height: 35.8091px; left: 582.743px; top: 75.8137px; --tw-translate-x: -57.25728534725306px; --tw-translate-y: -436.1863405617843px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 17.90452662459267px">code</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 30.0402px; height: 30.0402px; left: 408.035px; top: 112.032px; --tw-translate-x: -231.96471748082928px; --tw-translate-y: -399.96755138567096px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 15.020077947113904px">functions</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 19.3523px; height: 19.3523px; left: 762.342px; top: 445.522px; --tw-translate-x: 122.34212481054442px; --tw-translate-y: -66.47838978870107px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 9.676162276728794px">html</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 12.3623px; height: 12.3623px; left: 954.86px; top: 199.828px; --tw-translate-x: 314.8599209718002px; --tw-translate-y: -312.17248075210875px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 6.181129197183823px">css</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 14.633px; height: 14.633px; left: 621.19px; top: 329.979px; --tw-translate-x: -18.81038071181092px; --tw-translate-y: -182.02104122657659px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 7.316508196215685px">javascript</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 14.4215px; height: 14.4215px; left: 314.513px; top: 518.62px; --tw-translate-x: -325.48657153793215px; --tw-translate-y: 6.619603705998429px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 7.210769942237903px">settings</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 10.8363px; height: 10.8363px; left: 1148.96px; top: 822.992px; --tw-translate-x: 508.9638412246022px; --tw-translate-y: 310.9916616883286px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 5.418127601117202px">code</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 40.2044px; height: 40.2044px; left: 310.117px; top: 236.962px; --tw-translate-x: -329.8834455544777px; --tw-translate-y: -275.0379477368325px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 20.10222387981903px">functions</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 40.8019px; height: 40.8019px; left: 156.005px; top: 287.04px; --tw-translate-x: -483.9947669666726px; --tw-translate-y: -224.95958265069328px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 20.400931403824963px">javascript</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 17.1594px; height: 17.1594px; left: 262.361px; top: 211.829px; --tw-translate-x: -377.638521134719px; --tw-translate-y: -300.17071569271366px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 8.579676884185538px">functions</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 33.1968px; height: 33.1968px; left: 117.608px; top: 784.108px; --tw-translate-x: -522.3920926704213px; --tw-translate-y: 272.1081723277716px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 16.59840644415795px">functions</span></div><div class="absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center" style="width: 11.2872px; height: 11.2872px; left: 476.136px; top: 38.2485px; --tw-translate-x: -163.86388017869126px; --tw-translate-y: -473.75153710831967px;"><span class="material-symbols-outlined text-electric-blue/20" style="font-size: 5.643607513529709px">settings</span></div></div>
+<!-- Glassmorphic Overlay -->
+<div class="absolute inset-0 backdrop-blur-[2px] bg-canvas-bg/60"></div>
+</div>
+<!-- Top Navigation (Shell suppressed but Brand remains) -->
+<header class="fixed top-0 w-full z-50 h-14 flex justify-between items-center px-gutter border-b border-surface-stroke bg-canvas-bg/80 backdrop-blur-md">
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-bold text-electric-blue tracking-tighter">CODE ATLAS</span>
+<div class="h-4 w-px bg-surface-stroke mx-2"></div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">INGESTION ENGINE V4.0</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-code-md text-code-md text-emerald-green flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-green animate-ping"></span>
+                STABLE CONNECTION
+            </span>
+<button class="flex items-center gap-2 px-4 py-2 border border-surface-stroke hover:border-electric-blue text-on-surface-variant hover:text-on-surface transition-all duration-300 rounded-full font-label-caps text-label-caps uppercase tracking-widest group">
+    <span class="material-symbols-outlined text-[18px] group-hover:text-electric-blue">close</span>
+    <span class="">Cancel</span>
+</button></div>
+</header>
+<!-- Main Content Canvas -->
+<main class="relative z-10 flex flex-col items-center justify-center min-h-screen px-gutter">
+<div class="w-full max-w-4xl space-y-12">
+<!-- Scanning Visual Card -->
+<div class="relative group">
+<div class="absolute -inset-1 bg-gradient-to-r from-electric-blue/20 to-royal-purple/20 blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+<div class="relative bg-surface border border-surface-stroke p-8 flex flex-col md:flex-row items-center gap-8 overflow-hidden">
+<!-- Scanner Animation Unit -->
+<div class="relative w-48 h-48 flex-shrink-0 bg-surface-container-low border border-surface-stroke overflow-hidden">
+<div class="scan-line"></div>
+<div class="absolute inset-4 border border-electric-blue/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-electric-blue text-5xl" style="font-variation-settings: &quot;FILL&quot; 1;">folder_zip</span>
+</div>
+<!-- Decorative corners -->
+<div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-electric-blue"></div>
+<div class="absolute top-0 right-0 w-2 h-2 border-t border-r border-electric-blue"></div>
+<div class="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-electric-blue"></div>
+<div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-electric-blue"></div>
+</div>
+<!-- Progress Info -->
+<div class="flex-grow space-y-6 w-full">
+<div class="space-y-1">
+<div class="flex justify-between items-end">
+<h1 class="font-headline-sm text-headline-sm text-on-surface">Parsing Repository Archive</h1>
+<span class="font-code-md text-code-md text-electric-blue" id="percent-display">52.7%</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Project: <span class="text-on-surface">atlas-core-production-final.zip</span></p>
+</div>
+<!-- Progress Bar Cluster -->
+<div class="space-y-2">
+<div class="h-3 w-full bg-surface-container-highest border border-surface-stroke overflow-hidden relative">
+<div class="h-full bg-electric-blue transition-all duration-300 ease-out relative" id="main-progress-bar" style="width: 52.6801%;">
+<div class="absolute inset-0 marching-ants opacity-30"></div>
+<div class="absolute right-0 top-0 bottom-0 w-4 bg-white/20 blur-sm"></div>
+</div>
+</div>
+<div class="flex justify-between font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">
+<span class="">Phase 02: Dependency Resolution</span>
+<span id="time-remaining" class="">EST. 14s REMAINING</span>
+</div><div class="pt-4 flex justify-center">
+    
+</div>
+<div class="pt-4 flex justify-center">
+    
+</div></div>
+</div>
+</div>
+</div>
+<!-- Terminal Feedback Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Real-time Logs -->
+<div class="bg-surface-container-low border border-surface-stroke h-48 flex flex-col">
+<div class="px-4 py-2 border-b border-surface-stroke flex justify-between items-center bg-surface">
+<span class="font-label-caps text-label-caps text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+                            PARSING_LOGS.EXE
+                        </span>
+<div class="flex gap-1">
+<div class="w-2 h-2 bg-surface-stroke"></div>
+<div class="w-2 h-2 bg-surface-stroke"></div>
+</div>
+</div>
+<div class="p-4 font-code-md text-code-md text-on-surface-variant/80 overflow-hidden terminal-scroll flex flex-col gap-1" id="terminal-output"><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Applying Neo-Brutalist Bauhaus styling to graph nodes</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Parsing root/src/index.ts...</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Building dependency tree for module: UI_SHELL</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Fetching metadata from repository manifest</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Applying Neo-Brutalist Bauhaus styling to graph nodes</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Ingesting code snippets into AI Context Layer</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Mapping cross-references for 'DataStore'</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Indexing symbols in global scope...</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Mapping cross-references for 'DataStore'</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Normalizing file path schemas...</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Parsing root/src/index.ts...</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Validating checksums for 12 nodes</div><div class="animate-in slide-in-from-bottom-1 duration-300">&gt; Parsing 1,240 files...</div></div>
+</div>
+<!-- Live Metrics Bento -->
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface border border-surface-stroke p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-surface-variant">FILE_COUNT</span>
+<div class="flex flex-col">
+<span class="font-display-lg text-[32px] text-electric-bold leading-none" id="metric-files">1,333</span>
+<span class="font-label-caps text-[9px] text-on-secondary-container bg-secondary-container px-1 w-fit mt-1">PROCESSED</span>
+</div>
+</div>
+<div class="bg-surface border border-surface-stroke p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-surface-variant">FNC_ANALYZED</span>
+<div class="flex flex-col">
+<span class="font-display-lg text-[32px] text-royal-purple leading-none" id="metric-functions">468</span>
+<span class="font-label-caps text-[9px] text-on-tertiary-container bg-tertiary-container px-1 w-fit mt-1">IDENTIFIED</span>
+</div>
+</div>
+<div class="col-span-2 bg-surface border border-surface-stroke p-4 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant">THROUGHPUT</span>
+<span class="font-code-md text-code-md text-on-surface">84.2 MB/s</span>
+</div>
+<div class="flex gap-0.5 h-8 items-end">
+<div class="w-1 bg-electric-blue/40 h-1/2"></div>
+<div class="w-1 bg-electric-blue/60 h-2/3"></div>
+<div class="w-1 bg-electric-blue h-full animate-pulse"></div>
+<div class="w-1 bg-electric-blue/50 h-3/4"></div>
+<div class="w-1 bg-electric-blue/80 h-1/2"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Status -->
+<footer class="fixed bottom-0 w-full z-50 h-8 flex justify-between items-center px-gutter border-t border-surface-stroke bg-surface-container-low text-[10px] font-label-caps tracking-widest text-on-surface-variant">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1"><span class="text-electric-blue">●</span> ENGINE: ACTIVE</span>
+<span class="flex items-center gap-1 opacity-50">HEARTBEAT: 12ms</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="">MEM_USAGE: 4.2GB</span>
+<span class="text-electric-blue">SYSTEM_READY_PENDING_INGESTION</span>
+</div>
+</footer>
+<!-- Interactive Layer Logic -->
+<script>
+        // Simulate progress and logs
+        const logs = [
+            "Parsing root/src/index.ts...",
+            "Building dependency tree for module: UI_SHELL",
+            "Analyzing 452 function calls in /services/api",
+            "Normalizing file path schemas...",
+            "Mapping cross-references for 'DataStore'",
+            "Optimizing graph structure...",
+            "Validating checksums for 12 nodes",
+            "Indexing symbols in global scope...",
+            "Resolving circular dependencies in /middleware",
+            "Applying Neo-Brutalist Bauhaus styling to graph nodes",
+            "Fetching metadata from repository manifest",
+            "Parsing 1,240 files...",
+            "Ingesting code snippets into AI Context Layer"
+        ];
+
+        const terminal = document.getElementById('terminal-output');
+        const progressBar = document.getElementById('main-progress-bar');
+        const percentDisplay = document.getElementById('percent-display');
+        const fileMetric = document.getElementById('metric-files');
+        const fncMetric = document.getElementById('metric-functions');
+
+        let progress = 42.8;
+        let files = 1240;
+        let functions = 452;
+
+        function updateProgress() {
+            if (progress < 99.5) {
+                progress += (Math.random() * 0.5);
+                files += Math.floor(Math.random() * 5);
+                functions += Math.floor(Math.random() * 2);
+
+                progressBar.style.width = progress + '%';
+                percentDisplay.innerText = progress.toFixed(1) + '%';
+                fileMetric.innerText = files.toLocaleString();
+                fncMetric.innerText = functions.toLocaleString();
+
+                // Add random log
+                if (Math.random() > 0.7) {
+                    const logEntry = document.createElement('div');
+                    logEntry.innerText = `> ${logs[Math.floor(Math.random() * logs.length)]}`;
+                    logEntry.className = "animate-in slide-in-from-bottom-1 duration-300";
+                    terminal.appendChild(logEntry);
+                    
+                    if (terminal.childNodes.length > 8) {
+                        terminal.removeChild(terminal.firstChild);
+                    }
+                }
+            }
+            requestAnimationFrame(() => setTimeout(updateProgress, 150));
+        }
+
+        // Particle background logic
+        const particleContainer = document.getElementById('particle-container');
+        function createParticle() {
+            const particle = document.createElement('div');
+            const size = Math.random() * 40 + 10;
+            const x = Math.random() * window.innerWidth;
+            const y = Math.random() * window.innerHeight;
+            
+            // Random distance for 'absorption'
+            const tx = (window.innerWidth / 2 - x);
+            const ty = (window.innerHeight / 2 - y);
+
+            particle.className = 'absorbing-node absolute border border-electric-blue/30 bg-surface-container-high/40 flex items-center justify-center';
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            particle.style.setProperty('--tw-translate-x', `${-tx}px`);
+            particle.style.setProperty('--tw-translate-y', `${-ty}px`);
+            
+            // Random icon inside particle
+            const icons = ['code', 'javascript', 'css', 'html', 'terminal', 'functions', 'settings'];
+            particle.innerHTML = `<span class="material-symbols-outlined text-electric-blue/20" style="font-size: ${size/2}px">${icons[Math.floor(Math.random()*icons.length)]}</span>`;
+
+            particleContainer.appendChild(particle);
+            setTimeout(() => particle.remove(), 4000);
+        }
+
+        setInterval(createParticle, 400);
+        updateProgress();
+    </script>
+
+
+
+
+</body></html>

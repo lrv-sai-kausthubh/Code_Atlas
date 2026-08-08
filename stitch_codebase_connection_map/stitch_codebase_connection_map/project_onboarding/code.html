@@ -1,0 +1,362 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>CODE ATLAS | Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=Space+Grotesk:wght@600;700&amp;family=JetBrains+Mono:wght@400;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..900&amp;family=Space+Grotesk:wght@100..900&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#002e69",
+                    "crimson-error": "#EF4444",
+                    "secondary-fixed-dim": "#4edea3",
+                    "canvas-bg": "#080A0D",
+                    "on-tertiary": "#571e00",
+                    "on-surface": "#dfe2eb",
+                    "primary-fixed-dim": "#adc6ff",
+                    "surface-container-highest": "#31353c",
+                    "surface-variant": "#31353c",
+                    "electric-blue": "#007AFF",
+                    "surface-container-high": "#262a31",
+                    "outline-variant": "#414755",
+                    "on-background": "#dfe2eb",
+                    "inverse-surface": "#dfe2eb",
+                    "vibrant-orange": "#F97316",
+                    "on-secondary-fixed-variant": "#005236",
+                    "on-secondary-fixed": "#002113",
+                    "on-tertiary-fixed-variant": "#7c2e00",
+                    "on-primary-container": "#00285c",
+                    "surface-bright": "#353940",
+                    "tertiary-fixed-dim": "#ffb595",
+                    "on-surface-variant": "#c1c6d7",
+                    "on-secondary": "#003824",
+                    "tertiary-container": "#ef6719",
+                    "surface-stroke": "#30363D",
+                    "tertiary": "#ffb595",
+                    "secondary-container": "#00a572",
+                    "royal-purple": "#8B5CF6",
+                    "on-error": "#690005",
+                    "on-primary-fixed": "#001a41",
+                    "surface-tint": "#adc6ff",
+                    "primary-container": "#4b8eff",
+                    "tertiary-fixed": "#ffdbcc",
+                    "inverse-on-surface": "#2d3137",
+                    "surface-container-lowest": "#0a0e14",
+                    "emerald-green": "#10B981",
+                    "outline": "#8b90a0",
+                    "surface-dim": "#10141a",
+                    "on-primary-fixed-variant": "#004493",
+                    "on-tertiary-fixed": "#351000",
+                    "inverse-primary": "#005bc1",
+                    "primary": "#adc6ff",
+                    "primary-fixed": "#d8e2ff",
+                    "secondary": "#4edea3",
+                    "on-secondary-container": "#00311f",
+                    "utility-yellow": "#FACC15",
+                    "error-container": "#93000a",
+                    "surface": "#10141a",
+                    "on-tertiary-container": "#4c1a00",
+                    "error": "#ffb4ab",
+                    "on-error-container": "#ffdad6",
+                    "background": "#10141a",
+                    "surface-container": "#1c2026",
+                    "secondary-fixed": "#6ffbbe",
+                    "surface-container-low": "#181c22"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "sidebar-width": "280px",
+                    "edge-thickness": "1.5px",
+                    "drawer-width": "360px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "body-sm": ["Inter"],
+                    "code-md": ["JetBrains Mono"],
+                    "label-caps": ["JetBrains Mono"],
+                    "headline-md": ["Space Grotesk"],
+                    "body-md": ["Inter"],
+                    "headline-sm": ["Space Grotesk"],
+                    "display-lg": ["Space Grotesk"]
+            },
+            "fontSize": {
+                    "body-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "code-md": ["13px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-caps": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "headline-sm": ["18px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .glass-panel {
+            background: rgba(28, 32, 38, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid #30363D;
+        }
+
+        .drop-zone-active {
+            border-color: #007AFF;
+            box-shadow: 0 0 15px rgba(0, 122, 255, 0.3);
+        }
+
+        .dot-grid {
+            background-image: radial-gradient(#30363D 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        @keyframes march {
+            to { stroke-dashoffset: -20; }
+        }
+
+        .marching-ants {
+            stroke-dasharray: 5;
+            animation: march 1s linear infinite;
+        }
+
+        .glow-hover:hover {
+            box-shadow: 0 0 8px rgba(0, 122, 255, 0.5);
+            border-color: #007AFF;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #080A0D; }
+        ::-webkit-scrollbar-thumb { background: #30363D; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #414755; }
+    </style>
+</head>
+<body class="bg-canvas-bg text-on-surface font-body-md selection:bg-electric-blue selection:text-white overflow-x-hidden">
+<!-- TopNavBar (Shell Suppression: Not applicable as this is a primary entry point, but simplified for onboarding) -->
+<header class="fixed top-0 w-full z-50 h-14 bg-canvas-bg border-b border-surface-stroke flex justify-between items-center px-gutter">
+<div class="flex items-center gap-4">
+<span class="font-headline-md text-headline-md font-bold text-electric-blue tracking-tighter">CODE ATLAS</span>
+<div class="h-4 w-[1px] bg-surface-stroke mx-2"></div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">V1.0.42-ALPHA</span>
+</div>
+<div class="flex items-center gap-6"><button class="font-label-caps text-label-caps text-on-surface-variant border border-surface-stroke px-4 py-1 hover:border-electric-blue hover:text-electric-blue transition-all active:scale-95">SKIP TO DASHBOARD</button>
+<button class="font-label-caps text-label-caps text-on-surface-variant hover:text-electric-blue transition-colors">DOCS</button>
+<button class="font-label-caps text-label-caps text-on-surface-variant hover:text-electric-blue transition-colors">SUPPORT</button>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container-high border border-surface-stroke">
+<span class="material-symbols-outlined text-[18px]">account_circle</span>
+<span class="font-code-md text-code-md">dev_user</span>
+</div>
+</div>
+</header>
+<!-- Background Ghost Graph -->
+<div class="fixed inset-0 dot-grid opacity-40 pointer-events-none z-0">
+<svg class="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+<g fill="none" stroke="#007AFF" stroke-width="1">
+<circle cx="20%" cy="30%" fill="#007AFF" r="4"></circle>
+<circle cx="40%" cy="50%" fill="#007AFF" r="6"></circle>
+<circle cx="60%" cy="20%" fill="#007AFF" r="5"></circle>
+<circle cx="80%" cy="70%" fill="#007AFF" r="4"></circle>
+<path class="marching-ants" d="M 20% 30% L 40% 50% L 60% 20% L 80% 70%"></path>
+<path d="M 40% 50% L 75% 25%" stroke-opacity="0.5"></path>
+<path d="M 60% 20% L 30% 80%" stroke-opacity="0.3"></path>
+</g>
+</svg>
+</div>
+<!-- Main Content Canvas -->
+<main class="relative z-10 pt-28 pb-20 px-gutter max-w-7xl mx-auto flex flex-col items-center">
+<!-- Hero Section -->
+<div class="text-center mb-16">
+<h1 class="font-display-lg text-display-lg mb-4 text-on-surface">Map your architecture.</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl mx-auto">
+                Instant visual documentation for complex codebases. Upload your project and watch Code Atlas trace every dependency, flow, and logic gate in real-time.
+            </p>
+</div>
+<!-- 3-Step Guide -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 w-full max-w-4xl">
+<div class="flex flex-col items-center text-center p-6 bg-surface-container-low border border-surface-stroke">
+<div class="w-10 h-10 flex items-center justify-center bg-electric-blue text-white font-bold mb-4">1</div>
+<h3 class="font-headline-sm text-headline-sm mb-2">Upload</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Drop your project ZIP or paste a public GitHub repository URL.</p>
+</div>
+<div class="flex flex-col items-center text-center p-6 bg-surface-container-low border border-surface-stroke">
+<div class="w-10 h-10 flex items-center justify-center bg-surface-container-highest text-on-surface font-bold mb-4">2</div>
+<h3 class="font-headline-sm text-headline-sm mb-2">Parse</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Our AI engines scan ASTs to identify patterns and entry points.</p>
+</div>
+<div class="flex flex-col items-center text-center p-6 bg-surface-container-low border border-surface-stroke">
+<div class="w-10 h-10 flex items-center justify-center bg-surface-container-highest text-on-surface font-bold mb-4">3</div>
+<h3 class="font-headline-sm text-headline-sm mb-2">Explore</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Interact with a high-fidelity graph of your entire system.</p>
+</div>
+</div>
+<!-- Upload Zone -->
+<div class="w-full max-w-3xl mb-24">
+<div class="relative group cursor-pointer bg-surface border-2 border-dashed border-surface-stroke hover:border-electric-blue transition-all duration-300 p-12 flex flex-col items-center justify-center min-h-[320px]" id="drop-zone">
+<div class="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none">
+
+</div>
+<span class="material-symbols-outlined text-[64px] text-on-surface-variant group-hover:text-electric-blue mb-6 transition-colors" style="font-variation-settings: 'wght' 200;">cloud_upload</span>
+<h2 class="font-headline-md text-headline-md mb-2">Drop Project Folder</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-8">Support for .zip, .tar, or folder drag-and-drop</p>
+<div class="flex items-center gap-4 w-full max-w-md">
+<div class="h-[1px] flex-grow bg-surface-stroke"></div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">OR</span>
+<div class="h-[1px] flex-grow bg-surface-stroke"></div>
+</div>
+<div class="mt-8 flex gap-2 w-full max-w-md">
+<input class="flex-grow bg-surface-container-low border border-surface-stroke px-4 py-2 font-code-md text-code-md focus:outline-none focus:border-electric-blue transition-colors text-on-surface" placeholder="https://github.com/username/repo" type="text">
+<button class="bg-electric-blue text-white px-6 py-2 font-label-caps text-label-caps hover:bg-opacity-90 active:scale-95 transition-all">CONNECT</button>
+</div>
+</div>
+</div>
+<!-- Recent Projects Section -->
+<div class="w-full max-w-5xl">
+<div class="flex justify-between items-end mb-8 border-b border-surface-stroke pb-4">
+<div>
+<h2 class="font-headline-sm text-headline-sm">Recent Projects</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Continue where you left off</p>
+</div>
+<button class="font-label-caps text-label-caps text-electric-blue flex items-center gap-2 hover:underline">
+                    VIEW ALL <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Project Card 1 -->
+<div class="bg-surface-container-low border border-surface-stroke p-5 group hover:border-electric-blue transition-colors cursor-pointer">
+<div class="h-32 bg-surface mb-4 overflow-hidden relative border border-surface-stroke">
+<div class="absolute inset-0 dot-grid opacity-20"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="w-16 h-16 border border-electric-blue/30 rounded-full flex items-center justify-center">
+<div class="w-8 h-8 bg-electric-blue/20 rounded-full animate-pulse"></div>
+</div>
+</div>
+<div class="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity" data-alt="A macro view of a complex software architecture diagram in a dark mode UI. The visualization uses thin electric blue lines connecting glowing nodes against a charcoal gray background. The aesthetic is clean, technical, and data-dense, reminiscent of a high-end IDE interface. Subtle lens flares and bokeh effects add a sense of digital depth." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCvfFY16kYJDFCN-AzrmuO75gZT-QJ1TL62sjHR-o_BZDyZHI_BFRxYshNbqFsbUp5EGNqmOWzdJl-7VVFv8iqnHHzWKpxMgmbc3PFNQ7DFE_vu-Qbh4eUAPafChmtXgvZP7oD6C9FbyT4Sysg6K1zz-24sf5SbnLyQfOrUTPSY-fecEGzTklhj_yKOCGuDUQcvcBVK-mOdvsTgSb8U0QCjcxYRDXM1OdZos1zwCLb51rSXuhddMeFnjw')"></div>
+</div>
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-headline-sm text-[16px] text-on-surface">nexus-core-api</h4>
+<span class="font-label-caps text-[9px] px-1.5 py-0.5 bg-emerald-green/10 text-emerald-green border border-emerald-green/20">STABLE</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-4 line-clamp-1">Main logic for the distributed payment gateway...</p>
+<div class="flex justify-between items-center text-[11px] font-code-md text-on-surface-variant">
+<span class="">Updated 2h ago</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">account_tree</span> 142 Nodes</span>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="bg-surface-container-low border border-surface-stroke p-5 group hover:border-electric-blue transition-colors cursor-pointer">
+<div class="h-32 bg-surface mb-4 overflow-hidden relative border border-surface-stroke">
+<div class="absolute inset-0 dot-grid opacity-20"></div>
+<div class="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity" data-alt="A futuristic project visualization showing an interconnected web of nodes representing source code files. The palette is dominated by deep blacks and cool grays with vibrant orange highlights for active data flows. Sharp geometric shapes and straight lines create a Bauhaus-inspired technical illustration of a software system. The lighting is low-key with focused spotlights on central components." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAkpzwA24Lxxqr4VEYGW0JeMq0JwhXxFk35ZubHYdXZqPhlvkrB1MxZknm4g9PJGau9eJTy1PpgPGfDR5pKJ2qcRPOo9hzzlH62L6c9eJUZn8-lo5Qpy1jvyz6lAbii2NAsTHoPuuF4PLLeN6uK19AM8V1otwkYyVECoeWhTdIJNOHd60ulxWqL-fi885QV03zvaZePRlsuOvS6BXSRYV9xoMK6azditLTwjRKr5TE9fYpcNcjWPiwcig')"></div>
+</div>
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-headline-sm text-[16px] text-on-surface">atlas-frontend-v2</h4>
+<span class="font-label-caps text-[9px] px-1.5 py-0.5 bg-vibrant-orange/10 text-vibrant-orange border border-vibrant-orange/20">REFACTORING</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-4 line-clamp-1">Next.js 14 migration and layout redesign...</p>
+<div class="flex justify-between items-center text-[11px] font-code-md text-on-surface-variant">
+<span class="">Updated 1d ago</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">account_tree</span> 89 Nodes</span>
+</div>
+</div>
+<!-- Project Card 3 -->
+<div class="bg-surface-container-low border border-surface-stroke p-5 group hover:border-electric-blue transition-colors cursor-pointer">
+<div class="h-32 bg-surface mb-4 overflow-hidden relative border border-surface-stroke">
+<div class="absolute inset-0 dot-grid opacity-20"></div>
+<div class="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity" data-alt="A complex network graph representation of a Python backend project. The background is a solid near-black with a subtle CSS grid. Nodes are crisp rectangles in varying shades of blue and purple, linked by thin white directional arrows. The overall mood is hyper-logical and professional, capturing the structural complexity of enterprise-level software engineering." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAknMnUvW3RfCo5QAHi_c_rk3dy44U1B79wwo7Ya8VMGCesYjbHnAsgxvn9SPtEqFvBSSmgApQtrK4Zr8RTo3AHcZ-d0pvCxNjapiP_CY51yUG3NX8F0bsQHoU-iPyH7zbdSubadrYXHyLhy43fKKBhj8cPW2xXlSr51cjgj0pSqf9NUaYR_c52Qtj7M56zjpQ-V4dg-NecXMzTejXhzxB93aTP86OG0uF-6LAHMr9E8q4GOBizTX_LnQ')"></div>
+</div>
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-headline-sm text-[16px] text-on-surface">data-pipeline-py</h4>
+<span class="font-label-caps text-[9px] px-1.5 py-0.5 bg-royal-purple/10 text-royal-purple border border-royal-purple/20">LEGACY</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-4 line-clamp-1">Legacy ETL pipeline for consumer analytics...</p>
+<div class="flex justify-between items-center text-[11px] font-code-md text-on-surface-variant">
+<span class="">Updated 3d ago</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">account_tree</span> 412 Nodes</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Meta -->
+<footer class="mt-20 py-10 border-t border-surface-stroke bg-surface-container-lowest">
+<div class="max-w-7xl mx-auto px-gutter flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="flex items-center gap-6">
+<span class="font-label-caps text-label-caps text-on-surface-variant">© 2024 CODE ATLAS INC.</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant hover:text-white cursor-pointer transition-colors">PRIVACY</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant hover:text-white cursor-pointer transition-colors">TERMS</span>
+</div>
+<div class="flex gap-4">
+<div class="w-8 h-8 border border-surface-stroke flex items-center justify-center hover:border-electric-blue transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+</div>
+<div class="w-8 h-8 border border-surface-stroke flex items-center justify-center hover:border-electric-blue transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[18px]">help_outline</span>
+</div>
+<div class="w-8 h-8 border border-surface-stroke flex items-center justify-center hover:border-electric-blue transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[18px]">history</span>
+</div>
+</div>
+</div>
+</footer>
+<!-- Micro-interaction Script -->
+<script>
+        const dropZone = document.getElementById('drop-zone');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('drop-zone-active');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('drop-zone-active');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                // Simulate parsing
+                dropZone.innerHTML = `
+                    <div class="flex flex-col items-center animate-pulse">
+                        <span class="material-symbols-outlined text-[64px] text-electric-blue mb-4">settings_suggest</span>
+                        <h2 class="font-headline-md text-headline-md mb-2">Analyzing: \${files[0].name}</h2>
+                        <div class="w-64 h-1 bg-surface-container-high relative overflow-hidden mt-4">
+                            <div class="absolute inset-0 bg-electric-blue w-1/3 animate-[march_2s_infinite_linear]"></div>
+                        </div>
+                        <p class="font-code-md text-code-md mt-6 text-on-surface-variant">> Building AST...</p>
+                    </div>
+                `;
+                setTimeout(() => {
+                    window.location.reload(); // Just a reset for demo
+                }, 3000);
+            }
+        });
+    </script>
+
+
+</body></html>

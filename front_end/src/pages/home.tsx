@@ -3,7 +3,8 @@ import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import { applyNodeChanges, Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, SelectionMode, useEdgesState, useNodesState, useReactFlow } from "@xyflow/react";
 import type { Edge, Node, NodeChange, NodeProps, OnNodeDrag, XYPosition } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { uploadProject } from "../services/api";
+import ParsingScreen from "../components/parsing";
+import { projectFileUrl } from "../services/api";
 import type { ProjectGraph, ProjectNode, RepositoryAnalysis } from "../types/project";
 
 const colors: Record<ProjectNode["type"], string> = {
@@ -21,7 +22,9 @@ function AtlasNodeView({ data }: NodeProps<AtlasNode>) {
     return (
         <div className={`atlas-node atlas-node-${data.type} ${data.selected ? "is-selected" : ""}`} style={{ "--node-color": color } as CSSProperties} onClick={() => data.onSelect(data)}>
             <Handle type="target" position={Position.Top} className="atlas-handle" />
-            <div className={`atlas-node-dot ${data.type === "file" ? fileIcon(data.label).className : ""}`}>{data.type === "project" ? "✦" : data.type === "folder" ? "▾" : fileIcon(data.label).glyph}</div>
+            <div className={`atlas-node-dot ${data.type === "file" ? fileIcon(data.label).className : ""}`}>
+                <span className="material-symbols-outlined">{data.type === "project" ? "account_tree" : data.type === "folder" ? "folder" : fileIcon(data.label).name}</span>
+            </div>
             <div className="atlas-node-label" title={data.path || data.label}>{data.label}</div>
             {data.type !== "file" && <div className="atlas-node-kind">{data.type}</div>}
             <Handle type="source" position={Position.Bottom} className="atlas-handle" />
@@ -33,20 +36,55 @@ const nodeTypes = { atlas: AtlasNodeView };
 
 function fileIcon(label: string) {
     const extension = label.toLowerCase().split(".").pop() ?? "";
-    const icons: Record<string, { glyph: string; className: string }> = {
-        html: { glyph: "<>", className: "file-icon-html" },
-        css: { glyph: "#", className: "file-icon-css" },
-        scss: { glyph: "#", className: "file-icon-css" },
-        js: { glyph: "JS", className: "file-icon-js" },
-        jsx: { glyph: "JS", className: "file-icon-js" },
-        ts: { glyph: "TS", className: "file-icon-ts" },
-        tsx: { glyph: "TS", className: "file-icon-ts" },
-        py: { glyph: "PY", className: "file-icon-py" },
-        json: { glyph: "{}", className: "file-icon-json" },
-        md: { glyph: "M", className: "file-icon-md" },
-        svg: { glyph: "◇", className: "file-icon-svg" },
+    const icons: Record<string, { name: string; className: string }> = {
+        html: { name: "html", className: "file-icon-html" },
+        css: { name: "css", className: "file-icon-css" },
+        scss: { name: "css", className: "file-icon-css" },
+        js: { name: "javascript", className: "file-icon-js" },
+        jsx: { name: "javascript", className: "file-icon-js" },
+        ts: { name: "code", className: "file-icon-ts" },
+        tsx: { name: "code", className: "file-icon-ts" },
+        py: { name: "data_object", className: "file-icon-py" },
+        json: { name: "data_object", className: "file-icon-json" },
+        md: { name: "article", className: "file-icon-md" },
+        svg: { name: "image", className: "file-icon-svg" },
+        png: { name: "image", className: "file-icon-img" },
+        jpg: { name: "image", className: "file-icon-img" },
+        jpeg: { name: "image", className: "file-icon-img" },
+        gif: { name: "image", className: "file-icon-img" },
+        webp: { name: "image", className: "file-icon-img" },
+        pdf: { name: "picture_as_pdf", className: "file-icon-pdf" },
+        zip: { name: "folder_zip", className: "file-icon-zip" },
+        tar: { name: "folder_zip", className: "file-icon-zip" },
+        gz: { name: "folder_zip", className: "file-icon-zip" },
+        txt: { name: "description", className: "file-icon-other" },
+        yml: { name: "tune", className: "file-icon-json" },
+        yaml: { name: "tune", className: "file-icon-json" },
+        toml: { name: "tune", className: "file-icon-json" },
+        lock: { name: "enhanced_encryption", className: "file-icon-json" },
     };
-    return icons[extension] ?? { glyph: "·", className: "file-icon-other" };
+    return icons[extension] ?? { name: "description", className: "file-icon-misc" };
+}
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
+const PDF_EXTENSION = "pdf";
+
+function isPreviewable(node: ProjectNode) {
+    if (node.type !== "file") return false;
+    const extension = node.label.toLowerCase().split(".").pop() ?? "";
+    return IMAGE_EXTENSIONS.has(extension) || extension === PDF_EXTENSION;
+}
+
+function FilePreview({ node, projectId }: { node: ProjectNode; projectId: string }) {
+    const extension = node.label.toLowerCase().split(".").pop() ?? "";
+    const src = projectFileUrl(projectId, node.path);
+    const isImage = IMAGE_EXTENSIONS.has(extension);
+    return (
+        <div className="file-preview">
+            <div className="preview-bar"><span>PREVIEW · {extension.toUpperCase()}</span><a href={src} target="_blank" rel="noreferrer">OPEN</a></div>
+            {isImage ? <img src={src} alt={node.label} /> : <iframe src={src} title={node.label} />}
+        </div>
+    );
 }
 
 function formatBytes(bytes: number) {
@@ -68,8 +106,8 @@ function ExplorerTree({ graph, query, selected, collapsed, onSelect, onToggle }:
     });
     const renderNode = (node: ProjectNode, depth: number): ReactNode => {
         const isFolder = node.type === "folder";
-        const icon = isFolder ? { glyph: collapsed.has(node.id) ? "▸" : "▾", className: "folder-chevron" } : fileIcon(node.label);
-        return <div key={node.id}><button className={`file-row ${selected?.id === node.id ? "selected" : ""}`} style={{ paddingLeft: `${4 + depth * 14}px` }} onClick={() => { onSelect(node); if (isFolder) onToggle(node.id); }}><span className={`file-icon ${icon.className}`}>{icon.glyph}</span><span className="file-row-label">{node.label}</span><small>{node.type}</small></button>{isFolder && !collapsed.has(node.id) && (children.get(node.id) ?? []).map((child) => renderNode(child, depth + 1))}</div>;
+        const icon = isFolder ? { name: collapsed.has(node.id) ? "folder" : "folder_open", className: "file-icon folder-chevron" } : fileIcon(node.label);
+        return <div key={node.id}><button className={`file-row ${selected?.id === node.id ? "selected" : ""}`} style={{ paddingLeft: `${4 + depth * 14}px` }} onClick={() => { onSelect(node); if (isFolder) onToggle(node.id); }}><span className={`file-icon ${icon.className}`}><span className="material-symbols-outlined">{icon.name}</span></span><span className="file-row-label">{node.label}</span><small>{node.type}</small></button>{isFolder && !collapsed.has(node.id) && (children.get(node.id) ?? []).map((child) => renderNode(child, depth + 1))}</div>;
     };
     if (query) return <>{graph.nodes.filter((node) => node.label.toLowerCase().includes(query.toLowerCase()) && node.id !== "root").map((node) => renderNode(node, 0))}</>;
     return <>{(children.get("root") ?? []).map((node) => renderNode(node, 0))}</>;
@@ -273,6 +311,9 @@ function GraphCanvas({ graph, collapsed, selected, onSelect, onToggle, compact, 
 function Home() {
     const inputRef = useRef<HTMLInputElement>(null);
     const [graph, setGraph] = useState<ProjectGraph | null>(null);
+    const [parsingFile, setParsingFile] = useState<File | null>(null);
+    const [parsingUploadId, setParsingUploadId] = useState("");
+    const [projectId, setProjectId] = useState("");
     const [selected, setSelected] = useState<ProjectNode | null>(null);
     const [query, setQuery] = useState("");
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -282,7 +323,6 @@ function Home() {
     const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("codeatlas-theme") as "dark" | "light") || "dark");
     const [dragging, setDragging] = useState(false);
     const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         document.documentElement.dataset.theme = theme;
@@ -347,21 +387,9 @@ function Home() {
     const chooseFile = async (file?: File) => {
         if (!file) return;
         setError("");
-        setLoading(true);
-        try {
-            const response = await uploadProject(file);
-            const nextGraph = response.data as ProjectGraph;
-            setGraph(nextGraph);
-            setCollapsed(new Set());
-            setCompact(false);
-            setPositionOffsets(new Map());
-            setSelected(nextGraph.nodes[0] ?? null);
-        } catch (uploadError: unknown) {
-            const detail = uploadError && typeof uploadError === "object" && "response" in uploadError ? (uploadError.response as { data?: { detail?: string } })?.data?.detail : undefined;
-            setError(detail ?? "Could not analyze that project.");
-        } finally {
-            setLoading(false);
-        }
+        const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        setParsingUploadId(uploadId);
+        setParsingFile(file);
     };
 
     const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -380,10 +408,10 @@ function Home() {
                 <div className="topbar-actions"><span className="api-status"><i /> API CONNECTED</span><button className="theme-toggle" onClick={() => setTheme((value) => value === "dark" ? "light" : "dark")} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>{theme === "dark" ? "☼ LIGHT" : "◐ DARK"}</button><button className="new-project" onClick={() => inputRef.current?.click()}>+ NEW PROJECT</button></div>
             </header>
 
-            {!graph ? <section className="landing"><div className="eyebrow">SOFTWARE ARCHITECTURE / 001</div><h1>See the shape<br /><em>of your code.</em></h1><p className="intro">Upload a project archive and turn its structure into a living map. Start with the files. Discover the system.</p><button className={`drop-zone ${loading ? "is-loading" : ""}`} onClick={() => inputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void chooseFile(event.dataTransfer.files[0]); }}><span className="upload-icon">↑</span><strong>{loading ? "MAPPING PROJECT..." : dragging ? "DROP TO MAP" : "DROP YOUR ZIP HERE"}</strong><span>or <u>browse files</u> · max 50 MB</span></button>{error && <p className="error-message">{error}</p>}<div className="landing-notes"><span><b>01</b> Upload archive</span><span><b>02</b> Scan structure</span><span><b>03</b> Explore graph</span></div><div className="orbit orbit-one" /><div className="orbit orbit-two" /></section> : <section className="workspace">
+            {parsingFile ? <ParsingScreen file={parsingFile} uploadId={parsingUploadId} onComplete={(nextGraph) => { setGraph(nextGraph); setProjectId(nextGraph.project_id ?? ""); setCollapsed(new Set()); setCompact(false); setPositionOffsets(new Map()); setSelected(nextGraph.nodes[0] ?? null); setParsingFile(null); }} onError={(message) => { setError(message); setParsingFile(null); }} onCancel={() => { setParsingFile(null); setError("Upload cancelled."); }} /> : !graph ? <section className="landing"><div className="eyebrow">SOFTWARE ARCHITECTURE / 001</div><h1>See the shape<br /><em>of your code.</em></h1><p className="intro">Upload a project archive and turn its structure into a living map. Start with the files. Discover the system.</p><button className="drop-zone" onClick={() => inputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void chooseFile(event.dataTransfer.files[0]); }}><span className="upload-icon">↑</span><strong>{dragging ? "DROP TO MAP" : "DROP YOUR ZIP HERE"}</strong><span>or <u>browse files</u> · max 200 MB</span></button>{error && <p className="error-message">{error}</p>}<div className="landing-notes"><span><b>01</b> Upload archive</span><span><b>02</b> Scan structure</span><span><b>03</b> Explore graph</span></div><div className="orbit orbit-one" /><div className="orbit orbit-two" /></section> : <section className="workspace">
                 <aside className="explorer panel"><div className="panel-heading"><span>PROJECT EXPLORER</span><span className="muted">{graph.files} FILES</span></div><div className="project-name"><span className="folder-dot" />{graph.project}</div><input className="search" placeholder="Filter files..." value={query} onChange={(event) => setQuery(event.target.value)} /><div className="file-list"><ExplorerTree graph={graph} query={query} selected={selected} collapsed={collapsed} onSelect={setSelected} onToggle={toggleFolder} /></div><div className="legend"><span><i style={{ background: colors.file }} /> FILE</span><span><i style={{ background: colors.folder }} /> FOLDER</span></div></aside>
                  <div className="graph-panel panel"><div className="graph-toolbar"><div><span className="live-dot" /> STRUCTURE MAP <span className="toolbar-separator">/</span> {visibleGraph?.nodes.length ?? 0} OF {graph.nodes.length} NODES</div><div className="graph-actions"><button className={analysisOpen ? "active" : ""} onClick={() => setAnalysisOpen((value) => !value)}>ANALYSIS</button><button className={compact ? "active" : ""} onClick={() => setCompact((value) => !value)}>{compact ? "RELAX" : "TIGHTEN"}</button><button onClick={collapseAll}>COLLAPSE ALL</button><button onClick={expandAll}>EXPAND ALL</button></div></div>{analysisOpen && <AnalysisDrawer analysis={graph.analysis} />}<ReactFlowProvider><GraphCanvas graph={graph} collapsed={collapsed} selected={selected} onSelect={setSelected} onToggle={toggleFolder} compact={compact} positionOffsets={positionOffsets} onMoveNodes={moveNodes} /></ReactFlowProvider></div>
-                 <aside className="inspector panel"><div className="panel-heading"><span>INSPECTOR</span><span className="muted">{selected ? selected.type.toUpperCase() : "NONE"}</span></div><div className="stats"><div><strong>{graph.files}</strong><span>FILES</span></div><div><strong>{graph.folders}</strong><span>FOLDERS</span></div><div><strong>{Object.keys(graph.languages).length}</strong><span>LANGUAGES</span></div></div>{selected ? <><div className="inspector-icon" style={{ color: colors[selected.type] }}>{selected.type === "file" ? fileIcon(selected.label).glyph : selected.type === "folder" ? "▾" : "◆"}</div><h2>{selected.label}</h2><p className="path">{selected.path || "/"}</p><div className="detail-block"><span>NODE TYPE</span><strong>{selected.type}</strong></div>{selected.language && <div className="detail-block"><span>LANGUAGE</span><strong>{selected.language}</strong></div>}{selected.type === "file" && <><div className="detail-block"><span>LINES</span><strong>{selected.lines?.toLocaleString() ?? "-"}</strong></div><div className="detail-block"><span>SIZE</span><strong>{selected.size_bytes === undefined ? "-" : formatBytes(selected.size_bytes)}</strong></div></>}<div className="detail-block"><span>RELATIONSHIP</span><strong>CONTAINS / IMPORTS</strong></div></> : <p className="empty-inspector">Select a node in the map to see its details.</p>}</aside>
+                 <aside className="inspector panel"><div className="panel-heading"><span>INSPECTOR</span><span className="muted">{selected ? selected.type.toUpperCase() : "NONE"}</span></div><div className="stats"><div><strong>{graph.files}</strong><span>FILES</span></div><div><strong>{graph.folders}</strong><span>FOLDERS</span></div><div><strong>{Object.keys(graph.languages).length}</strong><span>LANGUAGES</span></div></div>{selected ? <><div className="inspector-icon" style={{ color: colors[selected.type] }}><span className="material-symbols-outlined">{selected.type === "file" ? fileIcon(selected.label).name : selected.type === "folder" ? "folder" : "account_tree"}</span></div><h2>{selected.label}</h2><p className="path">{selected.path || "/"}</p><div className="detail-block"><span>NODE TYPE</span><strong>{selected.type}</strong></div>{selected.language && <div className="detail-block"><span>LANGUAGE</span><strong>{selected.language}</strong></div>}{selected.type === "file" && <><div className="detail-block"><span>LINES</span><strong>{selected.lines?.toLocaleString() ?? "-"}</strong></div><div className="detail-block"><span>SIZE</span><strong>{selected.size_bytes === undefined ? "-" : formatBytes(selected.size_bytes)}</strong></div></>}<div className="detail-block"><span>RELATIONSHIP</span><strong>CONTAINS / IMPORTS</strong></div>{projectId && isPreviewable(selected) && <FilePreview node={selected} projectId={projectId} />}</> : <p className="empty-inspector">Select a node in the map to see its details.</p>}</aside>
             </section>}
             <input ref={inputRef} type="file" accept=".zip,application/zip" hidden onChange={onFileChange} />
         </main>

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Code Atlas | Roadmap &amp; Phased Progress</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container": "#1c2026",
+                    "error-container": "#93000a",
+                    "secondary": "#4edea3",
+                    "surface-variant": "#31353c",
+                    "surface-container-lowest": "#0a0e14",
+                    "vibrant-orange": "#F97316",
+                    "on-primary-fixed-variant": "#004493",
+                    "background": "#10141a",
+                    "crimson-error": "#EF4444",
+                    "inverse-primary": "#005bc1",
+                    "outline": "#8b90a0",
+                    "on-secondary-fixed": "#002113",
+                    "on-primary": "#002e69",
+                    "primary-fixed-dim": "#adc6ff",
+                    "canvas-bg": "#080A0D",
+                    "surface-bright": "#353940",
+                    "on-tertiary-container": "#4c1a00",
+                    "secondary-fixed-dim": "#4edea3",
+                    "on-tertiary-fixed-variant": "#7c2e00",
+                    "secondary-fixed": "#6ffbbe",
+                    "on-secondary-container": "#00311f",
+                    "on-primary-container": "#00285c",
+                    "on-error": "#690005",
+                    "surface-dim": "#10141a",
+                    "inverse-surface": "#dfe2eb",
+                    "tertiary-fixed": "#ffdbcc",
+                    "tertiary-container": "#ef6719",
+                    "outline-variant": "#414755",
+                    "surface-stroke": "#30363D",
+                    "on-tertiary": "#571e00",
+                    "emerald-green": "#10B981",
+                    "on-surface": "#dfe2eb",
+                    "on-secondary": "#003824",
+                    "inverse-on-surface": "#2d3137",
+                    "surface-tint": "#adc6ff",
+                    "utility-yellow": "#FACC15",
+                    "electric-blue": "#007AFF",
+                    "royal-purple": "#8B5CF6",
+                    "on-background": "#dfe2eb",
+                    "primary-container": "#4b8eff",
+                    "tertiary-fixed-dim": "#ffb595",
+                    "surface-container-high": "#262a31",
+                    "primary": "#adc6ff",
+                    "surface-container-highest": "#31353c",
+                    "surface": "#10141a",
+                    "on-surface-variant": "#c1c6d7",
+                    "secondary-container": "#00a572",
+                    "primary-fixed": "#d8e2ff",
+                    "on-error-container": "#ffdad6",
+                    "on-primary-fixed": "#001a41",
+                    "on-secondary-fixed-variant": "#005236",
+                    "error": "#ffb4ab",
+                    "tertiary": "#ffb595",
+                    "surface-container-low": "#181c22",
+                    "on-tertiary-fixed": "#351000"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "16px",
+                    "unit": "4px",
+                    "edge-thickness": "1.5px",
+                    "sidebar-width": "280px",
+                    "drawer-width": "360px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Space Grotesk"],
+                    "code-md": ["JetBrains Mono"],
+                    "label-caps": ["JetBrains Mono"],
+                    "headline-sm": ["Space Grotesk"],
+                    "body-sm": ["Inter"],
+                    "headline-md": ["Space Grotesk"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "code-md": ["13px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-caps": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-sm": ["18px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body-sm": ["12px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #080A0D;
+            color: #dfe2eb;
+            overflow: hidden;
+        }
+        .dot-grid {
+            background-image: radial-gradient(circle, #30363D 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .glass-card {
+            background: rgba(28, 32, 38, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid #30363D;
+        }
+        .neo-border {
+            border: 1px solid #30363D;
+        }
+        .glow-blue {
+            box-shadow: 0 0 15px -3px rgba(0, 122, 255, 0.4);
+            border-color: #007AFF;
+        }
+        .progress-stripe {
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.05) 10px,
+                rgba(255,255,255,0.05) 20px
+            );
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #080A0D; }
+        ::-webkit-scrollbar-thumb { background: #30363D; }
+        ::-webkit-scrollbar-thumb:hover { background: #414755; }
+    </style>
+</head>
+<body class="font-body-md text-body-md selection:bg-electric-blue selection:text-white">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 h-14 bg-canvas-bg border-b border-surface-stroke flex justify-between items-center px-gutter">
+<div class="flex items-center gap-8">
+<div class="font-headline-md text-headline-md font-bold text-electric-blue tracking-tighter">CODE ATLAS</div>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface transition-colors" href="#">Explorer</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface transition-colors" href="#">Architecture</a>
+<a class="font-label-caps text-label-caps text-electric-blue border-b-2 border-electric-blue pb-1" href="#">Roadmap</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+<input class="bg-surface-container-low border border-surface-stroke pl-9 pr-4 py-1.5 text-body-sm rounded-none focus:outline-none focus:ring-1 focus:ring-electric-blue w-64" placeholder="Search architecture..." type="text"/>
+</div>
+<button class="bg-electric-blue text-white px-4 py-1.5 font-label-caps text-label-caps hover:opacity-80 active:scale-[0.98] transition-all">Upload</button>
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-highest p-1.5 cursor-pointer transition-all">settings</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-highest p-1.5 cursor-pointer transition-all">help</span>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-14 bottom-0 w-sidebar-width bg-surface border-r border-surface-stroke flex flex-col h-full overflow-y-auto hidden md:flex">
+<div class="p-6 border-b border-surface-stroke">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-electric-blue flex items-center justify-center">
+<span class="material-symbols-outlined text-white">account_tree</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface leading-tight">Project Alpha</h2>
+<p class="font-label-caps text-label-caps text-outline tracking-widest">v2.4.0-stable</p>
+</div>
+</div>
+<button class="w-full mt-6 py-2 border border-electric-blue text-electric-blue font-label-caps text-label-caps hover:bg-surface-container-high transition-colors">NEW BRANCH</button>
+</div>
+<div class="flex-1 py-4">
+<div class="px-6 mb-2 font-label-caps text-label-caps text-outline">PROJECT TREE</div>
+<div class="flex flex-col">
+<div class="px-6 py-2 flex items-center gap-3 text-on-surface-variant hover:bg-surface-container-low cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span class="font-code-md text-code-md">Explorer</span>
+</div>
+<div class="px-6 py-2 flex items-center gap-3 bg-surface-container-highest text-electric-blue border-l-2 border-electric-blue cursor-pointer">
+<span class="material-symbols-outlined text-sm">map</span>
+<span class="font-code-md text-code-md">Roadmap</span>
+</div>
+<div class="px-6 py-2 flex items-center gap-3 text-on-surface-variant hover:bg-surface-container-low cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-sm">history</span>
+<span class="font-code-md text-code-md">Recent</span>
+</div>
+<div class="px-6 py-2 flex items-center gap-3 text-on-surface-variant hover:bg-surface-container-low cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-sm">layers</span>
+<span class="font-code-md text-code-md">Layers</span>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-surface-stroke bg-surface-container-low">
+<div class="flex justify-between">
+<div class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-electric-blue cursor-pointer">
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-label-caps text-[8px]">TERMINAL</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-electric-blue cursor-pointer">
+<span class="material-symbols-outlined">bug_report</span>
+<span class="font-label-caps text-[8px]">DEBUG</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-electric-blue cursor-pointer">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-label-caps text-[8px]">METRICS</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="md:ml-sidebar-width mt-14 h-[calc(100vh-3.5rem)] overflow-y-auto dot-grid relative">
+<!-- Background Animation Overlay -->
+<div class="absolute inset-0 pointer-events-none opacity-20">
+
+</div>
+<div class="max-w-6xl mx-auto px-8 py-12 relative z-10">
+<!-- Header Section -->
+<div class="mb-12">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-vibrant-orange">timeline</span>
+<span class="font-label-caps text-label-caps text-vibrant-orange tracking-widest">PRODUCT EVOLUTION</span>
+</div>
+<h1 class="font-display-lg text-display-lg mb-4">Roadmap &amp; Phased Progress</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+                    Visualizing the engineering trajectory of the Code Atlas ecosystem. From core graph foundations to autonomous AI architecture agents.
+                </p>
+</div>
+<!-- Current Progress Banner -->
+<div class="neo-border bg-surface-container p-6 mb-16 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-secondary"></div>
+<div class="flex-1">
+<div class="font-label-caps text-label-caps text-secondary mb-1">SYSTEM STATUS: ACTIVE</div>
+<div class="font-headline-sm text-headline-sm">Phase 2: Code Intelligence Integration</div>
+<div class="mt-4 flex items-center gap-4">
+<div class="flex-1 h-2 bg-background neo-border relative overflow-hidden">
+<div class="absolute inset-y-0 left-0 bg-secondary w-3/4 progress-stripe"></div>
+</div>
+<span class="font-code-md text-code-md text-secondary">75%</span>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="text-center px-4 py-2 bg-background neo-border">
+<div class="font-label-caps text-label-caps text-outline">WEEK</div>
+<div class="font-headline-md text-headline-md">07</div>
+</div>
+<div class="text-center px-4 py-2 bg-background neo-border">
+<div class="font-label-caps text-label-caps text-outline">MILESTONES</div>
+<div class="font-headline-md text-headline-md">12/15</div>
+</div>
+</div>
+</div>
+<!-- Roadmap Phases -->
+<div class="grid grid-cols-1 gap-16 relative">
+<!-- Center Line for Visual Connecting -->
+<div class="absolute left-8 md:left-1/2 top-0 bottom-0 w-px bg-surface-stroke -translate-x-1/2 hidden md:block"></div>
+<!-- Phase 1: Foundation -->
+<div class="relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+<div class="order-2 md:order-1 text-right md:pr-16 hidden md:block">
+<div class="font-headline-md text-headline-md text-on-surface-variant opacity-20">PHASE 01</div>
+</div>
+<div class="absolute left-8 md:left-1/2 -translate-x-1/2 w-4 h-4 bg-emerald-green border-4 border-background rounded-full z-20"></div>
+<div class="order-1 md:order-2 md:pl-16">
+<div class="glass-card p-6 border-l-4 border-l-emerald-green">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="font-label-caps text-label-caps text-emerald-green mb-1">WEEKS 1-4</div>
+<h3 class="font-headline-sm text-headline-sm">Foundation</h3>
+</div>
+<span class="material-symbols-outlined text-emerald-green" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-6">Core infrastructure setup, repository indexing services, and initial 2D interactive graph rendering.</p>
+<ul class="space-y-3 mb-6">
+<li class="flex items-center gap-3 text-body-sm">
+<span class="material-symbols-outlined text-emerald-green text-lg">done</span>
+<span>Workspace environment setup</span>
+</li>
+<li class="flex items-center gap-3 text-body-sm">
+<span class="material-symbols-outlined text-emerald-green text-lg">done</span>
+<span>High-speed repo importing</span>
+</li>
+<li class="flex items-center gap-3 text-body-sm">
+<span class="material-symbols-outlined text-emerald-green text-lg">done</span>
+<span>Basic Node-Edge relationships</span>
+</li>
+</ul>
+<div class="bg-surface-container-lowest p-4 neo-border">
+<div class="w-full h-32 bg-cover bg-center mb-3" data-alt="A macro technical screenshot of a code dependency graph with neon green lines and dark charcoal background, minimalist UI elements, high data density, professional developer tool aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB_63ePER2leu51xHyJLJ8pAuwXDW1QXVZWLf0TS4I0dKn6_r9Kof1I44YJd_BwQtKNGcyURg9nB1HKXoPukSixG4SRPWRbS4qjIgYNYQFrIiXvyh-wu3Nccd10_TGSVVYSmLi8nSMrtVEYqOj8l9-zjFNspz0n6BjMhSu_i5lm9RQQfQbi4xlAJJ7pD-VdCJmZfeKQ_Fw2bDT8Y9S7ULn4BLNwe2NaiOsNeIG4Fxu5AozStkW5z2ARZQ')"></div>
+<div class="font-label-caps text-[9px] text-outline">MODULE-ALPHA PREVIEW</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Phase 2: Intelligence (CURRENT) -->
+<div class="relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+<div class="order-1 md:pr-16">
+<div class="glass-card p-6 border-l-4 border-l-electric-blue glow-blue relative overflow-hidden">
+<!-- "Current" Badge -->
+<div class="absolute -top-1 -right-1 bg-electric-blue text-white px-3 py-1 font-label-caps text-[10px] transform rotate-12 translate-x-2">CURRENT</div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="font-label-caps text-label-caps text-electric-blue mb-1">WEEKS 5-8</div>
+<h3 class="font-headline-sm text-headline-sm">Code Intelligence</h3>
+</div>
+<span class="material-symbols-outlined text-electric-blue">settings_suggest</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-6">Deep static analysis to extract symbols, types, and logic flows. Enhanced search capabilities.</p>
+<ul class="space-y-3 mb-6">
+<li class="flex items-center gap-3 text-body-sm">
+<span class="material-symbols-outlined text-electric-blue text-lg">done</span>
+<span>Symbol extraction (LSP integration)</span>
+</li>
+<li class="flex items-center gap-3 text-body-sm">
+<span class="material-symbols-outlined text-electric-blue text-lg">sync</span>
+<span class="text-on-surface">Universal cross-reference search</span>
+</li>
+<li class="flex items-center gap-3 text-body-sm">
+<span class="material-symbols-outlined text-outline text-lg">pending</span>
+<span class="text-outline">Advanced Node Inspector panel</span>
+</li>
+</ul>
+<div class="flex gap-2">
+<button class="flex-1 py-2 bg-electric-blue text-white font-label-caps text-[10px]">VIEW LOGS</button>
+<button class="px-3 py-2 border border-surface-stroke text-on-surface hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-sm">open_in_new</span></button>
+</div>
+</div>
+</div>
+<div class="absolute left-8 md:left-1/2 -translate-x-1/2 w-6 h-6 bg-electric-blue border-4 border-background rounded-full z-20 shadow-[0_0_15px_rgba(0,122,255,0.8)]"></div>
+<div class="order-2 text-left md:pl-16 hidden md:block">
+<div class="font-headline-md text-headline-md text-electric-blue">PHASE 02</div>
+</div>
+</div>
+<!-- Phase 3: Insights -->
+<div class="relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
+<div class="order-2 md:order-1 text-right md:pr-16 hidden md:block">
+<div class="font-headline-md text-headline-md text-on-surface-variant opacity-20">PHASE 03</div>
+</div>
+<div class="absolute left-8 md:left-1/2 -translate-x-1/2 w-4 h-4 bg-vibrant-orange border-4 border-background rounded-full z-20"></div>
+<div class="order-1 md:order-2 md:pl-16">
+<div class="glass-card p-6 border-l-4 border-l-vibrant-orange">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="font-label-caps text-label-caps text-vibrant-orange mb-1">WEEKS 9-12</div>
+<h3 class="font-headline-sm text-headline-sm">Architecture Insights</h3>
+</div>
+<span class="material-symbols-outlined text-vibrant-orange">analytics</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-6">Moving beyond structure to evaluation. Identifying circular dependencies and calculating complexity metrics.</p>
+<div class="grid grid-cols-2 gap-3 mb-6">
+<div class="bg-surface-container-low p-3 neo-border">
+<div class="font-label-caps text-[9px] text-outline mb-1">HEALTH SCORE</div>
+<div class="font-code-md text-code-md text-utility-yellow">CALCULATING...</div>
+</div>
+<div class="bg-surface-container-low p-3 neo-border">
+<div class="font-label-caps text-[9px] text-outline mb-1">CYCLES</div>
+<div class="font-code-md text-code-md text-crimson-error">DETECTING...</div>
+</div>
+</div>
+<ul class="space-y-3">
+<li class="flex items-center gap-3 text-body-sm text-outline">
+<span class="material-symbols-outlined text-sm">lock</span>
+<span>Cyclomatic complexity heatmap</span>
+</li>
+<li class="flex items-center gap-3 text-body-sm text-outline">
+<span class="material-symbols-outlined text-sm">lock</span>
+<span>Project Health dashboards</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Phase 4: AI Assistant -->
+<div class="relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
+<div class="order-1 md:pr-16">
+<div class="glass-card p-6 border-l-4 border-l-royal-purple">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="font-label-caps text-label-caps text-royal-purple mb-1">MONTHS 4-6</div>
+<h3 class="font-headline-sm text-headline-sm">AI Architecture Assistant</h3>
+</div>
+<span class="material-symbols-outlined text-royal-purple" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-6">Natural language interface for querying architecture and automated refactoring recommendations.</p>
+<div class="bg-surface-container-lowest p-4 neo-border mb-6">
+<div class="flex gap-2 mb-2">
+<div class="w-2 h-2 rounded-full bg-royal-purple"></div>
+<div class="w-2 h-2 rounded-full bg-surface-stroke"></div>
+<div class="w-2 h-2 rounded-full bg-surface-stroke"></div>
+</div>
+<div class="font-code-md text-[11px] text-royal-purple italic">"Atlas, identify the best way to decouple the Auth module from the Database layer..."</div>
+</div>
+<ul class="space-y-3">
+<li class="flex items-center gap-3 text-body-sm text-outline">
+<span class="material-symbols-outlined text-sm">lock</span>
+<span>LLM Codebase Summaries</span>
+</li>
+<li class="flex items-center gap-3 text-body-sm text-outline">
+<span class="material-symbols-outlined text-sm">lock</span>
+<span>Smart Refactoring Suggestions</span>
+</li>
+</ul>
+</div>
+</div>
+<div class="absolute left-8 md:left-1/2 -translate-x-1/2 w-4 h-4 bg-royal-purple border-4 border-background rounded-full z-20"></div>
+<div class="order-2 text-left md:pl-16 hidden md:block">
+<div class="font-headline-md text-headline-md text-on-surface-variant opacity-20">PHASE 04</div>
+</div>
+</div>
+</div>
+<!-- Footer Meta -->
+<div class="mt-24 pt-8 border-t border-surface-stroke flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="flex gap-12">
+<div>
+<div class="font-label-caps text-label-caps text-outline mb-1">STABLE RELEASE</div>
+<div class="font-code-md text-code-md">MARCH 2024</div>
+</div>
+<div>
+<div class="font-label-caps text-label-caps text-outline mb-1">NEXT SYNC</div>
+<div class="font-code-md text-code-md">IN 2 DAYS</div>
+</div>
+</div>
+<div class="flex gap-4">
+<button class="bg-surface-container-high px-6 py-2 font-label-caps text-label-caps hover:bg-surface-variant transition-colors neo-border">EXPORT PDF</button>
+<button class="bg-on-surface text-background px-6 py-2 font-label-caps text-label-caps hover:opacity-90 active:scale-[0.98] transition-all">SHARE UPDATES</button>
+</div>
+</div>
+</div>
+<!-- Minimap / Nav Helper -->
+<div class="fixed bottom-6 right-6 w-32 h-32 glass-card p-2 hidden lg:block cursor-crosshair">
+<div class="font-label-caps text-[8px] text-outline mb-1">ROADMAP_NAV</div>
+<div class="w-full h-[calc(100%-1rem)] relative bg-background/50 overflow-hidden">
+<div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-surface-stroke"></div>
+<!-- Mini indicators -->
+<div class="absolute left-1/2 top-1/4 -translate-x-1/2 w-2 h-2 rounded-full bg-emerald-green"></div>
+<div class="absolute left-1/2 top-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-electric-blue glow-blue"></div>
+<div class="absolute left-1/2 top-3/4 -translate-x-1/2 w-2 h-2 rounded-full bg-surface-stroke"></div>
+<!-- Viewport Rect -->
+<div class="absolute inset-x-1 top-1/3 h-1/3 border border-electric-blue/40 pointer-events-none"></div>
+</div>
+</div>
+</main>
+<!-- Side Assistant (Hidden by default, slides out) -->
+<div class="fixed right-0 top-14 bottom-0 w-drawer-width bg-[#161B22] border-l border-surface-stroke translate-x-full transition-transform duration-300 z-40 hidden md:block" id="ai-assistant">
+<div class="p-6 border-b border-surface-stroke flex justify-between items-center">
+<h3 class="font-headline-sm text-headline-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-royal-purple">auto_awesome</span>
+                AI Insights
+            </h3>
+<button class="material-symbols-outlined text-outline hover:text-on-surface" onclick="toggleAssistant()">close</button>
+</div>
+<div class="p-6 overflow-y-auto h-[calc(100%-8rem)]">
+<div class="bg-surface-container p-4 neo-border mb-4">
+<p class="font-body-sm text-body-sm text-on-surface">"Atlas, what is the current progress of the Symbol Extraction engine?"</p>
+</div>
+<div class="flex gap-3">
+<div class="w-6 h-6 bg-royal-purple flex-shrink-0 mt-1"></div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                    The symbol extraction engine is currently at <span class="text-secondary font-bold">92% completion</span>. We are resolving edge cases for circular generic types in TypeScript before proceeding to the final validation phase.
+                </p>
+</div>
+</div>
+<div class="p-4 bg-background border-t border-surface-stroke">
+<div class="relative">
+<input class="w-full bg-surface-container border border-surface-stroke p-3 pr-10 text-body-sm focus:outline-none focus:border-electric-blue" placeholder="Ask about the roadmap..." type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline">send</span>
+</div>
+</div>
+</div>
+<!-- Floating Trigger for AI -->
+<button class="fixed bottom-6 right-6 md:right-40 bg-royal-purple text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all z-50" onclick="toggleAssistant()">
+<span class="material-symbols-outlined">psychology</span>
+</button>
+<script>
+        function toggleAssistant() {
+            const assistant = document.getElementById('ai-assistant');
+            assistant.classList.toggle('translate-x-full');
+            assistant.classList.toggle('translate-x-0');
+        }
+
+        // Simple smooth scroll behavior for "roadmap"
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px)';
+                card.style.transition = 'transform 0.2s ease-out';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

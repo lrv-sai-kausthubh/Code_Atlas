@@ -26,6 +26,29 @@
   @keyframes ca-march { 0% { background-position: 0 0; } 100% { background-position: 20px 0; } }
   @keyframes ca-slide { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   @keyframes ca-slide-left { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes ca-edge-draw { from { stroke-dashoffset: 64; } to { stroke-dashoffset: 0; } }
+  @keyframes ca-node-pop { 0%, 100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.3); opacity: 1; } }
+  @keyframes ca-caret { 0%, 45% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  @keyframes ca-shimmer { 0% { transform: translateX(-130%); } 100% { transform: translateX(340%); } }
+}
+
+.loader-edge {
+  stroke-dasharray: 64;
+  animation: ca-edge-draw 1.1s ease-out forwards;
+}
+
+.loader-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ca-node-pop 1.35s ease-in-out infinite;
+}
+
+.loader-caret {
+  animation: ca-caret 1s steps(1) infinite;
+}
+
+.loader-shimmer {
+  animation: ca-shimmer 1.5s linear infinite;
 }
 
 :root { font-family: 'Space Grotesk', sans-serif; color: #eff0ed; background: #101112; font-synthesis: none; }
@@ -43,11 +66,8 @@ button { cursor: pointer; }
   --cycle-edge: #f17c71;
   --minimap-mask: rgba(16, 17, 18, .72);
 }
-[data-theme="light"] { color: #202824; background: #eef1ed; --graph-edge: #91a7a0; --graph-label: #64736c; --graph-surface: #f6f8f5; --graph-grid: #b5c2bc; --import-edge: #bd7a10; --cycle-edge: #c34842; --minimap-mask: rgba(238, 241, 237, .76); }
-[data-theme="light"] body { background: #eef1ed; }
-
-/* ===== Material Symbols (Stitch design icons) ===== */
-.material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; display: inline-block; line-height: 1; text-transform: none; letter-spacing: normal; word-wrap: normal; white-space: nowrap; direction: ltr; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; -webkit-font-smoothing: antialiased; }
+[data-theme="light"] { color: #202824; background: #e2e6e0; --graph-edge: #879c94; --graph-label: #5c6b64; --graph-surface: #ebefe8; --graph-grid: #a4b3ac; --import-edge: #bd7a10; --cycle-edge: #c34842; --minimap-mask: rgba(226, 230, 224, .78); }
+[data-theme="light"] body { background: #e2e6e0; }
 
 /* ===== React Flow overrides (library-internal classes) ===== */
 .react-flow { background: var(--graph-surface); }
@@ -60,9 +80,9 @@ button { cursor: pointer; }
 .react-flow__edge-text { fill: var(--graph-label); }
 .react-flow__selection { background: rgba(100, 213, 196, .14); border: 1px solid #64d5c4; }
 .react-flow__attribution { display: none; }
-[data-theme="light"] .react-flow__controls-button { background: #f6f8f5; color: #53655c; fill: #53655c; border-color: #c4d2ca; }
-[data-theme="light"] .react-flow__controls-button:hover { background: #e3ece7; }
-[data-theme="light"] .react-flow__minimap { background: #f6f8f5; }
+[data-theme="light"] .react-flow__controls-button { background: #ebefe8; color: #53655c; fill: #53655c; border-color: #c4d2ca; }
+[data-theme="light"] .react-flow__controls-button:hover { background: #dbe4dd; }
+[data-theme="light"] .react-flow__minimap { background: #ebefe8; }
 @media (max-width: 850px) { .react-flow__minimap { display: none; } }
 
 /* ===== Hide scrollbars but keep scrolling (project explorer) ===== */
@@ -78,12 +98,18 @@ button { cursor: pointer; }
 .atlas-node-project { min-width: 150px; padding: 12px 15px 10px; }
 .atlas-node-folder { min-width: 112px; }
 .atlas-node-dot { display: flex; align-items: center; justify-content: center; min-height: 22px; color: var(--node-color); font-size: 22px; line-height: 18px; }
-.atlas-node-dot .material-symbols-outlined { font-size: 20px; line-height: 1; }
 .atlas-node-file .atlas-node-dot { font-size: 25px; line-height: 14px; }
 .atlas-node-label { margin-top: 5px; max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--node-color); font: 10px 'DM Mono', monospace; }
 .atlas-node-project .atlas-node-label { font-weight: 500; }
 .atlas-node-kind { margin-top: 5px; color: var(--graph-label); font: 8px 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .08em; }
 .atlas-handle { width: 6px; height: 6px; visibility: hidden; background: var(--node-color); border: 0; }
+
+/* ===== Restricted (metadata-only) nodes — RBAC ===== */
+.atlas-node-restricted { opacity: .55; border-style: dashed; filter: saturate(.6); }
+.atlas-node-restricted:hover, .atlas-node-restricted.is-selected { opacity: .85; border-color: #f2b84b; }
+.atlas-node-restricted .atlas-node-label { color: #b0b8b4; }
+.atlas-node-restricted-badge { display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 5px; color: #f2b84b; font: 7px 'DM Mono', monospace; letter-spacing: .06em; }
+.light .atlas-node-restricted { opacity: .6; }
 
 /* ===== Health score ring (uses inline CSS custom properties) ===== */
 .health-score { width: 72px; height: 72px; flex: 0 0 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; background: conic-gradient(var(--score-color) var(--score-angle), color-mix(in srgb, var(--graph-label) 20%, transparent) 0); color: var(--graph-surface); position: relative; }

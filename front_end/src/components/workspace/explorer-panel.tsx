@@ -8,7 +8,7 @@ import {
   MUTED,
 } from "./panel-classes";
 import type { ProjectGraph, ProjectNode } from "../../types/project";
-import { ChevronLeft, ChevronRight, FolderKanban } from "lucide-react";
+import { ChevronLeft, ChevronRight, File, Folder } from "lucide-react";
 function ExplorerPanel({
   graph,
   query,
@@ -45,7 +45,11 @@ function ExplorerPanel({
               explorerCollapsed ? "Expand explorer" : "Collapse explorer"
             }
           >
-            {explorerCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {explorerCollapsed ? (
+              <ChevronRight size={16} />
+            ) : (
+              <ChevronLeft size={16} />
+            )}
           </button>
         </div>
       </div>
@@ -54,22 +58,17 @@ function ExplorerPanel({
           <div className="flex justify-between items-center my-[30px] font-dm text-[13px] text-[#f2b84b]">
             <div className="flex gap-2 items-center">
               {" "}
-              <FolderKanban />
+              <Folder />
               {graph.project}
             </div>
             <div className="flex gap-[11px] font-dm text-[9px] text-[#59635f] light:text-[#687870] max-[850px]:hidden">
-              <span>
-                <i
-                  className="mr-1 inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ background: NODE_COLORS.file }}
-                />{" "}
+              
+              <span className="flex gap-1 items-center">
+                <File className="inline-block h-2.5 w-3.5 rounded-full" style={{ color: NODE_COLORS.file }} />
                 FILE
               </span>
-              <span>
-                <i
-                  className="mr-1 inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ background: NODE_COLORS.folder }}
-                />{" "}
+              <span className="flex gap-1 items-center">
+                <Folder className="inline-block h-2.5 w-3.5 rounded-full" style={{ color: NODE_COLORS.folder }} />
                 FOLDER
               </span>
             </div>

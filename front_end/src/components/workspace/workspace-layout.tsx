@@ -12,354 +12,367 @@ import type { NodeMovement } from "../atlas/atlas-types";
 import type { ProjectGraph, ProjectNode } from "../../types/project";
 
 function WorkspaceLayout({
-    graph,
-    projectId,
-    selected,
-    onSelect,
-    positionOffsets,
-    onMoveNodes,
+  graph,
+  projectId,
+  selected,
+  token,
+  onSelect,
+  positionOffsets,
+  onMoveNodes,
+  onBack,
 }: {
-    graph: ProjectGraph;
-    projectId: string;
-    selected: ProjectNode | null;
-    onSelect: (node: ProjectNode) => void;
-    positionOffsets: ReadonlyMap<string, XYPosition>;
-    onMoveNodes: (next: Map<string, XYPosition>) => void;
+  graph: ProjectGraph;
+  projectId: string;
+  selected: ProjectNode | null;
+  token: string;
+  onSelect: (node: ProjectNode) => void;
+  positionOffsets: ReadonlyMap<string, XYPosition>;
+  onMoveNodes: (next: Map<string, XYPosition>) => void;
+  onBack: () => void;
 }) {
-    const [query, setQuery] = useState("");
-    const [collapsed, setCollapsed] = useState<Set<string>>(() => {
-        const stored = projectId ? localStorage.getItem(`ca-collapsed-${projectId}`) : null;
-        if (stored) {
-            try {
-                return new Set(JSON.parse(stored) as string[]);
-            } catch {
-                // fall through to default
-            }
+  const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    const stored = projectId
+      ? localStorage.getItem(`ca-collapsed-${projectId}`)
+      : null;
+    if (stored) {
+      try {
+        return new Set(JSON.parse(stored) as string[]);
+      } catch {
+        // fall through to default
+      }
+    }
+    const initial = new Set<string>();
+    graph.nodes.forEach((node) => {
+      if (node.type === "folder") initial.add(node.id);
+    });
+    return initial;
+  });
+  const [compact, setCompact] = useState(() => {
+    const stored = projectId
+      ? localStorage.getItem(`ca-compact-${projectId}`)
+      : null;
+    return stored ? stored === "1" : true;
+  });
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [previewNode, setPreviewNode] = useState<ProjectNode | null>(null);
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [explorerWidth, setExplorerWidth] = useState(
+    () => Number(localStorage.getItem("ca-explorer-width")) || 230,
+  );
+  const [inspectorWidth, setInspectorWidth] = useState(
+    () => Number(localStorage.getItem("ca-inspector-width")) || 245,
+  );
+  const [explorerCollapsed, setExplorerCollapsed] = useState(
+    () => localStorage.getItem("ca-explorer-collapsed") === "1",
+  );
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(
+    () => localStorage.getItem("ca-inspector-collapsed") === "1",
+  );
+  const resizingRef = useRef<"explorer" | "inspector" | null>(null);
+  const layoutRootRef = useRef<HTMLElement>(null);
+
+  const persistLayout = (key: string, value: number) =>
+    localStorage.setItem(key, String(value));
+
+  const startResize =
+    (which: "explorer" | "inspector") => (event: ReactPointerEvent) => {
+      event.preventDefault();
+      resizingRef.current = which;
+      const originX = event.clientX;
+      const startExplorer = explorerWidth;
+      const startInspector = inspectorWidth;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+
+      const onMove = (move: PointerEvent) => {
+        if (which === "explorer") {
+          const next = Math.min(
+            560,
+            Math.max(160, startExplorer + (move.clientX - originX)),
+          );
+          setExplorerWidth(next);
+          persistLayout("ca-explorer-width", next);
+        } else {
+          const next = Math.min(
+            560,
+            Math.max(160, startInspector - (move.clientX - originX)),
+          );
+          setInspectorWidth(next);
+          persistLayout("ca-inspector-width", next);
         }
-        const initial = new Set<string>();
-        graph.nodes.forEach((node) => {
-            if (node.type === "folder") initial.add(node.id);
-        });
-        return initial;
-    });
-    const [compact, setCompact] = useState(() => {
-        const stored = projectId ? localStorage.getItem(`ca-compact-${projectId}`) : null;
-        return stored ? stored === "1" : true;
-    });
-    const [analysisOpen, setAnalysisOpen] = useState(false);
-    const [previewNode, setPreviewNode] = useState<ProjectNode | null>(null);
-    const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
-    const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [explorerWidth, setExplorerWidth] = useState(
-        () => Number(localStorage.getItem("ca-explorer-width")) || 230,
-    );
-    const [inspectorWidth, setInspectorWidth] = useState(
-        () => Number(localStorage.getItem("ca-inspector-width")) || 245,
-    );
-    const [explorerCollapsed, setExplorerCollapsed] = useState(
-        () => localStorage.getItem("ca-explorer-collapsed") === "1",
-    );
-    const [inspectorCollapsed, setInspectorCollapsed] = useState(
-        () => localStorage.getItem("ca-inspector-collapsed") === "1",
-    );
-    const resizingRef = useRef<"explorer" | "inspector" | null>(null);
-    const layoutRootRef = useRef<HTMLElement>(null);
-
-    const persistLayout = (key: string, value: number) =>
-        localStorage.setItem(key, String(value));
-
-    const startResize =
-        (which: "explorer" | "inspector") =>
-        (event: ReactPointerEvent) => {
-            event.preventDefault();
-            resizingRef.current = which;
-            const originX = event.clientX;
-            const startExplorer = explorerWidth;
-            const startInspector = inspectorWidth;
-            document.body.style.cursor = "col-resize";
-            document.body.style.userSelect = "none";
-
-            const onMove = (move: PointerEvent) => {
-                if (which === "explorer") {
-                    const next = Math.min(
-                        560,
-                        Math.max(160, startExplorer + (move.clientX - originX)),
-                    );
-                    setExplorerWidth(next);
-                    persistLayout("ca-explorer-width", next);
-                } else {
-                    const next = Math.min(
-                        560,
-                        Math.max(160, startInspector - (move.clientX - originX)),
-                    );
-                    setInspectorWidth(next);
-                    persistLayout("ca-inspector-width", next);
-                }
-            };
-            const onUp = () => {
-                resizingRef.current = null;
-                document.body.style.cursor = "";
-                document.body.style.userSelect = "";
-                window.removeEventListener("pointermove", onMove);
-                window.removeEventListener("pointerup", onUp);
-            };
-            window.addEventListener("pointermove", onMove);
-            window.addEventListener("pointerup", onUp);
-        };
-
-    const toggleExplorer = () => {
-        setExplorerCollapsed((value) => {
-            localStorage.setItem("ca-explorer-collapsed", value ? "0" : "1");
-            return !value;
-        });
-    };
-    const toggleInspector = () => {
-        setInspectorCollapsed((value) => {
-            localStorage.setItem("ca-inspector-collapsed", value ? "0" : "1");
-            return !value;
-        });
+      };
+      const onUp = () => {
+        resizingRef.current = null;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
     };
 
-    const toggleFolder = useCallback((nodeId: string) => {
+  const toggleExplorer = () => {
+    setExplorerCollapsed((value) => {
+      localStorage.setItem("ca-explorer-collapsed", value ? "0" : "1");
+      return !value;
+    });
+  };
+  const toggleInspector = () => {
+    setInspectorCollapsed((value) => {
+      localStorage.setItem("ca-inspector-collapsed", value ? "0" : "1");
+      return !value;
+    });
+  };
+
+  const toggleFolder = useCallback((nodeId: string) => {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (projectId) {
+      localStorage.setItem(
+        `ca-collapsed-${projectId}`,
+        JSON.stringify([...collapsed]),
+      );
+    }
+  }, [collapsed, projectId]);
+
+  useEffect(() => {
+    if (projectId) {
+      localStorage.setItem(`ca-compact-${projectId}`, compact ? "1" : "0");
+    }
+  }, [compact, projectId]);
+
+  const parentById = useMemo(() => {
+    const parents = new Map<string, string>();
+    graph.edges
+      .filter((edge) => edge.relation !== "IMPORTS")
+      .forEach((edge) => parents.set(edge.target, edge.source));
+    return parents;
+  }, [graph]);
+
+  const handleSelect = useCallback(
+    (node: ProjectNode) => {
+      onSelect(node);
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+      setFocusNodeId(node.id);
+      focusTimerRef.current = setTimeout(() => setFocusNodeId(null), 1800);
+      if (node.type === "file") {
         setCollapsed((current) => {
-            const next = new Set(current);
-            if (next.has(nodeId)) next.delete(nodeId);
-            else next.add(nodeId);
-            return next;
+          const next = new Set(current);
+          let parent = parentById.get(node.id);
+          while (parent) {
+            next.delete(parent);
+            parent = parentById.get(parent);
+          }
+          return next;
         });
-    }, []);
+      }
+      if (inspectorCollapsed) {
+        localStorage.setItem("ca-inspector-collapsed", "0");
+        setInspectorCollapsed(false);
+      }
+    },
+    [inspectorCollapsed, onSelect, parentById],
+  );
 
-    useEffect(() => {
-        if (projectId) {
-            localStorage.setItem(`ca-collapsed-${projectId}`, JSON.stringify([...collapsed]));
+  const moveNodes = useCallback(
+    (movements: NodeMovement[]) => {
+      if (!graph) return;
+      const isDescendant = (candidateId: string, ancestorId: string) => {
+        let parent = parentById.get(candidateId);
+        while (parent) {
+          if (parent === ancestorId) return true;
+          parent = parentById.get(parent);
         }
-    }, [collapsed, projectId]);
+        return false;
+      };
+      const roots = movements.filter(
+        (movement) =>
+          !movements.some(
+            (other) =>
+              other.id !== movement.id && isDescendant(movement.id, other.id),
+          ),
+      );
+      const next = new Map(positionOffsets);
+      graph.nodes.forEach((node) => {
+        const movement = roots
+          .filter(
+            (root) => node.id === root.id || isDescendant(node.id, root.id),
+          )
+          .reduce(
+            (total, root) => ({
+              x: total.x + root.delta.x,
+              y: total.y + root.delta.y,
+            }),
+            { x: 0, y: 0 },
+          );
+        if (!movement.x && !movement.y) return;
+        const offset = next.get(node.id) ?? { x: 0, y: 0 };
+        next.set(node.id, {
+          x: offset.x + movement.x,
+          y: offset.y + movement.y,
+        });
+      });
+      onMoveNodes(next);
+    },
+    [graph, onMoveNodes, parentById, positionOffsets],
+  );
 
-    useEffect(() => {
-        if (projectId) {
-            localStorage.setItem(`ca-compact-${projectId}`, compact ? "1" : "0");
-        }
-    }, [compact, projectId]);
+  const visibleGraph = useMemo(() => {
+    const parentById = new Map<string, string>();
+    graph.edges
+      .filter((edge) => edge.relation !== "IMPORTS")
+      .forEach((edge) => parentById.set(edge.target, edge.source));
+    const isVisible = (nodeId: string) => {
+      let parent = parentById.get(nodeId);
+      while (parent) {
+        if (collapsed.has(parent)) return false;
+        parent = parentById.get(parent);
+      }
+      return true;
+    };
+    return graph.nodes.filter((node) => isVisible(node.id));
+  }, [collapsed, graph]);
 
-    const parentById = useMemo(() => {
-        const parents = new Map<string, string>();
-        graph.edges
-            .filter((edge) => edge.relation !== "IMPORTS")
-            .forEach((edge) => parents.set(edge.target, edge.source));
-        return parents;
-    }, [graph]);
+  const folderIds = useMemo(
+    () =>
+      graph.nodes
+        .filter((node) => node.type === "folder")
+        .map((node) => node.id),
+    [graph],
+  );
+  const collapseAll = useCallback(() => {
+    setCollapsed(new Set(folderIds));
+    toastProcessing("Collapsing folder tree…");
+  }, [folderIds]);
+  const expandAll = useCallback(() => {
+    setCollapsed(new Set());
+    toastProcessing("Expanding folder tree…");
+  }, []);
+  const toggleCompact = useCallback(() => {
+    setCompact((value) => !value);
+    toastProcessing(`Re-laying out ${graph.nodes.length} nodes…`);
+  }, [graph.nodes.length]);
+  const toggleAnalysis = useCallback(
+    () => setAnalysisOpen((value) => !value),
+    [],
+  );
 
-    const handleSelect = useCallback(
-        (node: ProjectNode) => {
-            onSelect(node);
-            if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
-            setFocusNodeId(node.id);
-            focusTimerRef.current = setTimeout(() => setFocusNodeId(null), 1800);
-            if (node.type === "file") {
-                setCollapsed((current) => {
-                    const next = new Set(current);
-                    let parent = parentById.get(node.id);
-                    while (parent) {
-                        next.delete(parent);
-                        parent = parentById.get(parent);
-                    }
-                    return next;
-                });
-            }
-            if (inspectorCollapsed) {
-                localStorage.setItem("ca-inspector-collapsed", "0");
-                setInspectorCollapsed(false);
-            }
-        },
-        [inspectorCollapsed, onSelect, parentById],
-    );
+  const gridCols = explorerCollapsed
+    ? inspectorCollapsed
+      ? "grid-cols-[0_0_minmax(0,1fr)_0_0]"
+      : "grid-cols-[0_0_minmax(0,1fr)_4px_var(--inspector-width,245px)]"
+    : inspectorCollapsed
+      ? "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_0_0]"
+      : "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_4px_var(--inspector-width,245px)]";
+  const gridRows = "grid-rows-[minmax(0,1fr)]";
 
-    const moveNodes = useCallback(
-        (movements: NodeMovement[]) => {
-            if (!graph) return;
-            const isDescendant = (candidateId: string, ancestorId: string) => {
-                let parent = parentById.get(candidateId);
-                while (parent) {
-                    if (parent === ancestorId) return true;
-                    parent = parentById.get(parent);
-                }
-                return false;
-            };
-            const roots = movements.filter(
-                (movement) =>
-                    !movements.some(
-                        (other) =>
-                            other.id !== movement.id && isDescendant(movement.id, other.id),
-                    ),
-            );
-            const next = new Map(positionOffsets);
-            graph.nodes.forEach((node) => {
-                const movement = roots
-                    .filter(
-                        (root) => node.id === root.id || isDescendant(node.id, root.id),
-                    )
-                    .reduce(
-                        (total, root) => ({
-                            x: total.x + root.delta.x,
-                            y: total.y + root.delta.y,
-                        }),
-                        { x: 0, y: 0 },
-                    );
-                if (!movement.x && !movement.y) return;
-                const offset = next.get(node.id) ?? { x: 0, y: 0 };
-                next.set(node.id, {
-                    x: offset.x + movement.x,
-                    y: offset.y + movement.y,
-                });
-            });
-            onMoveNodes(next);
-        },
-        [graph, onMoveNodes, parentById, positionOffsets],
-    );
-
-    const visibleGraph = useMemo(() => {
-        const parentById = new Map<string, string>();
-        graph.edges
-            .filter((edge) => edge.relation !== "IMPORTS")
-            .forEach((edge) => parentById.set(edge.target, edge.source));
-        const isVisible = (nodeId: string) => {
-            let parent = parentById.get(nodeId);
-            while (parent) {
-                if (collapsed.has(parent)) return false;
-                parent = parentById.get(parent);
-            }
-            return true;
-        };
-        return graph.nodes.filter((node) => isVisible(node.id));
-    }, [collapsed, graph]);
-
-    const folderIds = useMemo(
-        () =>
-            graph.nodes
-                .filter((node) => node.type === "folder")
-                .map((node) => node.id),
-        [graph],
-    );
-    const collapseAll = useCallback(() => {
-        setCollapsed(new Set(folderIds));
-        toastProcessing("Collapsing folder tree…");
-    }, [folderIds]);
-    const expandAll = useCallback(() => {
-        setCollapsed(new Set());
-        toastProcessing("Expanding folder tree…");
-    }, []);
-    const toggleCompact = useCallback(() => {
-        setCompact((value) => !value);
-        toastProcessing(`Re-laying out ${graph.nodes.length} nodes…`);
-    }, [graph.nodes.length]);
-    const toggleAnalysis = useCallback(
-        () => setAnalysisOpen((value) => !value),
-        [],
-    );
-
-    const gridCols = explorerCollapsed
-        ? inspectorCollapsed
-            ? "grid-cols-[0_0_minmax(0,1fr)_0_0]"
-            : "grid-cols-[0_0_minmax(0,1fr)_4px_var(--inspector-width,245px)]"
-        : inspectorCollapsed
-            ? "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_0_0]"
-            : "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_4px_var(--inspector-width,245px)]";
-    const gridRows = "grid-rows-[minmax(0,1fr)]";
-
-    return (
-        <section
-            ref={layoutRootRef}
-            className={`relative grid h-[calc(100vh-72px)] gap-0 p-3 ${gridCols} ${gridRows} max-[850px]:block max-[850px]:h-auto max-[850px]:min-h-[calc(100vh-72px)]`}
-            style={
-                {
-                    "--explorer-width": explorerCollapsed
-                        ? "0px"
-                        : `${explorerWidth}px`,
-                    "--inspector-width": inspectorCollapsed
-                        ? "0px"
-                        : `${inspectorWidth}px`,
-                } as CSSProperties
-            }
+  return (
+    <section
+      ref={layoutRootRef}
+      className={`relative grid h-[calc(100vh-72px)] gap-0 p- ${gridCols} ${gridRows} max-[850px]:block max-[850px]:h-auto max-[850px]:min-h-[calc(100vh-72px)]`}
+      style={
+        {
+          "--explorer-width": explorerCollapsed ? "0px" : `${explorerWidth}px`,
+          "--inspector-width": inspectorCollapsed
+            ? "0px"
+            : `${inspectorWidth}px`,
+        } as CSSProperties
+      }
+    >
+      <ExplorerPanel
+        graph={graph}
+        query={query}
+        setQuery={setQuery}
+        selected={selected}
+        collapsed={collapsed}
+        onSelect={handleSelect}
+        onToggle={toggleFolder}
+        explorerCollapsed={explorerCollapsed}
+        onToggleCollapse={toggleExplorer}
+      />
+      {explorerCollapsed && (
+        <button
+          className="absolute inset-y-0 left-0 z-[6] flex w-[18px] items-center justify-center border-0 border-r border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b]"
+          title="Open explorer"
+          onClick={toggleExplorer}
         >
-            <ExplorerPanel
-                graph={graph}
-                query={query}
-                setQuery={setQuery}
-                selected={selected}
-                collapsed={collapsed}
-                onSelect={handleSelect}
-                onToggle={toggleFolder}
-                explorerCollapsed={explorerCollapsed}
-                onToggleCollapse={toggleExplorer}
-            />
-            {explorerCollapsed && (
-                <button
-                    className="absolute inset-y-0 left-0 z-[6] flex w-[18px] items-center justify-center border-0 border-r border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b]"
-                    title="Open explorer"
-                    onClick={toggleExplorer}
-                >
-                    <ChevronRight size={16} />
-                </button>
-            )}
-            <div
-                className={`relative z-[5] col-start-2 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "explorer" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} max-[850px]:hidden`}
-                onPointerDown={startResize("explorer")}
-            />
-            <GraphPanel
-                graph={graph}
-                collapsed={collapsed}
-                selected={selected}
-                focusNodeId={focusNodeId}
-                onSelect={handleSelect}
-                onToggle={toggleFolder}
-                compact={compact}
-                onToggleCompact={toggleCompact}
-                analysisOpen={analysisOpen}
-                onToggleAnalysis={toggleAnalysis}
-                onCollapseAll={collapseAll}
-                onExpandAll={expandAll}
-                positionOffsets={positionOffsets}
-                onMoveNodes={moveNodes}
-                visibleNodes={visibleGraph.length}
-            />
-            <div
-                className={`relative z-[5] col-start-4 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "inspector" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} max-[850px]:hidden`}
-                onPointerDown={startResize("inspector")}
-            />
-            <InspectorPanel
-                graph={graph}
-                selected={selected}
-                projectId={projectId}
-                inspectorCollapsed={inspectorCollapsed}
-                onToggleCollapse={toggleInspector}
-                onOpenPreview={setPreviewNode}
-            />
-            {inspectorCollapsed && (
-                <button
-                    className="absolute inset-y-0 right-0 z-[6] flex w-[18px] items-center justify-center border-0 border-l border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b]"
-                    title="Open inspector"
-                    onClick={toggleInspector}
-                >
-                    <ChevronLeft size={16} />
-                </button>
-            )}
-            {analysisOpen && (
-                <div className="absolute inset-y-0 right-[var(--inspector-width,245px)] z-[7] w-[420px] max-w-[46%] overflow-hidden border-l border-[#2b3030] bg-[#171a1a] shadow-[-16px_0_40px_rgba(0,0,0,.45)] animate-slide-left light:border-[#d6dfda] light:bg-[#f6f8f5]">
-                    <AnalysisPanel
-                        analysis={graph.analysis}
-                        onClose={() => setAnalysisOpen(false)}
-                    />
-                </div>
-            )}
-            {previewNode && (
-                <ImagePreview
-                    node={previewNode}
-                    projectId={projectId}
-                    onClose={() => setPreviewNode(null)}
-                />
-            )}
-        </section>
-    );
+          <ChevronRight size={16} />
+        </button>
+      )}
+      <div
+        className={`relative z-[5] col-start-2 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "explorer" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} max-[850px]:hidden`}
+        onPointerDown={startResize("explorer")}
+      />
+      <GraphPanel
+        graph={graph}
+        collapsed={collapsed}
+        selected={selected}
+        focusNodeId={focusNodeId}
+        onSelect={handleSelect}
+        onToggle={toggleFolder}
+        compact={compact}
+        onToggleCompact={toggleCompact}
+        analysisOpen={analysisOpen}
+        onToggleAnalysis={toggleAnalysis}
+        onCollapseAll={collapseAll}
+        onExpandAll={expandAll}
+        positionOffsets={positionOffsets}
+        onMoveNodes={moveNodes}
+        visibleNodes={visibleGraph.length}
+        onBack={onBack}
+        projectId={projectId}
+        token={token}
+      />
+      <div
+        className={`relative z-[5] col-start-4 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "inspector" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} max-[850px]:hidden`}
+        onPointerDown={startResize("inspector")}
+      />
+      <InspectorPanel
+        graph={graph}
+        selected={selected}
+        projectId={projectId}
+        token={token}
+        inspectorCollapsed={inspectorCollapsed}
+        onToggleCollapse={toggleInspector}
+        onOpenPreview={setPreviewNode}
+      />
+      {inspectorCollapsed && (
+        <button
+          className="absolute inset-y-0 right-0 z-[6] flex w-[18px] items-center justify-center border-0 border-l border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b]"
+          title="Open inspector"
+          onClick={toggleInspector}
+        >
+          <ChevronLeft size={16} />
+        </button>
+      )}
+      {analysisOpen && (
+        <div className="absolute inset-y-0 right-[var(--inspector-width,245px)] z-[7] w-[420px] max-w-[46%] overflow-hidden border-l border-[#2b3030] bg-[#171a1a] shadow-[-16px_0_40px_rgba(0,0,0,.45)] animate-slide-left light:border-[#d6dfda] light:bg-[#f6f8f5]">
+          <AnalysisPanel
+            analysis={graph.analysis}
+            onClose={() => setAnalysisOpen(false)}
+          />
+        </div>
+      )}
+      {previewNode && (
+        <ImagePreview
+          node={previewNode}
+          projectId={projectId}
+          token={token}
+          onClose={() => setPreviewNode(null)}
+        />
+      )}
+    </section>
+  );
 }
 
 export default WorkspaceLayout;

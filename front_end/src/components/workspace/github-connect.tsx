@@ -96,7 +96,7 @@ function GithubConnect({
               </div>
             </div>
             <a
-              href={connectUrl}
+              href={`${connectUrl}?prompt=select_account`}
               className="shrink-0 font-dm text-[10px] tracking-[.08em] text-[#64d5c4] no-underline hover:text-[#f2b84b] light:text-[#398f83]"
             >
               SWITCH

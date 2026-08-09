@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Folder, GitFork, Lock } from "lucide-react";
 import { fileIcon, formatBytes, isPreviewable } from "../atlas/file-utils";
 import { NODE_COLORS } from "../atlas/atlas-types";
+import { createAccessRequest } from "../../services/api";
+import { toastSuccess, toastError } from "../../services/toast";
 import {
   PANEL,
   PANEL_HEADING,
@@ -14,6 +16,89 @@ import type {
   ProjectNode,
   SourceFunction,
 } from "../../types/project";
+
+function RestrictedPanel({
+  graph,
+  selected,
+  token,
+}: {
+  graph: ProjectGraph;
+  selected: ProjectNode;
+  token: string;
+}) {
+  const [reason, setReason] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const requestAccess = async () => {
+    if (!graph.project_id) return;
+    setSending(true);
+    try {
+      await createAccessRequest(graph.project_id, token, selected.path, reason.trim() || "Need access to inspect this module.");
+      setSent(true);
+      toastSuccess("Access request sent to the repository owner.");
+    } catch {
+      toastError("Could not send the access request.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const importedBy = (graph.function_calls ?? []).filter(
+    (call) => call.callee_file === selected.path,
+  ).length;
+  const importsCount = (graph.file_details?.[selected.id]?.imports ?? []).length;
+
+  return (
+    <div className="mt-5 border border-dashed border-[#39413e] bg-[#141716] p-[14px] light:border-[#c2cfc7] light:bg-[#eef2ef]">
+      <div className="flex items-center gap-2 font-dm text-[10px] tracking-[.1em] text-[#f2b84b]">
+        <Lock size={16} />
+        ACCESS RESTRICTED
+      </div>
+      <p className="mt-2 font-dm text-[10px] leading-[1.6] text-[#89958f] light:text-[#5c6b64]">
+        You can see this module because it participates in the architecture
+        graph, but you do not have permission to view its source code. Its
+        relationships remain visible under your current role.
+      </p>
+      <div className="mt-3 flex flex-col gap-1 border-t border-[#2c3331] pt-3 light:border-[#d6dfda]">
+        <span className="font-dm text-[9px] text-[#5d6964]">REQUESTED PERMISSION</span>
+        <strong className="font-dm text-[11px] text-[#b9c1bd] light:text-[#34473f]">
+          Source Code Access
+        </strong>
+      </div>
+      {importsCount > 0 && (
+        <div className="mt-1 flex flex-col gap-1 border-t border-[#2c3331] pt-3 light:border-[#d6dfda]">
+          <span className="font-dm text-[9px] text-[#5d6964]">RELATIONSHIPS</span>
+          <strong className="font-dm text-[11px] text-[#b9c1bd] light:text-[#34473f]">
+            {importsCount} import{importsCount === 1 ? "" : "s"} · imported by {importedBy}
+          </strong>
+        </div>
+      )}
+      {!sent ? (
+        <>
+          <textarea
+            className="mt-3 w-full resize-none border border-[#303636] bg-[#111313] px-[10px] py-[9px] font-dm text-[10px] leading-[1.5] text-[#dfe5df] outline-none focus:border-[#64d5c4] light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#202824]"
+            placeholder="Why do you need access? (optional)"
+            rows={2}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+          <button
+            className="mt-[10px] flex w-full items-center justify-center gap-2 border border-[var(--graph-edge)] bg-[var(--graph-surface)] px-[10px] py-2 font-dm text-[9px] tracking-[.08em] text-[var(--graph-label)] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:bg-[#f6f8f5]"
+            onClick={requestAccess}
+            disabled={sending}
+          >
+            {sending ? "SENDING…" : "REQUEST ACCESS"}
+          </button>
+        </>
+      ) : (
+        <div className="mt-3 font-dm text-[10px] text-[#64d5c4]">
+          Request sent. The repository owner will review it.
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FunctionCard({ functionDetail }: { functionDetail: SourceFunction }) {
   const [open, setOpen] = useState(false);
@@ -95,6 +180,7 @@ function InspectorPanel({
   graph,
   selected,
   projectId,
+  token,
   inspectorCollapsed,
   onToggleCollapse,
   onOpenPreview,
@@ -102,10 +188,13 @@ function InspectorPanel({
   graph: ProjectGraph;
   selected: ProjectNode | null;
   projectId: string;
+  token: string;
   inspectorCollapsed: boolean;
   onToggleCollapse: () => void;
   onOpenPreview: (node: ProjectNode) => void;
 }) {
+  const restricted =
+    selected?.type === "file" && selected.access?.source === false;
   return (
     <aside
       className={`${PANEL} relative overflow-y-auto no-scrollbar px-4 py-5 col-start-5 row-start-1 max-[850px]:order-3 max-[850px]:min-h-[300px]`}
@@ -152,15 +241,14 @@ function InspectorPanel({
                 className="mt-3 text-[45px]"
                 style={{ color: NODE_COLORS[selected.type] }}
               >
-                <span className="material-symbols-outlined">
-                  {selected.type === "file"
-                    ? fileIcon(selected.label).name
-                    : selected.type === "folder"
-                      ? "folder"
-                      : "account_tree"}
-                </span>
-              </div>
-              <h2 className="my-[5px] text-[20px] [overflow-wrap:anywhere]">
+                {selected.type === "file" ? (
+                  <FileTypeIcon label={selected.label} />
+                ) : selected.type === "folder" ? (
+                  <Folder size={45} strokeWidth={1.2} />
+                ) : (
+                  <GitFork size={45} strokeWidth={1.2} />
+                )}
+              </div>              <h2 className="my-[5px] text-[20px] [overflow-wrap:anywhere]">
                 {selected.label}
               </h2>
               <p className="font-dm text-[11px] leading-[1.5] text-[#6d7974] [overflow-wrap:anywhere] light:text-[#61716a]">
@@ -214,20 +302,25 @@ function InspectorPanel({
                   CONTAINS / IMPORTS
                 </strong>
               </div>
-              {projectId && isPreviewable(selected) && (
+              {projectId && !restricted && isPreviewable(selected) && (
                 <button
                   className="mt-[14px] flex w-full items-center justify-center gap-2 border border-[var(--graph-edge)] bg-[var(--graph-surface)] px-[10px] py-2 font-dm text-[9px] tracking-[.08em] text-[var(--graph-label)] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:bg-[#f6f8f5]"
                   onClick={() => onOpenPreview(selected)}
                 >
-                  <span className="material-symbols-outlined text-[16px]">
-                    visibility
-                  </span>
+                  <Eye size={16} />
                   OPEN PREVIEW
                 </button>
               )}
-              {selected.type === "file" && (
-                <SourceIntelligence graph={graph} selected={selected} />
-              )}
+              {selected.type === "file" &&
+                (restricted ? (
+                  <RestrictedPanel
+                    graph={graph}
+                    selected={selected}
+                    token={token}
+                  />
+                ) : (
+                  <SourceIntelligence graph={graph} selected={selected} />
+                ))}
             </>
           ) : (
             <p className="mt-[50px] font-dm text-xs leading-[1.6] text-[#6f7975] light:text-[#61716a]">
@@ -352,6 +445,11 @@ function SourceIntelligence({
       )}
     </section>
   );
+}
+
+function FileTypeIcon({ label }: { label: string }) {
+    const { Icon, className } = fileIcon(label);
+    return <Icon size={45} strokeWidth={1.2} className={className} />;
 }
 
 export default InspectorPanel;

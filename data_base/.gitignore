@@ -1,3 +1,11 @@
 uploads/
 users.json
 .secret_key
+sessions.json
+organizations.json
+teams.json
+policy_versions.json
+security_events.json
+projects/
+policies.json
+audit.jsonl

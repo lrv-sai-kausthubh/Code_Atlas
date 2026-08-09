@@ -1,35 +1,50 @@
+import type { LucideIcon } from "lucide-react";
+import {
+    BookOpen,
+    Braces,
+    Code,
+    Database,
+    File,
+    FileCode,
+    FileText,
+    FolderArchive,
+    Image as ImageIcon,
+    KeyRound,
+    Palette,
+    SlidersHorizontal,
+} from "lucide-react";
 import type { ProjectNode } from "../../types/project";
 
-export function fileIcon(label: string) {
+export function fileIcon(label: string): { Icon: LucideIcon; className: string } {
     const extension = label.toLowerCase().split(".").pop() ?? "";
-    const icons: Record<string, { name: string; className: string }> = {
-        html: { name: "html", className: "text-[#ef8354]" },
-        css: { name: "css", className: "text-[#67a7f8]" },
-        scss: { name: "css", className: "text-[#67a7f8]" },
-        js: { name: "javascript", className: "text-[#e9c44a]" },
-        jsx: { name: "javascript", className: "text-[#e9c44a]" },
-        ts: { name: "code", className: "text-[#5a9ee8]" },
-        tsx: { name: "code", className: "text-[#5a9ee8]" },
-        py: { name: "data_object", className: "text-[#d8bb55]" },
-        json: { name: "data_object", className: "text-[#bb9be9]" },
-        md: { name: "article", className: "text-[#b0bab4]" },
-        svg: { name: "image", className: "text-[#ef9d56]" },
-        png: { name: "image", className: "text-[#9ca9ff]" },
-        jpg: { name: "image", className: "text-[#9ca9ff]" },
-        jpeg: { name: "image", className: "text-[#9ca9ff]" },
-        gif: { name: "image", className: "text-[#9ca9ff]" },
-        webp: { name: "image", className: "text-[#9ca9ff]" },
-        pdf: { name: "picture_as_pdf", className: "text-[#f17c71]" },
-        zip: { name: "folder_zip", className: "text-[#bb9be9]" },
-        tar: { name: "folder_zip", className: "text-[#bb9be9]" },
-        gz: { name: "folder_zip", className: "text-[#bb9be9]" },
-        txt: { name: "description", className: "text-[#9ca9ff]" },
-        yml: { name: "tune", className: "text-[#bb9be9]" },
-        yaml: { name: "tune", className: "text-[#bb9be9]" },
-        toml: { name: "tune", className: "text-[#bb9be9]" },
-        lock: { name: "enhanced_encryption", className: "text-[#bb9be9]" },
+    const icons: Record<string, { Icon: LucideIcon; className: string }> = {
+        html: { Icon: FileCode, className: "text-[#ef8354]" },
+        css: { Icon: Palette, className: "text-[#67a7f8]" },
+        scss: { Icon: Palette, className: "text-[#67a7f8]" },
+        js: { Icon: Braces, className: "text-[#e9c44a]" },
+        jsx: { Icon: Braces, className: "text-[#e9c44a]" },
+        ts: { Icon: Code, className: "text-[#5a9ee8]" },
+        tsx: { Icon: Code, className: "text-[#5a9ee8]" },
+        py: { Icon: Database, className: "text-[#d8bb55]" },
+        json: { Icon: Braces, className: "text-[#bb9be9]" },
+        md: { Icon: FileText, className: "text-[#b0bab4]" },
+        svg: { Icon: ImageIcon, className: "text-[#ef9d56]" },
+        png: { Icon: ImageIcon, className: "text-[#9ca9ff]" },
+        jpg: { Icon: ImageIcon, className: "text-[#9ca9ff]" },
+        jpeg: { Icon: ImageIcon, className: "text-[#9ca9ff]" },
+        gif: { Icon: ImageIcon, className: "text-[#9ca9ff]" },
+        webp: { Icon: ImageIcon, className: "text-[#9ca9ff]" },
+        pdf: { Icon: BookOpen, className: "text-[#f17c71]" },
+        zip: { Icon: FolderArchive, className: "text-[#bb9be9]" },
+        tar: { Icon: FolderArchive, className: "text-[#bb9be9]" },
+        gz: { Icon: FolderArchive, className: "text-[#bb9be9]" },
+        txt: { Icon: File, className: "text-[#9ca9ff]" },
+        yml: { Icon: SlidersHorizontal, className: "text-[#bb9be9]" },
+        yaml: { Icon: SlidersHorizontal, className: "text-[#bb9be9]" },
+        toml: { Icon: SlidersHorizontal, className: "text-[#bb9be9]" },
+        lock: { Icon: KeyRound, className: "text-[#bb9be9]" },
     };
-    return icons[extension] ?? { name: "description", className: "text-[#b0bab4]" };
+    return icons[extension] ?? { Icon: File, className: "text-[#b0bab4]" };
 }
 
 export const IMAGE_EXTENSIONS = new Set([

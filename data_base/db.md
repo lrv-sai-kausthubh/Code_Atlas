@@ -1,2 +1,0 @@
-Database
-Neo4j

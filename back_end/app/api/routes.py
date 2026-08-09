@@ -1,3 +1,5 @@
+import asyncio
+import json
 import threading
 import time
 from collections import Counter
@@ -9,10 +11,14 @@ import uuid
 import urllib.error
 import urllib.request
 import zipfile
+from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
 
+from app.services import authorization as authz
+from app.services.events import bus
 from app.services.source_analyzer import analyze_source_files
 
 router = APIRouter()
@@ -28,6 +34,47 @@ UPLOAD_TASKS: dict[str, dict] = {}
 UPLOAD_TASKS_LOCK = threading.Lock()
 
 
+def _require_authenticated(token: str) -> dict:
+    """Resolve a session token to a user; raise 401 when invalid."""
+    from app.api.auth import _current_user
+
+    user = _current_user(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
+    return user
+
+
+def _user_role(email: str) -> str:
+    from app.api.auth import USERS, _is_super_admin
+
+    if _is_super_admin(email):
+        return authz.SUPER_ADMIN
+    user = USERS.get(email)
+    if not user:
+        return authz.DEFAULT_ROLE
+    return user.get("role", authz.DEFAULT_ROLE)
+
+
+def _user_teams(email: str) -> set[str]:
+    return authz.user_team_ids(email)
+
+
+def _project_store(project_id: str) -> dict | None:
+    """Return the project store from memory, or rebuild it from persisted state."""
+    store = PROJECT_STORES.get(project_id)
+    if store:
+        return store
+    result = authz.load_project_graph(project_id)
+    if not result:
+        return None
+    preview_files = [node["path"] for node in result.get("nodes", [])
+                     if node.get("type") == "file"
+                     and PurePosixPath(node.get("path", "")).suffix.lower() in PREVIEW_EXTENSIONS]
+    store = {"root": (PROJECTS_ROOT / project_id).resolve(), "preview_files": sorted(preview_files)}
+    PROJECT_STORES[project_id] = store
+    return store
+
+
 @router.get("/")
 def root():
     return {
@@ -41,6 +88,34 @@ def status():
         "status": "working",
         "message": "Frontend and Backend Connected Successfully!"
     }
+
+
+@router.get("/api/events")
+async def stream_events(request: Request, token: str = Query("")):
+    """Server-Sent Events stream pushing live change events to authenticated clients."""
+    _require_authenticated(token)
+    queue = bus.subscribe()
+
+    async def generate():
+        try:
+            yield "retry: 3000\n\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=15)
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+                    continue
+                if event.get("type") == "bus.shutdown":
+                    return
+                yield f"data: {json.dumps(event)}\n\n"
+        finally:
+            bus.unsubscribe(queue)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 IGNORED_DIRECTORIES = {"node_modules", ".git", "dist", "build", "__pycache__", "venv", ".venv", ".env", ".idea", ".vscode", ".DS_Store", "target", "out", "bin", "obj"}
@@ -577,6 +652,15 @@ def _new_upload_task(upload_id: str) -> dict:
     return task
 
 
+def _existing_upload_task(upload_id: str) -> dict | None:
+    """Return the task for an upload_id unless it was cancelled (never re-run those)."""
+    with UPLOAD_TASKS_LOCK:
+        task = UPLOAD_TASKS.get(upload_id)
+        if task and task["status"] != "cancelled":
+            return task
+    return None
+
+
 def _update_upload_task(upload_id: str, **changes) -> None:
     with UPLOAD_TASKS_LOCK:
         task = UPLOAD_TASKS.get(upload_id)
@@ -588,7 +672,7 @@ def _progress_snapshot(task: dict) -> dict:
     return {key: value for key, value in task.items() if key != "result"}
 
 
-def _extract_and_analyze(upload_id: str, content: bytes, filename: str, strip_root: bool = False) -> None:
+def _extract_and_analyze(upload_id: str, content: bytes, filename: str, strip_root: bool = False, owner_email: str | None = None) -> None:
     started = time.monotonic()
     project_id = uuid.uuid4().hex
     PROJECTS_ROOT.mkdir(parents=True, exist_ok=True)
@@ -739,13 +823,20 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str, strip_ro
         "function_calls": function_calls,
         "file_details": file_details,
     }
+    authz.save_project_graph(project_id, result)
+    authz.save_project_secrets(project_id, analysis.get("security_issues") or [])
+    policy = authz.ensure_policy(project_id, owner_email or "", result["project"])
+    policy.project = result["project"]
+    authz.save_policy(policy)
     elapsed = time.monotonic() - started
     _update_upload_task(upload_id, status="complete", phase="done", progress=100.0, files_processed=len(file_paths), elapsed_seconds=round(elapsed, 1), remaining_seconds=0, result=result)
+    bus.publish("project.created", project_id, {"project": result["project"], "owner": owner_email or ""})
 
 
 @router.post("/api/upload")
-async def upload_project(file: UploadFile = File(...), upload_id: str = Form(...)):
+async def upload_project(file: UploadFile = File(...), upload_id: str = Form(...), token: str = Form(...)):
     """Start extracting a ZIP project and stream progress via /api/upload/{upload_id}/progress."""
+    user = _require_authenticated(token)
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="Please upload a .zip project file.")
 
@@ -753,8 +844,16 @@ async def upload_project(file: UploadFile = File(...), upload_id: str = Form(...
     if len(content) > MAX_ZIP_BYTES:
         raise HTTPException(status_code=413, detail="Project ZIPs must be smaller than 200 MB.")
 
+    existing = _existing_upload_task(upload_id)
+    if existing is not None:
+        return {"upload_id": upload_id, "status": existing["status"]}
     task = _new_upload_task(upload_id)
-    threading.Thread(target=_extract_and_analyze, args=(upload_id, content, file.filename), daemon=True).start()
+    threading.Thread(
+        target=_extract_and_analyze,
+        args=(upload_id, content, file.filename),
+        kwargs={"owner_email": user["email"]},
+        daemon=True,
+    ).start()
     return {"upload_id": upload_id, "status": task["status"]}
 
 
@@ -795,7 +894,7 @@ def _download_github_repo_zip(owner: str, repo: str, branch: str) -> bytes:
     raise HTTPException(status_code=400, detail="Could not download the repository: " + " ".join(errors))
 
 
-def _import_github_and_analyze(upload_id: str, url: str) -> None:
+def _import_github_and_analyze(upload_id: str, url: str, owner_email: str | None = None) -> None:
     """Download a GitHub repository and run it through the standard analysis pipeline."""
     try:
         parsed = _parse_github_url(url)
@@ -808,25 +907,42 @@ def _import_github_and_analyze(upload_id: str, url: str) -> None:
         if len(content) > MAX_ZIP_BYTES:
             _update_upload_task(upload_id, status="error", error="Project ZIPs must be smaller than 200 MB.")
             return
-        _extract_and_analyze(upload_id, content, repo, strip_root=True)
+        _extract_and_analyze(upload_id, content, repo, strip_root=True, owner_email=owner_email)
+        with UPLOAD_TASKS_LOCK:
+            result = (UPLOAD_TASKS.get(upload_id) or {}).get("result")
+        if result and owner_email:
+            from app.api.auth import USERS, _github_token_for_user
+
+            access_token = _github_token_for_user(USERS.get(owner_email))
+            if access_token:
+                try:
+                    authz.mark_github_policy(result["project_id"], owner, repo, access_token)
+                except Exception:
+                    # collaborator sync is best-effort; the repo remains private to the owner
+                    pass
     except HTTPException as error:
         _update_upload_task(upload_id, status="error", error=error.detail)
 
 
 @router.post("/api/upload/github")
-async def import_github_project(repo_url: str = Form(...), upload_id: str = Form(...)):
+async def import_github_project(repo_url: str = Form(...), upload_id: str = Form(...), token: str = Form(...)):
     """Download a GitHub repository by URL and analyze it with live progress."""
+    user = _require_authenticated(token)
     parsed = _parse_github_url(repo_url)
     if not parsed:
         raise HTTPException(status_code=400, detail="Invalid GitHub repository URL. Use a link like https://github.com/owner/repo.")
+    existing = _existing_upload_task(upload_id)
+    if existing is not None:
+        return {"upload_id": upload_id, "status": existing["status"]}
     task = _new_upload_task(upload_id)
-    threading.Thread(target=_import_github_and_analyze, args=(upload_id, repo_url), daemon=True).start()
+    threading.Thread(target=_import_github_and_analyze, args=(upload_id, repo_url, user["email"]), daemon=True).start()
     return {"upload_id": upload_id, "status": task["status"]}
 
 
 @router.get("/api/upload/{upload_id}/progress")
-def get_upload_progress(upload_id: str):
+def get_upload_progress(upload_id: str, token: str = Query("")):
     """Return the live progress snapshot for an in-flight upload."""
+    _require_authenticated(token)
     with UPLOAD_TASKS_LOCK:
         task = UPLOAD_TASKS.get(upload_id)
         if not task:
@@ -835,8 +951,9 @@ def get_upload_progress(upload_id: str):
 
 
 @router.get("/api/upload/{upload_id}/result")
-def get_upload_result(upload_id: str):
+def get_upload_result(upload_id: str, token: str = Query("")):
     """Return the final graph once processing is complete."""
+    _require_authenticated(token)
     with UPLOAD_TASKS_LOCK:
         task = UPLOAD_TASKS.get(upload_id)
         if not task:
@@ -866,10 +983,9 @@ def cancel_upload(upload_id: str):
     return {"status": "cancelled"}
 
 
-@router.get("/api/projects/{project_id}/file")
-def get_project_file(project_id: str, path: str = Query(...)):
-    """Serve a raw file (image/PDF) from a previously uploaded project for preview."""
-    store = PROJECT_STORES.get(project_id)
+def _resolve_sandbox_path(project_id: str, path: str) -> Path:
+    """Resolve a client-supplied path safely inside the project sandbox."""
+    store = _project_store(project_id)
     if not store:
         raise HTTPException(status_code=404, detail="Project not found or expired.")
     requested = PurePosixPath(path)
@@ -881,13 +997,1143 @@ def get_project_file(project_id: str, path: str = Query(...)):
         raise HTTPException(status_code=400, detail="Invalid file path.")
     if not candidate.is_file():
         raise HTTPException(status_code=404, detail="File not found.")
+    return candidate
+
+
+def _enforce_source_access(project_id: str, user: dict, path: str) -> authz.Policy:
+    """Resolve the policy and require `source` access on the resource path.
+
+    Super admins bypass only when they entered through the Admin Center; the
+    permission model treats them like any other user everywhere else."""
+    role = _user_role(user["email"])
+    if role == authz.SUPER_ADMIN:
+        _enforce_org_membership(project_id, user["email"], role)
+        return _policy_for(project_id, user["email"])
+    _enforce_org_membership(project_id, user["email"], role)
+    policy = _policy_for(project_id, user["email"])
+    access = policy.effective_access(user["email"], role, path, _user_teams(user["email"]))
+    if not access["source"]:
+        authz.audit(
+            user["email"],
+            "file.denied",
+            f"{project_id}:{path}",
+            {"reason": "no source access", "permission": "source"},
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to view this resource. Request access from the repository owner.",
+        )
+    return policy
+
+
+def _policy_for(project_id: str, email: str) -> authz.Policy:
+    policy = authz.load_policy(project_id)
+    if policy is None:
+        raise HTTPException(status_code=404, detail="Project not found or expired.")
+    return policy
+
+
+def _enforce_org_membership(project_id: str, email: str, role: str | None) -> None:
+    """Multi-tenant gate: org-owned repositories are invisible (404) to anyone
+    outside the org, the owner, or a super admin — no existence leak."""
+    policy = _policy_for(project_id, email)
+    from app.api.auth import USERS
+
+    login = (USERS.get(email) or {}).get("github_login")
+    orgs = authz.user_org_ids(email, login)
+    if not authz.policy_org_access(policy, email, role, orgs):
+        raise HTTPException(status_code=404, detail="Project not found or expired.")
+
+
+def _load_project_result(project_id: str) -> dict:
+    result = authz.load_project_graph(project_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Project not found or expired.")
+    return result
+
+
+@router.get("/api/projects/{project_id}/graph")
+def get_project_graph(project_id: str, token: str = Query("")):
+    """Return the graph filtered to what the current user may see.
+
+    Every node carries an `access` object. Source intelligence
+    (`file_details`) is stripped for nodes whose `source` flag is false.
+    Users without any metadata access receive 404 (no existence leak).
+    """
+    user = _require_authenticated(token)
+    _enforce_org_membership(project_id, user["email"], _user_role(user["email"]))
+    result = _load_project_result(project_id)
+    policy = _policy_for(project_id, user["email"])
+    role = _user_role(user["email"])
+    authorized = authz.authorized_graph(
+        result, user["email"], role, policy, _user_teams(user["email"])
+    )
+    if not any(node.get("path") == "" for node in authorized["nodes"]):
+        authz.audit(
+            user["email"],
+            "graph.denied",
+            project_id,
+            {"reason": "no metadata access"},
+        )
+        raise HTTPException(status_code=404, detail="Project not found or expired.")
+    authz.audit(user["email"], "graph.read", project_id, {"files": len(authorized["nodes"])})
+    response = {key: value for key, value in authorized.items() if not key.startswith("_")}
+    response["owner_email"] = policy.owner_email
+    response["is_manager"] = authz.can_manage(user["email"], role, policy)
+    response["policy_source"] = policy.source
+    return response
+
+
+@router.get("/api/projects/{project_id}/file-content")
+def get_project_file_content(project_id: str, path: str = Query(...), token: str = Query("")):
+    """Serve raw source text only when the user has `source` access."""
+    user = _require_authenticated(token)
+    _enforce_source_access(project_id, user, path)
+    candidate = _resolve_sandbox_path(project_id, path)
+    authz.audit(user["email"], "file.read", f"{project_id}:{path}")
+    content = candidate.read_text(encoding="utf-8", errors="replace")
+    return {"path": path, "content": content}
+
+
+@router.get("/api/projects/{project_id}/file")
+def get_project_file(project_id: str, path: str = Query(...), token: str = Query("")):
+    """Serve a raw file (image/PDF) from a previously uploaded project for preview."""
+    user = _require_authenticated(token)
+    _enforce_source_access(project_id, user, path)
+    candidate = _resolve_sandbox_path(project_id, path)
     return FileResponse(candidate)
 
 
 @router.get("/api/projects/{project_id}/previewable")
-def list_previewable_files(project_id: str):
-    """List files in the uploaded project that support in-app preview."""
-    store = PROJECT_STORES.get(project_id)
+def list_previewable_files(project_id: str, token: str = Query("")):
+    """List files that support in-app preview (metadata requires auth)."""
+    user = _require_authenticated(token)
+    _enforce_org_membership(project_id, user["email"], _user_role(user["email"]))
+    store = _project_store(project_id)
     if not store:
         raise HTTPException(status_code=404, detail="Project not found or expired.")
-    return {"files": store["preview_files"]}
+    policy = _policy_for(project_id, user["email"])
+    role = _user_role(user["email"])
+    files = [
+        path
+        for path in store["preview_files"]
+        if policy.effective_access(user["email"], role, path, _user_teams(user["email"]))["metadata"]
+    ]
+    return {"files": files}
+
+
+class GrantRequest(BaseModel):
+    subject_type: str = "user"
+    subject_value: str
+    path: str = ""
+    effect: str = "allow"
+    permissions: dict[str, bool] = {}
+    expires_at: float | None = None
+    windows: list[dict] = []
+
+
+class DefaultAccessRequest(BaseModel):
+    permissions: dict[str, bool] = {}
+
+
+def _require_manager(project_id: str, token: str) -> tuple[dict, authz.Policy]:
+    user = _require_authenticated(token)
+    _enforce_org_membership(project_id, user["email"], _user_role(user["email"]))
+    _load_project_result(project_id)
+    policy = _policy_for(project_id, user["email"])
+    if not authz.can_manage(user["email"], _user_role(user["email"]), policy):
+        raise HTTPException(status_code=403, detail="You do not manage this repository.")
+    return user, policy
+
+
+@router.get("/api/projects/{project_id}/policy")
+def get_project_policy(project_id: str, token: str = Query("")):
+    """Return the current policy (owner / repo admins only)."""
+    _user, policy = _require_manager(project_id, token)
+    return policy.to_dict()
+
+
+@router.post("/api/projects/{project_id}/grants")
+def add_project_grant(project_id: str, request: GrantRequest, token: str = Query("")):
+    """Add or update a user or team grant (owner / repo admins only)."""
+    user, policy = _require_manager(project_id, token)
+    if request.effect not in ("allow", "deny"):
+        raise HTTPException(status_code=422, detail="effect must be 'allow' or 'deny'.")
+    if request.subject_type not in ("user", "team"):
+        raise HTTPException(status_code=422, detail="subject_type must be 'user' or 'team'.")
+    unknown = set(request.permissions) - set(authz.PERMISSION_FLAGS)
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"Unknown permissions: {', '.join(sorted(unknown))}")
+    if not request.subject_value.strip():
+        raise HTTPException(status_code=422, detail="subject_value is required.")
+    if request.expires_at is not None and request.expires_at <= time.time():
+        raise HTTPException(status_code=422, detail="expires_at must be in the future.")
+    try:
+        windows = authz.validate_time_windows(request.windows)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    authz.set_grant(
+        policy,
+        request.subject_type,
+        request.subject_value.strip(),
+        request.path,
+        request.effect,
+        request.permissions,
+        request.expires_at,
+        windows,
+    )
+    authz.save_policy(policy, actor=user["email"], note=f"grant {request.effect} for {request.subject_type}")
+    authz.audit(
+        user["email"],
+        "grant.upsert",
+        f"{project_id}:{request.subject_type}:{request.subject_value}:{request.path}",
+        {"effect": request.effect, "permissions": request.permissions, "expires_at": request.expires_at, "windows": windows},
+    )
+    bus.publish("policy.access", project_id, {"subject_type": request.subject_type, "subject": request.subject_value, "path": request.path})
+    return policy.to_dict()
+
+
+@router.delete("/api/projects/{project_id}/grants")
+def remove_project_grant(project_id: str, request: GrantRequest, token: str = Query("")):
+    """Remove a user or team grant (owner / repo admins only)."""
+    user, policy = _require_manager(project_id, token)
+    removed = authz.remove_grant(policy, request.subject_type, request.subject_value.strip(), request.path)
+    if removed:
+        authz.save_policy(policy, actor=user["email"], note="grant removed")
+        authz.audit(
+            user["email"],
+            "grant.remove",
+            f"{project_id}:{request.subject_type}:{request.subject_value}:{request.path}",
+        )
+        bus.publish("policy.access", project_id, {"subject_type": request.subject_type, "subject": request.subject_value, "path": request.path})
+    return policy.to_dict()
+
+
+@router.delete("/api/projects/{project_id}/membership")
+def revoke_own_membership(project_id: str, token: str = Query("")):
+    """A member can revoke the access a project granted them and leave.
+
+    The owner cannot revoke their own access; anyone with a grant (or
+    manager status) on the project can remove themselves."""
+    user = _require_authenticated(token)
+    email = user["email"]
+    _enforce_org_membership(project_id, email, _user_role(email))
+    policy = _policy_for(project_id, email)
+    if email == policy.owner_email:
+        raise HTTPException(status_code=422, detail="The owner cannot revoke their own access.")
+    policy.grants = [
+        grant
+        for grant in policy.grants
+        if not (grant.subject_type == "user" and grant.subject_value == email)
+    ]
+    if email in policy.managers:
+        policy.managers.remove(email)
+    authz.save_policy(policy, actor=email, note="member revoked own access")
+    authz.audit(email, "project.leave", project_id, {"project": policy.project})
+    bus.publish("policy.access", project_id, {"subject_type": "user", "subject": email, "path": ""})
+    return {"status": "left", "project_id": project_id}
+
+
+class ManagerRequest(BaseModel):
+    email: str
+    action: str = "add"  # "add" | "remove"
+
+
+@router.post("/api/projects/{project_id}/managers")
+def update_project_manager(project_id: str, request: ManagerRequest, token: str = Query("")):
+    """Add or remove a repository manager (owner / repo admins only).
+
+    Managers get full source access and can review access requests, edit
+    policies, and manage collaborators — without owning the repository.
+    """
+    user, policy = _require_manager(project_id, token)
+    email = request.email.strip().lower()
+    action = request.action
+    if not email:
+        raise HTTPException(status_code=422, detail="email is required.")
+    if action not in ("add", "remove"):
+        raise HTTPException(status_code=422, detail="action must be 'add' or 'remove'.")
+    if email == policy.owner_email:
+        raise HTTPException(status_code=422, detail="The repository owner is always a manager.")
+    accounts = authz.list_users_file()
+    if email not in accounts:
+        suggestions = sorted(
+            [
+                f"{account_email} ({account.get('github_login') or 'no GitHub login'})"
+                for account_email, account in accounts.items()
+                if request.email.strip().lower() in (account_email.lower(), (account.get("github_login") or "").lower())
+            ]
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "No registered account uses that email. "
+                + ("Did you mean: " + ", ".join(suggestions) + "?" if suggestions else
+                   "The person must log in with GitHub first (this creates their account), "
+                   "then add them from the member list below.")
+            ),
+        )
+    if action == "add":
+        if email not in policy.managers:
+            policy.managers.append(email)
+        authz.set_user_grant(policy, email, "", "allow", authz._full_access())
+    else:
+        policy.managers = [manager for manager in policy.managers if manager != email]
+    authz.save_policy(policy, actor=user["email"], note=f"manager {action}: {email}")
+    authz.audit(
+        user["email"],
+        "manager.upsert",
+        f"{project_id}:{email}:{action}",
+        {"managers": list(policy.managers)},
+    )
+    bus.publish("policy.managers", project_id, {"email": email, "action": action, "managers": list(policy.managers)})
+    return {"status": "ok", "managers": list(policy.managers)}
+
+
+class ProjectStatusRequest(BaseModel):
+    status: str
+
+
+@router.put("/api/projects/{project_id}/status")
+def update_project_status(project_id: str, request: ProjectStatusRequest, token: str = Query("")):
+    """Set the project lifecycle status: new / in_progress / completed."""
+    user, policy = _require_manager(project_id, token)
+    status = request.status.strip().lower()
+    if status not in ("new", "in_progress", "completed"):
+        raise HTTPException(
+            status_code=422,
+            detail="status must be one of: new, in_progress, completed.",
+        )
+    if policy.status == status:
+        return {"status": policy.status}
+    previous = policy.status
+    policy.status = status
+    authz.save_policy(policy, actor=user["email"], note=f"status {previous} -> {status}")
+    authz.audit(user["email"], "project.status", project_id, {"previous": previous, "status": status})
+    bus.publish("project.status", project_id, {"previous": previous, "status": status})
+    return {"status": policy.status}
+
+
+@router.delete("/api/projects/{project_id}")
+def delete_project(project_id: str, token: str = Query("")):
+    """Permanently delete a repository and everything associated with it
+    (policy, versions, access requests, graph, secrets, extracted files).
+    Owner or super admin only."""
+    user = _require_authenticated(token)
+    policy = _policy_for(project_id, user["email"])
+    _enforce_org_membership(project_id, user["email"], _user_role(user["email"]))
+    if user["email"] != policy.owner_email and _user_role(user["email"]) != authz.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Only the repository owner can delete a project.")
+    store = PROJECT_STORES.pop(project_id, None)
+    if store:
+        shutil.rmtree(store.get("root"), ignore_errors=True)
+    shutil.rmtree((PROJECTS_ROOT / project_id).resolve(), ignore_errors=True)
+    authz.delete_project(project_id)
+    authz.audit(user["email"], "project.delete", project_id, {"project": policy.project})
+    bus.publish("project.deleted", project_id, {"project": policy.project})
+    return {"status": "deleted"}
+
+
+
+@router.put("/api/projects/{project_id}/policy/default")
+def update_default_access(project_id: str, request: DefaultAccessRequest, token: str = Query("")):
+    """Configure the repository-wide default permission flags."""
+    user, policy = _require_manager(project_id, token)
+    unknown = set(request.permissions) - set(authz.PERMISSION_FLAGS)
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"Unknown permissions: {', '.join(sorted(unknown))}")
+    for flag in authz.PERMISSION_FLAGS:
+        if flag in request.permissions:
+            policy.default_access[flag] = bool(request.permissions[flag])
+    authz.save_policy(policy, actor=user["email"], note="default access updated")
+    authz.audit(user["email"], "policy.default", project_id, dict(policy.default_access))
+    bus.publish("policy.default", project_id, {"default_access": dict(policy.default_access)})
+    return policy.to_dict()
+
+
+@router.get("/api/projects/{project_id}/policy/versions")
+def list_project_policy_versions(project_id: str, token: str = Query("")):
+    """List the policy version history for this repository."""
+    _user, _policy = _require_manager(project_id, token)
+    return {"versions": authz.list_policy_versions(project_id)}
+
+
+@router.get("/api/projects/{project_id}/policy/versions/{version}")
+def get_project_policy_version(project_id: str, version: int, token: str = Query("")):
+    """Return a full historical policy snapshot."""
+    _user, _policy = _require_manager(project_id, token)
+    snapshot = authz.get_policy_version(project_id, version)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Policy version not found.")
+    return snapshot
+
+
+@router.post("/api/projects/{project_id}/policy/versions/{version}/restore")
+def restore_project_policy_version(project_id: str, version: int, token: str = Form(...)):
+    """Restore a historical policy snapshot as the live policy."""
+    user, _policy = _require_manager(project_id, token)
+    restored = authz.restore_policy_version(project_id, version, actor=user["email"])
+    if restored is None:
+        raise HTTPException(status_code=404, detail="Policy version not found.")
+    authz.audit(user["email"], "policy.restore", f"{project_id}:v{version}")
+    bus.publish("policy.restore", project_id, {"version": version})
+    return restored.to_dict()
+
+
+@router.get("/api/projects/{project_id}/users")
+def list_project_users(project_id: str, token: str = Query("")):
+    """List the accounts that are actually part of this repository — the
+    owner, managers, GitHub collaborators, and users with grants. Other
+    registered accounts are never shown here, even to the owner."""
+    _user, policy = _require_manager(project_id, token)
+    users = authz.list_users_file()
+    granted_emails = {
+        grant.subject_value
+        for grant in policy.grants
+        if grant.subject_type == "user"
+    }
+    member_emails = (
+        {policy.owner_email, *policy.managers, *policy.collaborators} | granted_emails
+    )
+    return {
+        "users": [
+            {
+                "email": email,
+                "name": user.get("name", ""),
+                "role": (
+                    "owner"
+                    if email == policy.owner_email
+                    else user.get("role", authz.DEFAULT_ROLE)
+                    if user.get("role") != authz.SUPER_ADMIN
+                    else authz.DEFAULT_ROLE
+                ),
+                "github_login": user.get("github_login"),
+            }
+            for email, user in sorted(users.items())
+            if email in member_emails
+        ]
+    }
+
+
+@router.put("/api/users/{email}/role")
+def set_user_role(email: str, role: str = Query(...), token: str = Query("")):
+    """Assign an account role so teams know each member's standing.
+
+    Only super admins may change roles for now; the role set stays small so a
+    team can grow into it later. Roles never grant implicit access on their
+    own — access is still decided by the per-repository policy."""
+    caller = _require_admin(token)
+    from app.api import auth as auth_module
+
+    target = email.strip().lower()
+    if target not in auth_module.USERS:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if role not in ("admin", "architect", "developer", "viewer"):
+        raise HTTPException(status_code=422, detail="Invalid role.")
+    if target == caller["email"]:
+        raise HTTPException(status_code=422, detail="You cannot change your own role.")
+    auth_module.USERS[target]["role"] = role
+    auth_module._save_users()
+    authz.audit(caller["email"], "user.role", target, {"role": role})
+    bus.publish("user.changed", payload={"email": target, "role": role})
+    return {"email": target, "role": role}
+
+
+@router.post("/api/projects/{project_id}/access-requests")
+def create_access_request(
+    project_id: str,
+    resource_path: str = Form(...),
+    reason: str = Form(...),
+    token: str = Form(...),
+):
+    """Let any authenticated user request source access to a resource."""
+    user = _require_authenticated(token)
+    _load_project_result(project_id)
+    request = {
+        "id": uuid.uuid4().hex,
+        "project_id": project_id,
+        "requester_email": user["email"],
+        "requester_name": user.get("name", ""),
+        "resource_path": resource_path,
+        "permission": "source",
+        "reason": reason,
+        "status": "pending",
+        "created_at": time.time(),
+    }
+    authz.save_access_request(project_id, request)
+    authz.audit(user["email"], "access.request", f"{project_id}:{resource_path}")
+    bus.publish("access.request", project_id, {"status": "pending"})
+    return request
+
+
+@router.get("/api/projects/{project_id}/access-requests")
+def list_access_requests(project_id: str, token: str = Query("")):
+    """List access requests. Managers see all; others see only their own."""
+    user = _require_authenticated(token)
+    _load_project_result(project_id)
+    policy = _policy_for(project_id, user["email"])
+    if authz.can_manage(user["email"], _user_role(user["email"]), policy):
+        requests = authz.load_access_requests(project_id, "*")
+    else:
+        requests = authz.load_access_requests(project_id, user["email"])
+    return {"requests": requests}
+
+
+@router.post("/api/projects/{project_id}/access-requests/{request_id}")
+def resolve_access_request(
+    project_id: str,
+    request_id: str,
+    action: str = Form(...),
+    token: str = Form(...),
+    duration_hours: float = Form(0),
+):
+    """Approve (grants source access, optionally time-limited), reject, or
+    temporarily approve a pending request."""
+    user, policy = _require_manager(project_id, token)
+    if action not in ("approve", "reject", "temporary"):
+        raise HTTPException(status_code=422, detail="action must be 'approve', 'reject', or 'temporary'.")
+    if action == "temporary" and duration_hours <= 0:
+        raise HTTPException(status_code=422, detail="duration_hours must be positive for temporary approval.")
+    request = next(
+        (item for item in authz.load_access_requests(project_id, "*") if item.get("id") == request_id),
+        None,
+    )
+    if not request:
+        raise HTTPException(status_code=404, detail="Access request not found.")
+    if request.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="This request has already been resolved.")
+    if action in ("approve", "temporary"):
+        expires_at = (time.time() + duration_hours * 3600) if action == "temporary" else None
+        authz.set_user_grant(
+            policy,
+            request["requester_email"],
+            request.get("resource_path", ""),
+            "allow",
+            {"metadata": True, "graph": True, "source": True, "download": True},
+            expires_at,
+        )
+        authz.save_policy(policy, actor=user["email"], note=f"access request {action}")
+        status = "approved" if action == "approve" else "approved_temporary"
+    else:
+        status = "rejected"
+    authz.update_access_request(project_id, request_id, {"status": status})
+    authz.audit(
+        user["email"],
+        f"access.{status}",
+        f"{project_id}:{request.get('resource_path', '')}",
+        {
+            "requester": request["requester_email"],
+            "duration_hours": duration_hours if action == "temporary" else None,
+        },
+    )
+    bus.publish("access.request", project_id, {"status": status, "request_id": request_id, "requester": request["requester_email"]})
+    return {"status": status, "request": request}
+
+
+@router.post("/api/projects/{project_id}/sync-collaborators")
+def sync_project_collaborators(project_id: str, token: str = Form(...)):
+    """Re-pull the GitHub collaborator list and refresh grants (Phase 1: GitHub repos)."""
+    user, policy = _require_manager(project_id, token)
+    if policy.source != "github":
+        raise HTTPException(status_code=400, detail="Only GitHub-imported repositories support collaborator sync.")
+    from app.api.auth import USERS, _github_token_for_user
+
+    owner = USERS.get(policy.owner_email)
+    access_token = _github_token_for_user(owner)
+    if not access_token:
+        raise HTTPException(status_code=400, detail="The repository owner must have a connected GitHub account.")
+    try:
+        snapshot = authz.sync_github_collaborators(policy, access_token)
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=f"Could not fetch collaborators: {error}") from error
+    authz.audit(user["email"], "collaborators.sync", project_id, {"collaborators": snapshot})
+    bus.publish("policy.access", project_id, {"subject_type": "collaborator", "action": "sync"})
+    return {"snapshot": snapshot, "policy": policy.to_dict()}
+
+
+@router.get("/api/developer/projects")
+def list_accessible_projects(token: str = Query("")):
+    """List the repositories the current user may access (metadata or better).
+
+    "MY PROJECTS" only lists repositories the user owns, manages, or holds an
+    explicit grant on — one account never mirrors another account's data,
+    super admin or not. Global management lives in the Admin Center.
+    """
+    user = _require_authenticated(token)
+    role = _user_role(user["email"])
+    user_orgs = authz.user_org_ids(user["email"], (user.get("github_login") or ""))
+    projects = []
+    for policy in authz.load_all_policies():
+        if not authz.policy_org_access(policy, user["email"], role, user_orgs):
+            continue
+        access = policy.effective_access(user["email"], role, "", _user_teams(user["email"]))
+        if not access["metadata"]:
+            continue
+        projects.append(
+            {
+                "project_id": policy.project_id,
+                "project": policy.project,
+                "owner_email": policy.owner_email,
+                "source": policy.source,
+                "organization_id": policy.organization_id,
+                "status": policy.status,
+                "access": access,
+                "is_manager": authz.can_manage(user["email"], role, policy),
+            }
+        )
+    projects.sort(key=lambda item: item["project"].lower())
+    return {"projects": projects}
+
+
+# ── Phase 3: search authorization ────────────────────────────────────────────
+@router.get("/api/projects/{project_id}/search")
+def search_project(
+    project_id: str,
+    q: str = Query(...),
+    scope: str = Query("metadata"),
+    token: str = Query(""),
+):
+    """Search a repository under the current user's permissions (§13–14).
+
+    `scope=metadata` matches node names/paths; results only include nodes the
+    user may know exist, and each carries its `access` state.
+    `scope=source` matches source content, but only inside files the user can
+    read; no restricted bytes ever leave the server.
+    """
+    user = _require_authenticated(token)
+    _enforce_org_membership(project_id, user["email"], _user_role(user["email"]))
+    result = _load_project_result(project_id)
+    policy = _policy_for(project_id, user["email"])
+    role = _user_role(user["email"])
+    team_ids = _user_teams(user["email"])
+    query = q.strip()
+    if not query:
+        return {"query": query, "results": []}
+
+    if scope == "source":
+        results = []
+        store = _project_store(project_id)
+        if not store:
+            raise HTTPException(status_code=404, detail="Project not found or expired.")
+        needle = query.lower()
+        for node in result.get("nodes", []):
+            if node.get("type") != "file":
+                continue
+            path = node.get("path", "")
+            access = policy.effective_access(user["email"], role, path, team_ids)
+            if not access["source"]:
+                continue
+            try:
+                candidate = (store["root"] / Path(*PurePosixPath(path).parts)).resolve()
+            except (ValueError, OSError):
+                continue
+            if not candidate.is_file():
+                continue
+            content = candidate.read_text(encoding="utf-8", errors="replace")
+            for line_index, line in enumerate(content.splitlines(), start=1):
+                if needle in line.lower():
+                    results.append({"path": path, "line": line_index, "text": line.rstrip()})
+                    if len(results) >= 100:
+                        break
+            if len(results) >= 100:
+                break
+        authz.audit(user["email"], "search.source", project_id, {"query": query, "hits": len(results)})
+        return {"query": query, "scope": "source", "results": results}
+
+    if scope != "metadata":
+        raise HTTPException(status_code=422, detail="scope must be 'metadata' or 'source'.")
+    hits = authz.search_metadata(result, user["email"], role, policy, query, team_ids)
+    authz.audit(user["email"], "search.metadata", project_id, {"query": query, "hits": len(hits)})
+    return {"query": query, "scope": "metadata", "results": hits}
+
+
+# ── Phase 3: permission-respecting exports ───────────────────────────────────
+@router.get("/api/projects/{project_id}/export")
+def export_project(
+    project_id: str,
+    format: str = Query("json"),
+    token: str = Query(""),
+):
+    """Export the repository view the current user is allowed to see (§30)."""
+    user = _require_authenticated(token)
+    if format not in ("json", "report"):
+        raise HTTPException(status_code=422, detail="format must be 'json' or 'report'.")
+    _enforce_org_membership(project_id, user["email"], _user_role(user["email"]))
+    result = _load_project_result(project_id)
+    policy = _policy_for(project_id, user["email"])
+    role = _user_role(user["email"])
+    export = authz.authorized_export(result, user["email"], role, policy, format, _user_teams(user["email"]))
+    authz.audit(user["email"], "export", f"{project_id}:{format}")
+    return export
+
+
+# ── Phase 2: teams ───────────────────────────────────────────────────────────
+class TeamRequest(BaseModel):
+    name: str
+    members: list[str] = []
+
+
+def _validate_member_emails(emails: list[str]) -> list[str]:
+    """Normalize member emails and reject any that don't match a registered
+    account, so team grants are never silently lost to email mismatches."""
+    normalized: list[str] = []
+    accounts = authz.list_users_file()
+    for raw in emails:
+        email = raw.strip().lower()
+        if not email:
+            continue
+        if email in accounts:
+            normalized.append(email)
+            continue
+        suggestions = sorted(
+            account_email
+            for account_email, account in accounts.items()
+            if email in (account_email.lower(), (account.get("github_login") or "").lower())
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"No registered account uses {raw.strip()!r}. "
+                + ("Did you mean: " + ", ".join(suggestions) + "?" if suggestions else
+                   "That person must log in with GitHub first (this creates their account), "
+                   "then add them here.")
+            ),
+        )
+    return normalized
+
+
+def _require_admin(token: str) -> dict:
+    """Super admins manage global teams."""
+    user = _require_authenticated(token)
+    if _user_role(user["email"]) != authz.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Only super admins manage teams.")
+    return user
+
+
+@router.get("/api/teams")
+def list_teams(token: str = Query("")):
+    """List all teams (super admins only)."""
+    _require_admin(token)
+    teams = [
+        {
+            "id": team_id,
+            "name": team.get("name", ""),
+            "members": team.get("members") or [],
+            "created_at": team.get("created_at"),
+        }
+        for team_id, team in sorted(authz.list_teams().items())
+    ]
+    return {"teams": teams}
+
+
+@router.post("/api/teams")
+def create_team(request: TeamRequest, token: str = Query("")):
+    """Create a team (super admins only)."""
+    user = _require_admin(token)
+    if not request.name.strip():
+        raise HTTPException(status_code=422, detail="name is required.")
+    team_id = f"team-{uuid.uuid4().hex[:8]}"
+    team = {
+        "id": team_id,
+        "name": request.name.strip(),
+        "members": _validate_member_emails(request.members),
+        "created_at": time.time(),
+        "created_by": user["email"],
+    }
+    authz.save_team(team)
+    authz.audit(user["email"], "team.create", team_id, {"name": team["name"]})
+    bus.publish("team.changed", payload={"team_id": team_id, "action": "create"})
+    return team
+
+
+@router.put("/api/teams/{team_id}")
+def update_team(team_id: str, request: TeamRequest, token: str = Query("")):
+    """Rename a team and/or replace its membership."""
+    user = _require_admin(token)
+    teams = authz.list_teams()
+    if team_id not in teams:
+        raise HTTPException(status_code=404, detail="Team not found.")
+    team = teams[team_id]
+    if request.name.strip():
+        team["name"] = request.name.strip()
+    team["members"] = _validate_member_emails(request.members)
+    authz.save_team(team)
+    authz.audit(user["email"], "team.update", team_id, {"members": team["members"]})
+    bus.publish("team.changed", payload={"team_id": team_id, "action": "update"})
+    return team
+
+
+@router.post("/api/teams/{team_id}/members")
+def add_team_member(team_id: str, request: TeamRequest, token: str = Query("")):
+    """Add members to an existing team without replacing the whole roster."""
+    user = _require_admin(token)
+    teams = authz.list_teams()
+    if team_id not in teams:
+        raise HTTPException(status_code=404, detail="Team not found.")
+    team = teams[team_id]
+    current = set(team.get("members") or [])
+    current.update(_validate_member_emails(request.members))
+    team["members"] = sorted(current)
+    authz.save_team(team)
+    authz.audit(user["email"], "team.update", team_id, {"members": team["members"]})
+    bus.publish("team.changed", payload={"team_id": team_id, "action": "update"})
+    return team
+
+
+@router.delete("/api/teams/{team_id}")
+def delete_team(team_id: str, token: str = Query("")):
+    """Delete a team (super admins only)."""
+    user = _require_admin(token)
+    if not authz.delete_team(team_id):
+        raise HTTPException(status_code=404, detail="Team not found.")
+    authz.audit(user["email"], "team.delete", team_id)
+    bus.publish("team.changed", payload={"team_id": team_id, "action": "delete"})
+    return {"status": "deleted"}
+
+
+# ── Phase 4: sensitive-information review ────────────────────────────────────
+@router.get("/api/projects/{project_id}/secrets")
+def get_project_secrets(project_id: str, token: str = Query("")):
+    """Return redacted secret findings for a repository (owner / admins only)."""
+    user = _require_authenticated(token)
+    role = _user_role(user["email"])
+    policy = _policy_for(project_id, user["email"])
+    _enforce_org_membership(project_id, user["email"], role)
+    if not authz.can_manage(user["email"], role, policy) and role != authz.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized to view secrets.")
+    findings = authz.load_project_secrets(project_id)
+    return {"count": len(findings), "secrets": findings}
+
+
+# ── Phase 5: admin analytics, audit, security events ─────────────────────────
+@router.get("/api/admin/users")
+def admin_list_users(token: str = Query("")):
+    """List registered accounts for admin consoles (super admins only)."""
+    _require_admin(token)
+    from app.api.auth import USERS
+
+    return {
+        "users": [
+            {
+                "email": email,
+                "name": user.get("name", ""),
+                "role": _user_role(email),
+                "github_login": user.get("github_login"),
+                "created_at": user.get("created_at"),
+            }
+            for email, user in sorted(USERS.items())
+        ]
+    }
+
+
+@router.get("/api/admin/analytics")
+def admin_analytics(token: str = Query("")):
+    """Enterprise dashboard numbers for super admins."""
+    user = _require_admin(token)
+    from app.api.auth import USERS
+
+    users = dict(USERS)
+    policies = authz.load_all_policies()
+    requests = _load_all_access_requests()
+    teams = authz.list_teams()
+    grants_total = sum(len(policy.grants) for policy in policies)
+    pending = [
+        request for request in requests
+        if request.get("status") == "pending"
+    ]
+    analytics = {
+        "users": len(users),
+        "teams": len(teams),
+        "repositories": len(policies),
+        "grants_total": grants_total,
+        "pending_access_requests": len(pending),
+        "repositories_with_policy": len(policies),
+        "coverage": [
+            {
+                "project_id": policy.project_id,
+                "project": policy.project,
+                "owner_email": policy.owner_email,
+                "grants": len(policy.grants),
+                "source_default": policy.default_access.get("source", False),
+            }
+            for policy in policies
+        ],
+    }
+    authz.audit(user["email"], "admin.analytics", "global")
+    return analytics
+
+
+def _load_all_access_requests() -> list[dict[str, Any]]:
+    import json as _json
+
+    path = authz.DATA_BASE / "access_requests.json"
+    if not path.exists():
+        return []
+    try:
+        data = _json.loads(path.read_text(encoding="utf-8"))
+    except (_json.JSONDecodeError, OSError):
+        return []
+    return list(data.values())
+
+
+@router.get("/api/admin/audit")
+def admin_audit_log(
+    token: str = Query(""),
+    limit: int = Query(100, ge=1, le=1000),
+    action: str = Query(""),
+    email: str = Query(""),
+):
+    """View the audit trail (super admins only)."""
+    user = _require_admin(token)
+    events = authz.list_audit_events(limit, action or None, email or None)
+    authz.audit(user["email"], "admin.audit.view", "global")
+    return {"events": events}
+
+
+@router.get("/api/admin/security-events")
+def admin_security_events(token: str = Query("")):
+    """Run anomaly detection and return security alerts (super admins only)."""
+    user = _require_admin(token)
+    new_alerts = authz.detect_anomalies()
+    events = authz.list_security_events(limit=100)
+    authz.audit(user["email"], "admin.security.view", "global", {"new_alerts": len(new_alerts)})
+    return {"new_alerts": new_alerts, "events": events}
+
+
+@router.get("/api/admin/projects")
+def admin_list_projects(token: str = Query("")):
+    """List every project across all accounts (admin panel only)."""
+    user = _require_admin(token)
+    projects = []
+    for policy in authz.load_all_policies():
+        projects.append(
+            {
+                "project_id": policy.project_id,
+                "project": policy.project,
+                "owner_email": policy.owner_email,
+                "source": policy.source,
+                "status": policy.status,
+                "managers": list(policy.managers),
+                "grants": len(policy.grants),
+                "collaborators": len(policy.collaborators),
+                "organization_id": policy.organization_id,
+            }
+        )
+    projects.sort(key=lambda item: item["owner_email"].lower())
+    return {"projects": projects}
+
+
+@router.get("/api/admin/projects/{project_id}/graph")
+def admin_get_project_graph(project_id: str, token: str = Query("")):
+    """Return a project's full graph unfiltered (admin panel only)."""
+    user = _require_admin(token)
+    result = authz.load_project_graph(project_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Project not found or expired.")
+    policy = _policy_for(project_id, user["email"])
+    result["owner_email"] = policy.owner_email
+    result["is_manager"] = True
+    result["policy_source"] = policy.source
+    return result
+
+
+# ── Phase 5: organizations (multi-tenant) ────────────────────────────────────
+class OrganizationRequest(BaseModel):
+    name: str = ""
+    members: list[str] = []
+
+
+def _require_org_manager(org_id: str, token: str) -> dict:
+    """Super admins and the org owner can manage an organization."""
+    user = _require_admin(token)
+    org = authz.list_organizations().get(org_id)
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    if _user_role(user["email"]) != authz.SUPER_ADMIN and user["email"] != org.get("owner_email"):
+        raise HTTPException(status_code=403, detail="You do not manage this organization.")
+    return user
+
+
+@router.get("/api/organizations")
+def list_organizations(token: str = Query("")):
+    """List organizations. Super admins see all; others see only their own."""
+    user = _require_authenticated(token)
+    role = _user_role(user["email"])
+    orgs = authz.list_organizations()
+    result = []
+    for org_id, org in sorted(orgs.items()):
+        if role != authz.SUPER_ADMIN and not (
+            user["email"] == org.get("owner_email") or user["email"] in (org.get("members") or [])
+        ):
+            continue
+        result.append(
+            {
+                "id": org_id,
+                "name": org.get("name", ""),
+                "owner_email": org.get("owner_email", ""),
+                "members": org.get("members") or [],
+                "created_at": org.get("created_at"),
+                "project_ids": org.get("project_ids") or [],
+            }
+        )
+    return {"organizations": result}
+
+
+@router.post("/api/organizations")
+def create_organization(request: OrganizationRequest, token: str = Query("")):
+    """Create an organization (super admins only)."""
+    user = _require_admin(token)
+    if not request.name.strip():
+        raise HTTPException(status_code=422, detail="name is required.")
+    org_id = f"org-{uuid.uuid4().hex[:8]}"
+    org = {
+        "id": org_id,
+        "name": request.name.strip(),
+        "owner_email": user["email"],
+        "members": list(dict.fromkeys(member.strip() for member in request.members if member.strip())),
+        "project_ids": [],
+        "created_at": time.time(),
+    }
+    authz.save_organization(org)
+    authz.audit(user["email"], "org.create", org_id, {"name": org["name"]})
+    bus.publish("org.changed", payload={"org_id": org_id, "action": "create"})
+    return org
+
+
+@router.put("/api/organizations/{org_id}")
+def update_organization(org_id: str, request: OrganizationRequest, token: str = Query("")):
+    """Rename an organization and/or replace membership (owner / super admin)."""
+    user = _require_org_manager(org_id, token)
+    orgs = authz.list_organizations()
+    org = orgs[org_id]
+    if request.name.strip():
+        org["name"] = request.name.strip()
+    org["members"] = list(dict.fromkeys(member.strip() for member in request.members if member.strip()))
+    authz.save_organization(org)
+    authz.audit(user["email"], "org.update", org_id, {"members": org["members"]})
+    bus.publish("org.changed", payload={"org_id": org_id, "action": "update"})
+    return org
+
+
+@router.delete("/api/organizations/{org_id}")
+def delete_organization(org_id: str, token: str = Query("")):
+    """Delete an organization (super admins only)."""
+    user = _require_admin(token)
+    if not authz.delete_organization(org_id):
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    authz.audit(user["email"], "org.delete", org_id)
+    bus.publish("org.changed", payload={"org_id": org_id, "action": "delete"})
+    return {"status": "deleted"}
+
+
+@router.post("/api/organizations/{org_id}/projects/{project_id}")
+def assign_organization_project(org_id: str, project_id: str, token: str = Query("")):
+    """Attach a repository to an organization (owner / super admin). Once
+    attached, only the org's members (plus owner/super admin) can see it."""
+    user = _require_org_manager(org_id, token)
+    orgs = authz.list_organizations()
+    org = orgs[org_id]
+    policy = _policy_for(project_id, user["email"])
+    role = _user_role(user["email"])
+    if not authz.can_manage(user["email"], role, policy) and role != authz.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="You do not manage this repository.")
+    policy.organization_id = org_id
+    authz.save_policy(policy, actor=user["email"], note="assigned to organization")
+    if project_id not in org["project_ids"]:
+        org["project_ids"].append(project_id)
+        authz.save_organization(org)
+    authz.audit(user["email"], "org.assign_project", org_id, {"project_id": project_id})
+    bus.publish("org.changed", payload={"org_id": org_id, "action": "assign_project", "project_id": project_id})
+    return {"organization_id": org_id, "project_id": project_id}
+
+
+@router.delete("/api/organizations/{org_id}/projects/{project_id}")
+def unassign_organization_project(org_id: str, project_id: str, token: str = Query("")):
+    """Detach a repository from an organization (owner / super admin)."""
+    user = _require_org_manager(org_id, token)
+    orgs = authz.list_organizations()
+    org = orgs[org_id]
+    policy = _policy_for(project_id, user["email"])
+    policy.organization_id = ""
+    authz.save_policy(policy, actor=user["email"], note="removed from organization")
+    org["project_ids"] = [pid for pid in org.get("project_ids", []) if pid != project_id]
+    authz.save_organization(org)
+    authz.audit(user["email"], "org.unassign_project", org_id, {"project_id": project_id})
+    bus.publish("org.changed", payload={"org_id": org_id, "action": "unassign_project", "project_id": project_id})
+    return {"organization_id": "", "project_id": project_id}
+
+
+# ── Phase 5: admin permission preview (read-only impersonation) ──────────────
+@router.get("/api/admin/effective-permissions")
+def admin_effective_permissions(
+    token: str = Query(""),
+    email: str = Query(""),
+    project_id: str = Query(""),
+):
+    """Read-only preview: what would this user be allowed to know/see in a
+    repository? Does NOT change any state or session (§41)."""
+    admin = _require_admin(token)
+    if not email.strip():
+        raise HTTPException(status_code=422, detail="email is required.")
+    from app.api.auth import USERS
+
+    target = USERS.get(email.strip())
+    if target is None:
+        raise HTTPException(status_code=404, detail="Target user not found.")
+    _enforce_org_membership(project_id, admin["email"], _user_role(admin["email"]))
+    policy = _policy_for(project_id, admin["email"])
+    role = _user_role(email.strip())
+    teams = sorted(authz.user_team_ids(email.strip()))
+    access = policy.effective_access(email.strip(), role, "", teams)
+    summary = {
+        "email": email.strip(),
+        "role": role,
+        "teams": teams,
+        "owner": email.strip() == policy.owner_email,
+        "organization": policy.organization_id,
+        "in_org": policy.organization_id in authz.user_org_ids(email.strip()),
+        "default_access": dict(policy.default_access),
+        "effective_access": access,
+        "explanation": policy.explanation(email.strip(), role, "", teams),
+        "grants": [
+            {
+                "subject_type": grant.subject_type,
+                "subject_value": grant.subject_value,
+                "path": grant.path,
+                "effect": grant.effect,
+                "permissions": grant.permissions,
+                "expires_at": grant.expires_at,
+            }
+            for grant in policy.grants
+        ],
+    }
+    authz.audit(admin["email"], "admin.preview.effective", f"{project_id}:{email.strip()}")
+    return summary
+
+
+@router.get("/api/admin/preview-graph")
+def admin_preview_graph(
+    token: str = Query(""),
+    email: str = Query(""),
+    project_id: str = Query(""),
+):
+    """Read-only preview of the graph exactly as the target user would see it
+    (their access flags applied), never modifying state (§41)."""
+    admin = _require_admin(token)
+    if not email.strip():
+        raise HTTPException(status_code=422, detail="email is required.")
+    from app.api.auth import USERS
+
+    target = USERS.get(email.strip())
+    if target is None:
+        raise HTTPException(status_code=404, detail="Target user not found.")
+    _enforce_org_membership(project_id, admin["email"], _user_role(admin["email"]))
+    result = _load_project_result(project_id)
+    policy = _policy_for(project_id, admin["email"])
+    role = _user_role(email.strip())
+    graph = authz.authorized_graph(
+        result, email.strip(), role, policy, authz.user_team_ids(email.strip())
+    )
+    graph["_previewed_as"] = email.strip()
+    authz.audit(admin["email"], "admin.preview.graph", f"{project_id}:{email.strip()}")
+    return graph

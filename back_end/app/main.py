@@ -1,6 +1,9 @@
 from pathlib import Path
 import os
 
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,8 +33,32 @@ _load_env_file()
 
 from app.api.auth import router as auth_router
 from app.api.routes import router
+from app.services.events import bus
 
-app = FastAPI(title="CodeAtlas API")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Capture the running event loop so worker threads can publish live events."""
+    bus.attach_loop(asyncio.get_running_loop())
+    yield
+    # Close any open SSE streams so uvicorn shuts down instead of waiting for
+    # browser connections that stay open indefinitely.
+    bus.shutdown()
+    bus.attach_loop(None)
+
+
+app = FastAPI(title="CodeAtlas API", lifespan=lifespan)
+
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("codeatlas")
+logger.info(
+    "CodeAtlas backend ready. FRONTEND_URL=%r BACKEND_BASE=%r GITHUB_OAuth_configured=%s",
+    os.environ.get("FRONTEND_URL", "http://localhost:5173"),
+    os.environ.get("BACKEND_BASE", "http://localhost:8000"),
+    bool(os.environ.get("GITHUB_CLIENT_ID") and os.environ.get("GITHUB_CLIENT_SECRET")),
+)
 
 
 def _cors_origins() -> list[str]:

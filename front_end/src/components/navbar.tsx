@@ -8,7 +8,7 @@ export default function Navbar({ onGetStarted, onAssistant, onSettings }: Navbar
     return (
         <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-[rgba(8,10,13,.92)] backdrop-blur-[10px] border-b border-[#30363d] flex items-center justify-between px-4">
             <div className="flex items-center gap-[10px]">
-                <span className="w-7 h-7 bg-[#007aff] text-white grid place-items-center text-[15px]">✦</span>
+                <img src="/codeAtlas_logo.png" alt="Code Atlas" className="w-7 h-7 rounded-full object-contain" />
                 <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">CODE ATLAS</span>
                 <nav className="hidden max-[900px]:hidden gap-6 ml-8">
                     <a href="#" className="active font-jet text-[10px] tracking-[.05em] uppercase text-[#007aff] no-underline pb-1 border-b-2 border-[#007aff]">Explorer</a>

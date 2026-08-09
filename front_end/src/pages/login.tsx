@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { login, register } from "../services/api";
+import BackButton from "../components/back-button";
 import {
   toastDismiss,
   toastError,
@@ -159,9 +160,7 @@ function Login({ onLogin }: LoginProps) {
       <section className="flex-1 bg-[#10141a] flex items-center justify-center p-8">
         <form className="w-full max-w-[400px]" onSubmit={handleSubmit}>
           <div className="hidden items-center gap-2 mb-12 max-[900px]:flex">
-            <span className="w-7 h-7 bg-[#007aff] text-white grid place-items-center text-[15px]">
-              ✦
-            </span>
+            <img src="/codeAtlas_logo.png" alt="Code Atlas" className="w-7 h-7 rounded-full object-contain" />
             <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">
               CODE ATLAS
             </span>
@@ -312,6 +311,9 @@ function Login({ onLogin }: LoginProps) {
         </form>
       </section>
 
+      <div className="fixed top-8 left-8 z-20">
+        <BackButton />
+      </div>
       <div className="fixed top-8 right-8 z-20 text-right font-jet text-[11px] text-[rgba(193,198,215,.5)] leading-[1.7] pointer-events-none">
         <span>SECURE_SHELL_ESTABLISHED</span>
         <br />

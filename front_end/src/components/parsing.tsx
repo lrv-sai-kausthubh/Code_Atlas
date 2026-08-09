@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Braces, Code, Database, File, FileCode, Folder, FolderArchive, Palette, Settings, Terminal, X } from "lucide-react";
 import { cancelUpload, getUploadProgress, getUploadResult, importConnectedRepo, importGithubProject, uploadProject } from "../services/api";
 import type { GitHubRepo } from "../services/api";
 import { toastLoading, toastSuccess, toastDismiss } from "../services/toast";
 import type { ProjectGraph, UploadProgress } from "../types/project";
 
-const PARTICLE_ICONS = ["code", "javascript", "css", "html", "terminal", "functions", "settings", "data_object", "folder", "description"];
+const PARTICLE_ICONS = [Code, Braces, Palette, FileCode, Terminal, Braces, Settings, Database, Folder, File];
 
 const PHASES: Record<UploadProgress["phase"], { label: string; range: [number, number] }> = {
     uploading: { label: "Phase 00: Uploading Archive", range: [0, 30] },
@@ -33,6 +34,11 @@ function formatBytes(bytes: number) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function ParticleIcon({ icon, size }: { icon: typeof Code; size: number }) {
+    const Icon = icon;
+    return <Icon size={size} className="text-[rgba(0,122,255,.25)]" strokeWidth={1.4} />;
+}
+
 type ParsingScreenProps = {
     file?: File;
     repoUrl?: string;
@@ -57,6 +63,7 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
         : isGithub
             ? repoDisplayName(repoUrl as string)
             : file?.name ?? "";
+    const sessionToken = authToken ?? localStorage.getItem("codeatlas-token") ?? "";
     const [serverProgress, setServerProgress] = useState<UploadProgress | null>(null);
     const [networkPct, setNetworkPct] = useState(0);
     const [uploadStartedAt] = useState(() => Date.now());
@@ -85,10 +92,10 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
         const startRequest = isConnectedRepo
             ? importConnectedRepo(`https://github.com/${(connectedRepo as GitHubRepo).full_name}`, uploadId, authToken as string)
             : isGithub
-                ? importGithubProject(repoUrl as string, uploadId)
+                ? importGithubProject(repoUrl as string, uploadId, sessionToken)
                 : uploadProject(file as File, uploadId, (event) => {
                     if (event.total) setNetworkPct((event.loaded / event.total) * 100);
-                });
+                }, sessionToken);
         void startRequest.then((response) => {
             const body = response.data as { status?: string };
             if (body.status === "error") {
@@ -104,7 +111,7 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
         return () => {
             toastDismiss(loadingId);
         };
-    }, [authToken, connectedRepo, file, isConnectedRepo, isGithub, onError, projectName, repoUrl, uploadId]);
+    }, [authToken, connectedRepo, file, isConnectedRepo, isGithub, onError, projectName, repoUrl, sessionToken, uploadId]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -117,14 +124,14 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
         let alive = true;
         const poll = async () => {
             try {
-                const response = await getUploadProgress(uploadId);
+                const response = await getUploadProgress(uploadId, sessionToken);
                 if (!alive) return;
                 const snapshot = response.data as UploadProgress;
                 setServerProgress(snapshot);
 
                 if (snapshot.phase === "done" && !doneRef.current) {
                     doneRef.current = true;
-                    const resultResponse = await getUploadResult(uploadId);
+                    const resultResponse = await getUploadResult(uploadId, sessionToken);
                     toastSuccess(`Project "${projectName}" mapped successfully.`);
                     if (alive) onComplete(resultResponse.data as ProjectGraph);
                     return;
@@ -149,7 +156,7 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
         void poll();
         const interval = setInterval(() => void poll(), 500);
         return () => { alive = false; clearInterval(interval); };
-    }, [projectName, onComplete, onError, uploadId]);
+    }, [projectName, onComplete, onError, sessionToken, uploadId]);
 
     useEffect(() => {
         if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -197,7 +204,7 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
                             animationDelay: `${particle.delay}s`,
                         }}
                     >
-                        <span className="material-symbols-outlined" style={{ fontSize: particle.size / 2, color: "rgba(0, 122, 255, .25)" }}>{particle.icon}</span>
+                        <ParticleIcon icon={particle.icon} size={particle.size / 2} />
                     </div>
                 ))}
                 <div className="absolute inset-0 bg-[rgba(8,10,13,.6)] backdrop-blur-[2px]" />
@@ -205,14 +212,14 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
 
             <header className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-4 border-b border-[#30363d] bg-[rgba(8,10,13,.8)] backdrop-blur-[12px]">
                 <div className="flex items-center gap-[10px]">
-                    <span className="w-7 h-7 bg-[#007aff] text-white grid place-items-center text-[15px]">✦</span>
+                    <img src="/codeAtlas_logo.png" alt="Code Atlas" className="w-7 h-7 rounded-full object-contain" />
                     <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">CODE ATLAS</span>
                     <span style={{ width: 1, height: 16, background: "#30363d", margin: "0 8px" }} />
                     <span className="font-jet tracking-[.05em] uppercase" style={{ color: "#c1c6d7" }}>Ingestion Engine V4.0</span>
                 </div>
                 <div className="flex items-center gap-[14px]">
                     <span className="flex items-center gap-2 font-jet text-xs text-[#10b981]"><span className="w-2 h-2 rounded-full bg-[#10b981] animate-ping" />STABLE CONNECTION</span>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-[#30363d] bg-transparent text-[#c1c6d7] font-jet text-[10px] tracking-[.08em] uppercase cursor-pointer transition-[border-color,color] duration-200 hover:border-[#007aff] hover:text-[#dfe2eb]" onClick={handleCancel}><span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>Cancel</button>
+                    <button className="flex items-center gap-2 px-4 py-2 border border-[#30363d] bg-transparent text-[#c1c6d7] font-jet text-[10px] tracking-[.08em] uppercase cursor-pointer transition-[border-color,color] duration-200 hover:border-[#007aff] hover:text-[#dfe2eb]" onClick={handleCancel}><X size={18} />Cancel</button>
                 </div>
             </header>
 
@@ -227,7 +234,7 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
                                 <span className="absolute w-2 h-2 top-0 right-0 border-t border-r border-[#007aff]" />
                                 <span className="absolute w-2 h-2 bottom-0 left-0 border-b border-l border-[#007aff]" />
                                 <span className="absolute w-2 h-2 bottom-0 right-0 border-b border-r border-[#007aff]" />
-                                <div className="absolute inset-4 border border-[rgba(0,122,255,.2)] flex items-center justify-center"><span className="material-symbols-outlined text-[#007aff]" style={{ fontSize: 44, fontVariationSettings: "'FILL' 1" }}>folder_zip</span></div>
+                                <div className="absolute inset-4 border border-[rgba(0,122,255,.2)] flex items-center justify-center"><FolderArchive size={44} className="text-[#007aff]" strokeWidth={1.4} /></div>
                             </div>
                             <div className="flex-1 flex flex-col gap-6">
                                 <div className="flex justify-between items-end">

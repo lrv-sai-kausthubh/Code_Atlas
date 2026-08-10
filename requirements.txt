@@ -1,0 +1,5 @@
+# Allows Render's Python buildpack (and other tools) to install the backend
+# dependencies when building from the repo root. The primary deploy path is
+# the Dockerfile (see render.yaml), which copies back_end/requirements.txt
+# directly.
+-r back_end/requirements.txt

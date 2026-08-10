@@ -13,8 +13,8 @@ WORKDIR /codeatlas
 
 # Keep the data_base layout identical to local development: the app resolves
 # data_base as the repo root parent of back_end/app/api/auth.py, i.e. /codeatlas.
-COPY back_end/requirments.txt ./back_end/requirments.txt
-RUN pip install --no-cache-dir -r back_end/requirments.txt
+COPY back_end/requirements.txt ./back_end/requirements.txt
+RUN pip install --no-cache-dir -r back_end/requirements.txt
 
 COPY back_end/app ./back_end/app
 

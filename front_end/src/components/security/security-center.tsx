@@ -135,7 +135,7 @@ function SecurityCenter({
         getProjectPolicy(projectId, token).catch(() => null),
         listProjectUsers(projectId, token).catch(() => null),
         listAccessRequests(projectId, token).catch(() => null),
-        listTeams(token).catch(() => null),
+        listTeams(token, projectId).catch(() => null),
         listPolicyVersions(projectId, token).catch(() => null),
       ]);
       if (policyRes) setPolicy(policyRes.data);
@@ -381,7 +381,7 @@ function SecurityCenter({
     }
     markBusy("new-team");
     try {
-      await createTeam(token, name, members);
+      await createTeam(token, name, members, projectId);
       toastSuccess(`Team "${name}" created.`);
       setNewTeam({ name: "", members: "" });
       await refresh();
@@ -400,7 +400,7 @@ function SecurityCenter({
         .split(/[,\n]/)
         .map((member) => member.trim())
         .filter(Boolean);
-      await updateTeam(token, team.id, team.name, list);
+      await updateTeam(token, team.id, team.name, list, projectId);
       toastSuccess(`Team "${team.name}" updated.`);
       await refresh();
     } catch (error) {
@@ -414,7 +414,7 @@ function SecurityCenter({
   const removeTeam = async (team: Team) => {
     markBusy(`del-${team.id}`);
     try {
-      await deleteTeam(token, team.id);
+      await deleteTeam(token, team.id, projectId);
       toastSuccess(`Team "${team.name}" deleted.`);
       await refresh();
     } catch {

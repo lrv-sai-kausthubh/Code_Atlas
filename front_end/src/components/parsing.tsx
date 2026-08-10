@@ -109,7 +109,10 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
             toastDismiss(loadingId);
             if (cancelRef.current) return;
             const detail = error && typeof error === "object" && "response" in error ? (error.response as { data?: { detail?: string } })?.data?.detail : undefined;
-            onError(detail ?? "Could not analyze that project.");
+            const code = error && typeof error === "object" && "code" in error ? String((error as { code?: string }).code) : "";
+            if (detail) onError(detail);
+            else if (code === "ERR_NETWORK") onError("Backend unreachable. Start the API server (uvicorn app.main:app) or set VITE_API_URL to the deployed backend.");
+            else onError("Could not analyze that project.");
         });
         return () => {
             toastDismiss(loadingId);

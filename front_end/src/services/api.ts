@@ -181,17 +181,17 @@ export const restorePolicyVersion = (projectId: string, token: string, version: 
     return api.post<RepositoryPolicy>(`/api/projects/${encodeURIComponent(projectId)}/policy/versions/${version}/restore`, data, { silent: true } as AtlasRequestConfig);
 };
 
-export const listTeams = (token: string) =>
-    api.get<{ teams: Team[] }>("/api/teams", { params: { token }, silent: true } as AtlasRequestConfig);
+export const listTeams = (token: string, projectId?: string) =>
+    api.get<{ teams: Team[] }>("/api/teams", { params: { token, project_id: projectId || "" }, silent: true } as AtlasRequestConfig);
 
-export const createTeam = (token: string, name: string, members: string[]) =>
-    api.post<Team>("/api/teams", { name, members }, { params: { token }, silent: true } as AtlasRequestConfig);
+export const createTeam = (token: string, name: string, members: string[], projectId?: string) =>
+    api.post<Team>("/api/teams", { name, members, project_id: projectId || "" }, { params: { token }, silent: true } as AtlasRequestConfig);
 
-export const updateTeam = (token: string, teamId: string, name: string, members: string[]) =>
-    api.put<Team>(`/api/teams/${encodeURIComponent(teamId)}`, { name, members }, { params: { token }, silent: true } as AtlasRequestConfig);
+export const updateTeam = (token: string, teamId: string, name: string, members: string[], projectId?: string) =>
+    api.put<Team>(`/api/teams/${encodeURIComponent(teamId)}`, { name, members, project_id: projectId || "" }, { params: { token, project_id: projectId || "" }, silent: true } as AtlasRequestConfig);
 
-export const deleteTeam = (token: string, teamId: string) =>
-    api.delete<{ status: string }>(`/api/teams/${encodeURIComponent(teamId)}`, { params: { token }, silent: true } as AtlasRequestConfig);
+export const deleteTeam = (token: string, teamId: string, projectId?: string) =>
+    api.delete<{ status: string }>(`/api/teams/${encodeURIComponent(teamId)}`, { params: { token, project_id: projectId || "" }, silent: true } as AtlasRequestConfig);
 
 export const getProjectSecrets = (projectId: string, token: string) =>
     api.get<{ count: number; secrets: SecretFinding[] }>(`/api/projects/${encodeURIComponent(projectId)}/secrets`, { params: { token }, silent: true } as AtlasRequestConfig);

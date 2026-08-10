@@ -1671,6 +1671,7 @@ def export_project(
 class TeamRequest(BaseModel):
     name: str
     members: list[str] = []
+    project_id: str = ""
 
 
 def _validate_member_emails(emails: list[str]) -> list[str]:
@@ -1711,24 +1712,28 @@ def _require_admin(token: str) -> dict:
 
 
 @router.get("/api/teams")
-def list_teams(token: str = Query("")):
-    """List all teams (super admins only)."""
+def list_teams(token: str = Query(""), project_id: str = Query("")):
+    """List the teams of a project (super admins only). Teams are scoped to
+    the project they were created in, so a team never leaks into another
+    project's security center."""
     _require_admin(token)
     teams = [
         {
             "id": team_id,
             "name": team.get("name", ""),
             "members": team.get("members") or [],
+            "project_id": team.get("project_id", ""),
             "created_at": team.get("created_at"),
         }
         for team_id, team in sorted(authz.list_teams().items())
+        if not project_id or team.get("project_id", "") == project_id
     ]
     return {"teams": teams}
 
 
 @router.post("/api/teams")
 def create_team(request: TeamRequest, token: str = Query("")):
-    """Create a team (super admins only)."""
+    """Create a team scoped to a project (super admins only)."""
     user = _require_admin(token)
     if not request.name.strip():
         raise HTTPException(status_code=422, detail="name is required.")
@@ -1737,23 +1742,26 @@ def create_team(request: TeamRequest, token: str = Query("")):
         "id": team_id,
         "name": request.name.strip(),
         "members": _validate_member_emails(request.members),
+        "project_id": request.project_id,
         "created_at": time.time(),
         "created_by": user["email"],
     }
     authz.save_team(team)
-    authz.audit(user["email"], "team.create", team_id, {"name": team["name"]})
+    authz.audit(user["email"], "team.create", team_id, {"name": team["name"], "project_id": request.project_id})
     bus.publish("team.changed", payload={"team_id": team_id, "action": "create"})
     return team
 
 
 @router.put("/api/teams/{team_id}")
-def update_team(team_id: str, request: TeamRequest, token: str = Query("")):
+def update_team(team_id: str, request: TeamRequest, token: str = Query(""), project_id: str = Query("")):
     """Rename a team and/or replace its membership."""
     user = _require_admin(token)
     teams = authz.list_teams()
     if team_id not in teams:
         raise HTTPException(status_code=404, detail="Team not found.")
     team = teams[team_id]
+    if project_id and team.get("project_id", "") != project_id:
+        raise HTTPException(status_code=403, detail="Team does not belong to this project.")
     if request.name.strip():
         team["name"] = request.name.strip()
     team["members"] = _validate_member_emails(request.members)
@@ -1764,13 +1772,15 @@ def update_team(team_id: str, request: TeamRequest, token: str = Query("")):
 
 
 @router.post("/api/teams/{team_id}/members")
-def add_team_member(team_id: str, request: TeamRequest, token: str = Query("")):
+def add_team_member(team_id: str, request: TeamRequest, token: str = Query(""), project_id: str = Query("")):
     """Add members to an existing team without replacing the whole roster."""
     user = _require_admin(token)
     teams = authz.list_teams()
     if team_id not in teams:
         raise HTTPException(status_code=404, detail="Team not found.")
     team = teams[team_id]
+    if project_id and team.get("project_id", "") != project_id:
+        raise HTTPException(status_code=403, detail="Team does not belong to this project.")
     current = set(team.get("members") or [])
     current.update(_validate_member_emails(request.members))
     team["members"] = sorted(current)
@@ -1781,12 +1791,17 @@ def add_team_member(team_id: str, request: TeamRequest, token: str = Query("")):
 
 
 @router.delete("/api/teams/{team_id}")
-def delete_team(team_id: str, token: str = Query("")):
+def delete_team(team_id: str, token: str = Query(""), project_id: str = Query("")):
     """Delete a team (super admins only)."""
     user = _require_admin(token)
+    teams = authz.list_teams()
+    if team_id not in teams:
+        raise HTTPException(status_code=404, detail="Team not found.")
+    if project_id and teams[team_id].get("project_id", "") != project_id:
+        raise HTTPException(status_code=403, detail="Team does not belong to this project.")
     if not authz.delete_team(team_id):
         raise HTTPException(status_code=404, detail="Team not found.")
-    authz.audit(user["email"], "team.delete", team_id)
+    authz.audit(user["email"], "team.delete", team_id, {"project_id": project_id})
     bus.publish("team.changed", payload={"team_id": team_id, "action": "delete"})
     return {"status": "deleted"}
 

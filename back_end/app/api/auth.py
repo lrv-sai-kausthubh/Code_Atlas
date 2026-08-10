@@ -17,6 +17,7 @@ from app.services import authorization as authz
 from app.services.events import bus
 from .routes import (
     _download_github_repo_zip,
+    _existing_upload_task,
     _extract_and_analyze,
     _new_upload_task,
     _update_upload_task,

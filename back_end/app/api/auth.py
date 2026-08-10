@@ -307,6 +307,32 @@ def _resolve_github_email(login: str, user_info: dict, access_token: str) -> str
     return (user_info.get("email") or "").strip().lower() or f"{login}@users.noreply.github.com"
 
 
+def _email_was_registered(email: str) -> bool:
+    """Best-effort check of whether an account was created with email+password.
+
+    Legacy accounts (created before password_set existed) carry no flag. An
+    account registered via email always leaves an `auth.register` audit line,
+    while GitHub-only accounts never do — and the old code made it impossible
+    for GitHub-only accounts to set a password (the placeholder hash never
+    matched), so a missing flag means the password was never user-set.
+    """
+    try:
+        with open(authz.AUDIT_FILE, "r", encoding="utf-8") as file:
+            for line in file:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    event.get("action") == "auth.register"
+                    and event.get("email") == email
+                ):
+                    return True
+    except OSError:
+        pass
+    return False
+
+
 def _bind_github_login(email: str, login: str, access_token: str, name: str, avatar_url: str) -> str:
     """Bind a GitHub login to the account keyed by `email`, linking or re-keying
     `@users.noreply.github.com` placeholder accounts to the real email so that
@@ -331,8 +357,10 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
         user["github_access_token"] = encrypted
         user["name"] = name
         user["avatar_url"] = avatar_url
-        # An account registered with a password keeps its real password.
-        user.setdefault("password_set", True)
+        # An account registered with email+password keeps its real password;
+        # a GitHub-created legacy account (no flag, no register audit line)
+        # still needs a password to be set.
+        user.setdefault("password_set", _email_was_registered(email))
         if holder:
             placeholder_user = USERS.pop(holder, None)
             if placeholder_user:

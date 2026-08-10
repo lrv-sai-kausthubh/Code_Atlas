@@ -331,6 +331,8 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
         user["github_access_token"] = encrypted
         user["name"] = name
         user["avatar_url"] = avatar_url
+        # An account registered with a password keeps its real password.
+        user.setdefault("password_set", True)
         if holder:
             placeholder_user = USERS.pop(holder, None)
             if placeholder_user:
@@ -351,6 +353,9 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
         user["github_access_token"] = encrypted
         user["avatar_url"] = avatar_url
         user["role"] = user.get("role") or authz.DEFAULT_ROLE
+        # Account originally created via GitHub (placeholder password): the
+        # user never chose one, so the "set a password" flow must trigger.
+        user.setdefault("password_set", False)
         USERS[email] = user
         authz.rekey_user_email(holder, email)
         authz.audit("system", "github.rekey", f"{holder} -> {email}")
@@ -376,6 +381,11 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
         user["github_access_token"] = encrypted
         user["name"] = name
         user["avatar_url"] = avatar_url
+        # A @users.noreply.github.com key only ever comes from GitHub account
+        # creation, so an account without the flag has a placeholder password
+        # (legacy accounts created before password_set existed).
+        if is_noreply:
+            user.setdefault("password_set", False)
     return email
 
 

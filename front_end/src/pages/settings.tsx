@@ -13,7 +13,9 @@ type SettingsPageProps = {
         github_login?: string | null;
         avatar_url?: string | null;
         created_at?: number | null;
+        password_set?: boolean;
     };
+    onUserChange: (user: SettingsPageProps["user"]) => void;
     theme: "dark" | "light";
     onToggleTheme: () => void;
     onOpenProfile: () => void;
@@ -22,16 +24,22 @@ type SettingsPageProps = {
     onLogout: () => void;
 };
 
-function Settings({ token, user, theme, onToggleTheme, onOpenProfile, onOpenSettings, onNewProject, onLogout }: SettingsPageProps) {
+function Settings({ token, user, onUserChange, theme, onToggleTheme, onOpenProfile, onOpenSettings, onNewProject, onLogout }: SettingsPageProps) {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [changing, setChanging] = useState(false);
 
+    const needsPassword = user.password_set === false;
+
     const handleChangePassword = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!currentPassword || !newPassword) {
-            toastValidation("Enter your current and new password.");
+        if (!needsPassword && !currentPassword) {
+            toastValidation("Enter your current password.");
+            return;
+        }
+        if (!newPassword) {
+            toastValidation("Enter a new password.");
             return;
         }
         if (newPassword.length < 6) {
@@ -43,14 +51,15 @@ function Settings({ token, user, theme, onToggleTheme, onOpenProfile, onOpenSett
             return;
         }
         setChanging(true);
-        const loadingId = toastLoading("Updating password…");
+        const loadingId = toastLoading(needsPassword ? "Setting password…" : "Updating password…");
         try {
-            await changePassword(token, currentPassword, newPassword);
+            await changePassword(token, needsPassword ? "" : currentPassword, newPassword);
             setCurrentPassword("");
             setNewPassword("");
             setConfirmPassword("");
+            onUserChange({ ...user, password_set: true });
             toastDismiss(loadingId);
-            toastSuccess("Password changed.");
+            toastSuccess(needsPassword ? "Password set. You can now sign in with email too." : "Password changed.");
         } catch (error) {
             toastDismiss(loadingId);
             const detail =
@@ -62,8 +71,6 @@ function Settings({ token, user, theme, onToggleTheme, onOpenProfile, onOpenSett
             setChanging(false);
         }
     };
-
-    const isGitHubOnly = Boolean(user.github_login);
 
     return (
         <main className="min-h-screen bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#e2e6e0]">
@@ -101,11 +108,18 @@ function Settings({ token, user, theme, onToggleTheme, onOpenProfile, onOpenSett
 
                 <section className="rounded-lg border border-[#2b3030] bg-[#15191a] p-6 light:border-[#d6dfda] light:bg-[#f6f8f5]">
                     <h3 className="mb-1 font-dm text-[13px] tracking-[.1em] text-[#aeb8b3] light:text-[#405149]">SECURITY</h3>
-                    <p className="mb-4 text-[12px] text-[#777e7d] light:text-[#71807a]">Change your account password.</p>
-                    {isGitHubOnly && !user.github_login ? (
-                        <p className="text-[12px] text-[#f17c71]">This account has no password set. Sign in with email to set one.</p>
-                    ) : (
-                        <form onSubmit={handleChangePassword} className="flex flex-col gap-5">
+                    <p className="mb-4 text-[12px] text-[#777e7d] light:text-[#71807a]">
+                        {needsPassword
+                            ? "Your account was created with GitHub and has no password yet. Set one to also sign in with your email."
+                            : "Change your account password."}
+                    </p>
+                    {needsPassword && (
+                        <p className="mb-4 w-fit border border-[#f2b84b]/60 px-2 py-1 font-dm text-[9px] tracking-[.08em] text-[#f2b84b]">
+                            PASSWORD NOT SET
+                        </p>
+                    )}
+                    <form onSubmit={handleChangePassword} className="flex flex-col gap-5">
+                        {!needsPassword && (
                             <label className="flex flex-col gap-2">
                                 <span className="font-dm text-[10px] tracking-[.1em] text-[#777e7d] light:text-[#71807a]">CURRENT PASSWORD</span>
                                 <input
@@ -115,6 +129,7 @@ function Settings({ token, user, theme, onToggleTheme, onOpenProfile, onOpenSett
                                     className="border border-[#2b3030] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#c8d3cd] light:text-[#202824]"
                                 />
                             </label>
+                        )}
                             <label className="flex flex-col gap-2">
                                 <span className="font-dm text-[10px] tracking-[.1em] text-[#777e7d] light:text-[#71807a]">NEW PASSWORD</span>
                                 <input
@@ -139,11 +154,10 @@ function Settings({ token, user, theme, onToggleTheme, onOpenProfile, onOpenSett
                                     disabled={changing}
                                     className="border border-[#f17c71] bg-transparent px-6 py-3 font-dm text-[11px] tracking-[.08em] text-[#f17c71] transition-colors hover:bg-[#f17c71] hover:text-[#101112] disabled:opacity-60"
                                 >
-                                    {changing ? "UPDATING…" : "UPDATE PASSWORD"}
+                                    {changing ? "UPDATING…" : needsPassword ? "SET PASSWORD" : "UPDATE PASSWORD"}
                                 </button>
                             </div>
                         </form>
-                    )}
                 </section>
             </div>
         </main>

@@ -138,7 +138,7 @@ class UpdateProfileRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
+    current_password: str = ""
     new_password: str
 
 
@@ -235,6 +235,7 @@ def _current_user(token: str) -> dict | None:
         "avatar_url": user.get("avatar_url"),
         "created_at": user.get("created_at"),
         "role": role,
+        "password_set": bool(user.get("password_set", True)),
     }
 
 
@@ -362,6 +363,7 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
             "email": email,
             "salt": salt,
             "password_hash": _hash_password(secrets.token_hex(16), salt),
+            "password_set": False,
             "github_login": login,
             "github_access_token": encrypted,
             "avatar_url": avatar_url,
@@ -375,6 +377,33 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
         user["name"] = name
         user["avatar_url"] = avatar_url
     return email
+
+
+def _grant_pending_collaborator(email: str, login: str) -> None:
+    """When a GitHub collaborator signs in for the first time, grant them
+    access to every GitHub-backed project where their login was already
+    listed as a collaborator but had no CodeAtlas account yet."""
+    if not login:
+        return
+    for policy in authz.load_all_policies():
+        if policy.source != "github":
+            continue
+        pending = [
+            item
+            for item in policy.github_collaborators
+            if item.get("login") == login and not item.get("email")
+        ]
+        if not pending:
+            continue
+        owner = USERS.get(policy.owner_email)
+        access_token = _github_token_for_user(owner) if owner else ""
+        if not access_token:
+            continue
+        try:
+            authz.sync_github_collaborators(policy, access_token)
+            authz.audit(email, "collaborators.claim", policy.project_id, {"login": login})
+        except Exception:
+            pass
 
 
 @router.get("/api/auth/github/callback")
@@ -405,6 +434,7 @@ def github_callback(code: str):
         email = _bind_github_login(resolved_email, login, access_token, name, user_info.get("avatar_url"))
         _save_users()
         token = _new_session(email)
+    _grant_pending_collaborator(email, login)
     authz.audit(email, "auth.login", f"github:{login}")
     return RedirectResponse(f"{_frontend_url()}/?token={token}&github=connected")
 
@@ -426,6 +456,7 @@ def register(request: RegisterRequest):
             "email": email,
             "salt": salt,
             "password_hash": _hash_password(request.password, salt),
+            "password_set": True,
             "role": authz.DEFAULT_ROLE,
             "created_at": time.time(),
         }
@@ -504,14 +535,15 @@ def change_password(request: ChangePasswordRequest, token: str):
         user = USERS.get(session.get("email"))
         if not user:
             raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
-        if "password_hash" not in user:
-            raise HTTPException(status_code=400, detail="GitHub-only accounts cannot change a password. Connect via email instead.")
-        current = _hash_password(request.current_password, user["salt"])
-        if not hmac.compare_digest(current, user["password_hash"]):
-            raise HTTPException(status_code=401, detail="Current password is incorrect.")
+        password_set = bool(user.get("password_set", True))
+        if password_set:
+            current = _hash_password(request.current_password, user["salt"])
+            if not hmac.compare_digest(current, user["password_hash"]):
+                raise HTTPException(status_code=401, detail="Current password is incorrect.")
         new_salt = secrets.token_hex(8)
         user["salt"] = new_salt
         user["password_hash"] = _hash_password(request.new_password, new_salt)
+        user["password_set"] = True
         _save_users()
     return {"status": "password_changed"}
 

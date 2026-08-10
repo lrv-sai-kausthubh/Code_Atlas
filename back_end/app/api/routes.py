@@ -1411,7 +1411,12 @@ def list_project_users(project_id: str, token: str = Query("")):
             }
             for email, user in sorted(users.items())
             if email in member_emails
-        ]
+        ],
+        "pending": [
+            {"login": item["login"], "permission": item.get("permission", "pull")}
+            for item in policy.github_collaborators
+            if not item.get("email")
+        ],
     }
 
 

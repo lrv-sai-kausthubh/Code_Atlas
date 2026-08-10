@@ -10,6 +10,7 @@ import Security from "./pages/security";
 import Admin from "./pages/admin";
 import { getMe, logout } from "./services/api";
 import type { CurrentUser } from "./services/api";
+import { toastState } from "./services/toast";
 import { NavigationProvider, useNavigation } from "./services/navigation";
 import { AtlasLoader } from "./components/premium-loader";
 
@@ -83,6 +84,23 @@ function AppInner() {
         return () => { alive = false; };
     }, [navigate, route, token, openPendingProject]);
 
+    useEffect(() => {
+        if (!checked || !user || user.password_set !== false) return;
+        const remind = () => {
+            toastState("info", {
+                description: "Set a password for your CodeAtlas account so you can sign in even without GitHub.",
+                duration: 8000,
+                action: {
+                    label: "SET PASSWORD",
+                    onClick: () => navigate("profile"),
+                },
+            });
+        };
+        remind();
+        const interval = window.setInterval(remind, 5 * 60 * 1000);
+        return () => window.clearInterval(interval);
+    }, [checked, user, navigate]);
+
     const handleLogin = useCallback((newToken: string) => {
         localStorage.setItem(TOKEN_KEY, newToken);
         setToken(newToken);
@@ -146,6 +164,7 @@ function AppInner() {
         return <>{token && user && (
             <Settings
                 token={token}
+                onUserChange={setUser}
                 {...topBarProps}
                 user={user}
             />

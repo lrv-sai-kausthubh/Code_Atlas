@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import BackButton from "../components/back-button";
 import TopBar from "../components/workspace/topbar";
-import { updateProfile } from "../services/api";
+import { updateProfile, changePassword } from "../services/api";
 import { toastDismiss, toastError, toastLoading, toastSuccess, toastValidation } from "../services/toast";
 
 type ProfilePageProps = {
@@ -13,6 +13,7 @@ type ProfilePageProps = {
         github_login?: string | null;
         avatar_url?: string | null;
         created_at?: number | null;
+        password_set?: boolean;
     };
     onUserChange: (user: ProfilePageProps["user"]) => void;
     theme: "dark" | "light";
@@ -27,6 +28,42 @@ function Profile({ token, user, onUserChange, theme, onToggleTheme, onOpenProfil
     const [name, setName] = useState(user.name || "");
     const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || "");
     const [saving, setSaving] = useState(false);
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [settingPassword, setSettingPassword] = useState(false);
+
+    const needsPassword = user.password_set === false;
+
+    const handleSetPassword = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (newPassword.length < 6) {
+            toastValidation("Password must be at least 6 characters long.");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toastValidation("Passwords do not match.");
+            return;
+        }
+        setSettingPassword(true);
+        const loadingId = toastLoading("Setting password…");
+        try {
+            await changePassword(token, "", newPassword);
+            setNewPassword("");
+            setConfirmPassword("");
+            onUserChange({ ...user, password_set: true });
+            toastDismiss(loadingId);
+            toastSuccess("Password set. You can now sign in with email too.");
+        } catch (error) {
+            toastDismiss(loadingId);
+            const detail =
+                error && typeof error === "object" && "response" in error
+                    ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+                    : undefined;
+            toastError(detail ?? "Could not set password.");
+        } finally {
+            setSettingPassword(false);
+        }
+    };
 
     const handleSave = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -94,6 +131,45 @@ function Profile({ token, user, onUserChange, theme, onToggleTheme, onOpenProfil
                         )}
                     </div>
                 </section>
+
+                {needsPassword && (
+                    <section className="mb-8 rounded-lg border border-[#f2b84b]/50 bg-[#1c1810] p-6 light:border-[#d8b368] light:bg-[#faf6ec]">
+                        <h3 className="mb-1 font-dm text-[13px] tracking-[.1em] text-[#f2b84b] light:text-[#8a6a1f]">SET ACCOUNT PASSWORD</h3>
+                        <p className="mb-4 text-[12px] text-[#aeb8b3] light:text-[#61716a]">
+                            You signed in with GitHub, so your account has no password yet. Set one so you can
+                            also sign in with your email.
+                        </p>
+                        <form onSubmit={handleSetPassword} className="flex flex-col gap-5">
+                            <label className="flex flex-col gap-2">
+                                <span className="font-dm text-[10px] tracking-[.1em] text-[#aeb8b3] light:text-[#61716a]">NEW PASSWORD</span>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(event) => setNewPassword(event.target.value)}
+                                    className="border border-[#4a4232] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#cfc29b] light:text-[#202824]"
+                                />
+                            </label>
+                            <label className="flex flex-col gap-2">
+                                <span className="font-dm text-[10px] tracking-[.1em] text-[#aeb8b3] light:text-[#61716a]">CONFIRM PASSWORD</span>
+                                <input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(event) => setConfirmPassword(event.target.value)}
+                                    className="border border-[#4a4232] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#cfc29b] light:text-[#202824]"
+                                />
+                            </label>
+                            <div>
+                                <button
+                                    type="submit"
+                                    disabled={settingPassword}
+                                    className="border border-[#f2b84b] bg-transparent px-6 py-3 font-dm text-[11px] tracking-[.08em] text-[#f2b84b] transition-colors hover:bg-[#f2b84b] hover:text-[#101112] disabled:opacity-60"
+                                >
+                                    {settingPassword ? "SETTING…" : "SET PASSWORD"}
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                )}
 
                 <section className="rounded-lg border border-[#2b3030] bg-[#15191a] p-6 light:border-[#d6dfda] light:bg-[#f6f8f5]">
                     <h3 className="mb-4 font-dm text-[13px] tracking-[.1em] text-[#aeb8b3] light:text-[#405149]">EDIT PROFILE</h3>

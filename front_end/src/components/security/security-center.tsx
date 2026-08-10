@@ -110,6 +110,7 @@ function SecurityCenter({
   const [users, setUsers] = useState<
     { email: string; name: string; role: string; github_login?: string | null }[]
   >([]);
+  const [pending, setPending] = useState<{ login: string; permission: string }[]>([]);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [versions, setVersions] = useState<PolicyVersion[]>([]);
@@ -140,6 +141,7 @@ function SecurityCenter({
       ]);
       if (policyRes) setPolicy(policyRes.data);
       if (usersRes) setUsers(usersRes.data.users);
+      if (usersRes) setPending(usersRes.data.pending ?? []);
       if (requestsRes)
         setRequests(
           requestsRes.data.requests.filter((request) => request.status === "pending"),
@@ -711,6 +713,46 @@ function SecurityCenter({
                   );
                 })}
               </div>
+              {pending.length > 0 && (
+                <div className="mt-5">
+                  <SectionLabel>
+                    PENDING GITHUB COLLABORATORS · NO CODEATLAS ACCOUNT YET
+                  </SectionLabel>
+                  <p className="mb-3 max-w-[680px] text-[12px] leading-[1.6] text-[#89958f] light:text-[#61716a]">
+                    These people have access on GitHub but haven't signed in here
+                    yet. Once they open the project link and sign in with GitHub,
+                    they're granted automatically — no manual step needed.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {pending.map((item) => (
+                      <div
+                        key={item.login}
+                        className={`${CARD} flex items-center justify-between gap-3 px-3 py-2.5`}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="grid h-8 w-8 shrink-0 place-items-center bg-[#2a3330] font-dm text-[12px] font-bold text-[#f2b84b] light:bg-[#e3ece7] light:text-[#398f83]">
+                            @
+                          </span>
+                          <div className="min-w-0">
+                            <div className="truncate font-dm text-[12px] text-[#b9c1bd] light:text-[#34473f]">
+                              @{item.login}
+                            </div>
+                            <div className="mt-0.5 w-fit border border-[#f2b84b]/60 px-1.5 py-0.5 font-dm text-[8px] tracking-[.08em] text-[#f2b84b]">
+                              {item.permission.toUpperCase()} ON GITHUB
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          className="shrink-0 border border-[#64d5c4]/60 px-3 py-1.5 font-dm text-[9px] tracking-[.08em] text-[#64d5c4] hover:bg-[#64d5c4]/10"
+                          onClick={copyShareLink}
+                        >
+                          COPY SHARE LINK
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="mt-3 flex max-w-[680px] flex-wrap items-center gap-2">
                 <input
                   type="email"

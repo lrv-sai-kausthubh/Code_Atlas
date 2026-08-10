@@ -199,6 +199,7 @@ class Policy:
         self.grants: list[Grant] = []
         self.status: str = "new"  # "new" | "in_progress" | "completed"
         self.collaborators: list[str] = []  # GitHub collaborators that have CodeAtlas accounts
+        self.github_collaborators: list[dict[str, Any]] = []  # last GitHub snapshot: {login, permission, email}
 
     # ── serialization ──────────────────────────────────────────────────────
     def to_dict(self) -> dict[str, Any]:
@@ -214,6 +215,7 @@ class Policy:
             "default_access": dict(self.default_access),
             "status": self.status,
             "collaborators": list(self.collaborators),
+            "github_collaborators": list(self.github_collaborators),
             "grants": [
                 {
                     "subject_type": g.subject_type,
@@ -244,6 +246,7 @@ class Policy:
         if policy.status not in ("new", "in_progress", "completed"):
             policy.status = "new"
         policy.collaborators = list(data.get("collaborators", []) or [])
+        policy.github_collaborators = list(data.get("github_collaborators", []) or [])
         default = data.get("default_access") or {}
         for flag in PERMISSION_FLAGS:
             policy.default_access[flag] = bool(default.get(flag, False))
@@ -1059,6 +1062,7 @@ def sync_github_collaborators(policy: Policy, access_token: str) -> list[dict[st
     full = {"metadata": True, "graph": True, "source": True, "download": True}
     graph_only = {"metadata": True, "graph": True, "source": False, "download": False}
     snapshot = []
+    github_collaborators: list[dict[str, Any]] = []
     managers: list[str] = []
     matched: list[str] = []
     for collaborator in collaborators:
@@ -1069,6 +1073,9 @@ def sync_github_collaborators(policy: Policy, access_token: str) -> list[dict[st
             "push" if permissions.get("push") else "pull"
         )
         snapshot.append({"login": login, "permission": level})
+        github_collaborators.append(
+            {"login": login, "permission": level, "email": email or ""}
+        )
         if not email:
             continue
         matched.append(email)
@@ -1086,6 +1093,7 @@ def sync_github_collaborators(policy: Policy, access_token: str) -> list[dict[st
             remove_user_grant(policy, previous, "")
     policy.collaborators = matched
     policy.managers = list(dict.fromkeys(managers))
+    policy.github_collaborators = github_collaborators
     save_policy(policy)
     return snapshot
 

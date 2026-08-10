@@ -74,6 +74,7 @@ export type CurrentUser = {
     avatar_url?: string | null;
     created_at?: number | null;
     role?: string;
+    password_set?: boolean;
 };
 
 export const register = (name: string, email: string, password: string) =>
@@ -112,7 +113,10 @@ export const getProjectPolicy = (projectId: string, token: string) =>
     api.get<RepositoryPolicy>(`/api/projects/${encodeURIComponent(projectId)}/policy`, { params: { token }, silent: true } as AtlasRequestConfig);
 
 export const listProjectUsers = (projectId: string, token: string) =>
-    api.get<{ users: { email: string; name: string; role: string; github_login?: string | null }[] }>(`/api/projects/${encodeURIComponent(projectId)}/users`, { params: { token }, silent: true } as AtlasRequestConfig);
+    api.get<{
+        users: { email: string; name: string; role: string; github_login?: string | null }[];
+        pending: { login: string; permission: string }[];
+    }>(`/api/projects/${encodeURIComponent(projectId)}/users`, { params: { token }, silent: true } as AtlasRequestConfig);
 
 export const setUserRole = (email: string, role: string, token: string) =>
     api.put<{ email: string; role: string }>(`/api/users/${encodeURIComponent(email)}/role`, null, { params: { token, role }, silent: true } as AtlasRequestConfig);

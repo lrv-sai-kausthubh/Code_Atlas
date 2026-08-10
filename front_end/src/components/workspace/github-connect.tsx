@@ -42,11 +42,11 @@ function GithubConnect({
         greetedRef.current = true;
         toastSuccess("GitHub connected.");
       }
-    } catch {
+    } catch (error) {
       setUser(null);
-      toastError(
-        "Could not reach GitHub. Reconnect to sync your repositories.",
-      );
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data
+        ?.detail;
+      toastError(detail ?? "Could not reach GitHub. Reconnect to sync your repositories.");
     } finally {
       toastDismiss(loadingId);
       setLoading(false);

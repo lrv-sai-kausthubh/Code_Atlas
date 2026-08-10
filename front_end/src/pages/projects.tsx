@@ -55,6 +55,25 @@ function Projects({
     }
   }, [token]);
 
+  const handleParseComplete = useCallback((nextGraph: ProjectGraph) => {
+    navigate("home", { state: { graph: nextGraph } });
+    void loadProjects();
+  }, [loadProjects, navigate]);
+
+  const handleParseError = useCallback((message: string) => {
+    setError(message);
+    setParsingFile(null);
+    setParsingRepoUrl("");
+    setParsingConnectedRepo(null);
+  }, []);
+
+  const handleParseCancel = useCallback(() => {
+    setParsingFile(null);
+    setParsingRepoUrl("");
+    setParsingConnectedRepo(null);
+    setError("Upload cancelled.");
+  }, []);
+
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
@@ -195,9 +214,9 @@ function Projects({
     <div className="mt-6 flex-1">
       {listError && <p className="font-dm text-xs text-[#f17c71]">{listError}</p>}
       {!projects && !listError && (
-        <p className="font-dm text-xs text-[#79817e]">
+        <div className="font-dm text-xs text-[#79817e]">
           <InlineLoader label="Loading your projects…" />
-        </p>
+        </div>
       )}
       {projects && list.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 py-24">{emptyState}</div>
@@ -277,15 +296,7 @@ function Projects({
                 ))}
               </div>
               <div className="mt-auto flex gap-2">
-                <button
-                  className="flex-1 border border-[#39413e] py-2 font-dm text-[10px] tracking-[.08em] text-[#79817e] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#c2cfc7] light:text-[#5c6b64]"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openProject(project.project_id);
-                  }}
-                >
-                  OPEN MAP
-                </button>
+              
                 {canManage(project) && (
                   <button
                     className="flex-1 border border-[#f2b84b]/50 py-2 font-dm text-[10px] tracking-[.08em] text-[#f2b84b] transition-colors hover:border-[#f2b84b]"
@@ -336,22 +347,9 @@ function Projects({
           connectedRepo={parsingConnectedRepo ?? undefined}
           authToken={parsingConnectedRepo ? token : undefined}
           uploadId={parsingUploadId}
-          onComplete={(nextGraph: ProjectGraph) => {
-            navigate("home", { state: { graph: nextGraph } });
-            void loadProjects();
-          }}
-          onError={(message) => {
-            setError(message);
-            setParsingFile(null);
-            setParsingRepoUrl("");
-            setParsingConnectedRepo(null);
-          }}
-          onCancel={() => {
-            setParsingFile(null);
-            setParsingRepoUrl("");
-            setParsingConnectedRepo(null);
-            setError("Upload cancelled.");
-          }}
+          onComplete={handleParseComplete}
+          onError={handleParseError}
+          onCancel={handleParseCancel}
         />
       ) : (
         <div className="mx-auto flex min-h-[calc(100vh-72px)] w-full max-w-[1180px] flex-col px-[30px] pb-[60px] pt-8 max-[850px]:px-[18px]">

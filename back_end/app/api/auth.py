@@ -5,6 +5,7 @@ import os
 import secrets
 import threading
 import time
+import urllib.error
 import uuid
 from pathlib import Path
 
@@ -321,18 +322,19 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
             break
 
     if not is_noreply and email in USERS:
-        # Real account exists: link the GitHub login onto it.
+        # Real account exists: link the GitHub login onto it, always refreshing
+        # the access token so revoked/expired tokens are replaced on reconnect.
         user = USERS[email]
-        if not user.get("github_login"):
-            user["github_login"] = login
-        if not user.get("github_access_token"):
-            user["github_access_token"] = encrypted
+        user["github_login"] = login
+        user["github_access_token"] = encrypted
         user["name"] = name
         user["avatar_url"] = avatar_url
         if holder:
             placeholder_user = USERS.pop(holder, None)
-            if placeholder_user and not user.get("github_access_token"):
-                user["github_access_token"] = placeholder_user.get("github_access_token") or encrypted
+            if placeholder_user:
+                placeholder_token = placeholder_user.get("github_access_token")
+                if placeholder_token and not user.get("github_access_token"):
+                    user["github_access_token"] = placeholder_token
             authz.rekey_user_email(holder, email)
             authz.audit("system", "github.rekey", f"{holder} -> {email}")
         return email
@@ -367,10 +369,8 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
         }
     else:
         user = USERS[email]
-        if not user.get("github_login"):
-            user["github_login"] = login
-        if not user.get("github_access_token"):
-            user["github_access_token"] = encrypted
+        user["github_login"] = login
+        user["github_access_token"] = encrypted
         user["name"] = name
         user["avatar_url"] = avatar_url
     return email
@@ -527,6 +527,13 @@ def github_repos(token: str):
         raise HTTPException(status_code=400, detail="Connect a GitHub account to list your repositories.")
     try:
         repos = _github_api_get("https://api.github.com/user/repos?per_page=100&sort=updated", access_token)
+    except urllib.error.HTTPError as error:
+        if error.code in (401, 403):
+            raise HTTPException(
+                status_code=401,
+                detail="Your GitHub access token is no longer valid. Reconnect your GitHub account.",
+            ) from error
+        raise HTTPException(status_code=502, detail="Could not reach the GitHub API.") from error
     except Exception as error:
         raise HTTPException(status_code=502, detail="Could not reach the GitHub API.") from error
     return {
@@ -550,6 +557,9 @@ def github_import(request: ImportRepoRequest):
     session = SESSIONS.get(request.token)
     if not session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
+    existing = _existing_upload_task(request.upload_id)
+    if existing is not None:
+        return {"upload_id": request.upload_id, "status": existing["status"]}
     task = _new_upload_task(request.upload_id)
     threading.Thread(
         target=_import_github_repo,

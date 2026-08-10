@@ -71,6 +71,7 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
     const [barHeights, setBarHeights] = useState([0.4, 0.6, 0.8, 0.5, 0.9, 0.65, 0.75]);
     const doneRef = useRef(false);
     const cancelRef = useRef(false);
+    const startedRef = useRef(false);
     const lastLoggedFile = useRef("");
     const logRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +89,8 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
     }), []);
 
     useEffect(() => {
+        if (startedRef.current) return;
+        startedRef.current = true;
         const loadingId = toastLoading(`Analyzing ${projectName}…`);
         const startRequest = isConnectedRepo
             ? importConnectedRepo(`https://github.com/${(connectedRepo as GitHubRepo).full_name}`, uploadId, authToken as string)

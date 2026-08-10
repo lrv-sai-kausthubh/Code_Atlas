@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Toaster } from "sonner";
 import Landing from "./pages/landing";
 import Login from "./pages/login";
@@ -21,6 +21,7 @@ function AppInner() {
     const [token, setToken] = useState<string>(() => localStorage.getItem(TOKEN_KEY) ?? "");
     const [user, setUser] = useState<CurrentUser | null>(null);
     const [checked, setChecked] = useState(false);
+    const reminderShown = useRef<string | null>(null);
     const [theme, setTheme] = useState<"dark" | "light">(
         () => (localStorage.getItem("codeatlas-theme") as "dark" | "light") || "dark",
     );
@@ -88,6 +89,7 @@ function AppInner() {
         if (!checked || !user || user.password_set !== false) return;
         const remind = () => {
             toastState("info", {
+                id: "password-reminder",
                 description: "Set a password for your CodeAtlas account so you can sign in even without GitHub.",
                 duration: 8000,
                 action: {
@@ -96,7 +98,12 @@ function AppInner() {
                 },
             });
         };
-        remind();
+        // StrictMode and repeated restore() calls replace the `user` object
+        // identity, which would otherwise re-fire the toast on every render.
+        if (reminderShown.current !== user.email) {
+            remind();
+            reminderShown.current = user.email;
+        }
         const interval = window.setInterval(remind, 5 * 60 * 1000);
         return () => window.clearInterval(interval);
     }, [checked, user, navigate]);

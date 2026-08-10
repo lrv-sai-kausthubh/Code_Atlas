@@ -54,3 +54,24 @@ Optional environment variables:
 
 Accounts are stored in `data_base/users.json` (passwords are salted and hashed).
 Sessions are held in memory and are lost on restart; users just sign in again.
+
+## Deployment (Render)
+
+The repo includes `back_end/Dockerfile` and a root `render.yaml` blueprint.
+
+1. Push to GitHub, then in Render: **New + → Blueprint** → select this repo.
+2. In the dashboard set the secrets: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
+   `FRONTEND_URL` (e.g. `https://your-app.vercel.app`), `BACKEND_BASE`
+   (e.g. `https://your-api.onrender.com`), `ALLOWED_ORIGINS` if needed.
+   `CODEATLAS_SECRET_KEY` is auto-generated on first deploy.
+3. In your GitHub OAuth app, set the authorization callback URL to
+   `https://your-api.onrender.com/api/auth/github/callback`.
+4. Set `VITE_API_URL` on the Vercel project hosting the frontend.
+
+**Important:** the backend keeps sessions and the SSE event bus in memory, so
+run exactly one uvicorn process (the Dockerfile default) and no replicas until
+sessions move to a shared store. Instance disk is ephemeral: `data_base/`
+writes (users, sessions, projects, uploads) are lost on every deploy — the
+managed-database migration (Supabase) is the next phase.
+
+Health check: `GET /healthz`.

@@ -27,7 +27,11 @@ import type {
   RepositoryPolicy,
   Team,
 } from "../../types/project";
-import { toastError, toastSuccess, toastProcessing } from "../../services/toast";
+import {
+  toastError,
+  toastSuccess,
+  toastProcessing,
+} from "../../services/toast";
 import { useLiveEvents } from "../../hooks/useLiveEvents";
 import SecurityShell from "./security-shell";
 
@@ -35,7 +39,11 @@ type AccessLevel = "none" | "graph" | "source" | "full";
 
 const LEVEL_OPTIONS: { id: AccessLevel; label: string; hint: string }[] = [
   { id: "none", label: "NONE", hint: "Not visible in the graph" },
-  { id: "graph", label: "GRAPH", hint: "See node + relationships, source locked" },
+  {
+    id: "graph",
+    label: "GRAPH",
+    hint: "See node + relationships, source locked",
+  },
   { id: "source", label: "SOURCE", hint: "Graph + read source code" },
   { id: "full", label: "FULL", hint: "Source + download / export" },
 ];
@@ -108,16 +116,33 @@ function SecurityCenter({
   const [tab, setTab] = useState("overview");
   const [policy, setPolicy] = useState<RepositoryPolicy | null>(null);
   const [users, setUsers] = useState<
-    { email: string; name: string; role: string; github_login?: string | null }[]
+    {
+      email: string;
+      name: string;
+      role: string;
+      github_login?: string | null;
+    }[]
   >([]);
-  const [pending, setPending] = useState<{ login: string; permission: string }[]>([]);
+  const [pending, setPending] = useState<
+    { login: string; permission: string }[]
+  >([]);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [versions, setVersions] = useState<PolicyVersion[]>([]);
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [tempHours, setTempHours] = useState<Record<string, string>>({});
   const [newTeam, setNewTeam] = useState({ name: "", members: "" });
-  const [policyPath, setPolicyPath] = useState({ subjectType: "user", subjectValue: "", path: "", effect: "allow" as "allow" | "deny", metadata: true, graph: true, source: true, download: true, expiresHours: "" });
+  const [policyPath, setPolicyPath] = useState({
+    subjectType: "user",
+    subjectValue: "",
+    path: "",
+    effect: "allow" as "allow" | "deny",
+    metadata: true,
+    graph: true,
+    source: true,
+    download: true,
+    expiresHours: "",
+  });
   const [sched, setSched] = useState({
     subjectType: "user",
     subjectValue: "",
@@ -132,19 +157,22 @@ function SecurityCenter({
 
   const refresh = useCallback(async () => {
     try {
-      const [policyRes, usersRes, requestsRes, teamsRes, versionsRes] = await Promise.all([
-        getProjectPolicy(projectId, token).catch(() => null),
-        listProjectUsers(projectId, token).catch(() => null),
-        listAccessRequests(projectId, token).catch(() => null),
-        listTeams(token, projectId).catch(() => null),
-        listPolicyVersions(projectId, token).catch(() => null),
-      ]);
+      const [policyRes, usersRes, requestsRes, teamsRes, versionsRes] =
+        await Promise.all([
+          getProjectPolicy(projectId, token).catch(() => null),
+          listProjectUsers(projectId, token).catch(() => null),
+          listAccessRequests(projectId, token).catch(() => null),
+          listTeams(token, projectId).catch(() => null),
+          listPolicyVersions(projectId, token).catch(() => null),
+        ]);
       if (policyRes) setPolicy(policyRes.data);
       if (usersRes) setUsers(usersRes.data.users);
       if (usersRes) setPending(usersRes.data.pending ?? []);
       if (requestsRes)
         setRequests(
-          requestsRes.data.requests.filter((request) => request.status === "pending"),
+          requestsRes.data.requests.filter(
+            (request) => request.status === "pending",
+          ),
         );
       if (teamsRes) setTeams(teamsRes.data.teams);
       if (versionsRes) setVersions(versionsRes.data.versions);
@@ -175,7 +203,8 @@ function SecurityCenter({
     }, 300);
   });
 
-  const markBusy = (key: string) => setBusy((current) => new Set(current).add(key));
+  const markBusy = (key: string) =>
+    setBusy((current) => new Set(current).add(key));
   const markIdle = (key: string) =>
     setBusy((current) => {
       const next = new Set(current);
@@ -260,7 +289,9 @@ function SecurityCenter({
     } catch {
       setUsers((current) =>
         current.map((user) =>
-          user.email === email ? { ...user, role: previous ?? user.role } : user,
+          user.email === email
+            ? { ...user, role: previous ?? user.role }
+            : user,
         ),
       );
       toastError("Could not update the role.");
@@ -311,7 +342,8 @@ function SecurityCenter({
       );
       await refresh();
     } catch (error) {
-      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail;
+      const detail = (error as { response?: { data?: { detail?: string } } })
+        .response?.data?.detail;
       toastError(detail || "Could not update the manager.");
     } finally {
       markIdle(`manager-${email}`);
@@ -356,11 +388,16 @@ function SecurityCenter({
     }
   };
 
-  const toggleDefault = async (flag: keyof RepositoryPolicy["default_access"]) => {
+  const toggleDefault = async (
+    flag: keyof RepositoryPolicy["default_access"],
+  ) => {
     if (!policy) return;
     markBusy(`default-${flag}`);
     try {
-      const next = { ...policy.default_access, [flag]: !policy.default_access[flag] };
+      const next = {
+        ...policy.default_access,
+        [flag]: !policy.default_access[flag],
+      };
       await updateDefaultAccess(projectId, token, next);
       toastSuccess("Default access updated.");
       await refresh();
@@ -388,7 +425,8 @@ function SecurityCenter({
       setNewTeam({ name: "", members: "" });
       await refresh();
     } catch (error) {
-      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail;
+      const detail = (error as { response?: { data?: { detail?: string } } })
+        .response?.data?.detail;
       toastError(detail || "Could not create the team.");
     } finally {
       markIdle("new-team");
@@ -406,7 +444,8 @@ function SecurityCenter({
       toastSuccess(`Team "${team.name}" updated.`);
       await refresh();
     } catch (error) {
-      const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail;
+      const detail = (error as { response?: { data?: { detail?: string } } })
+        .response?.data?.detail;
       toastError(detail || "Could not update the team.");
     } finally {
       markIdle(`edit-${team.id}`);
@@ -450,11 +489,17 @@ function SecurityCenter({
           download: policyPath.download,
         },
         expires_at: policyPath.expiresHours
-          ? Math.floor(Date.now() / 1000) + Number(policyPath.expiresHours) * 3600
+          ? Math.floor(Date.now() / 1000) +
+            Number(policyPath.expiresHours) * 3600
           : undefined,
       });
       toastSuccess("Path policy saved.");
-      setPolicyPath((current) => ({ ...current, path: "", subjectValue: "", expiresHours: "" }));
+      setPolicyPath((current) => ({
+        ...current,
+        path: "",
+        subjectValue: "",
+        expiresHours: "",
+      }));
       await refresh();
     } catch {
       toastError("Could not save the path policy.");
@@ -499,7 +544,11 @@ function SecurityCenter({
         effect: "allow",
         permissions: accessFromLevel("source"),
         windows: [
-          { days: [...sched.days].sort((a, b) => a - b), start: sched.start, end: sched.end },
+          {
+            days: [...sched.days].sort((a, b) => a - b),
+            start: sched.start,
+            end: sched.end,
+          },
         ],
       });
       toastSuccess(`Scheduled source access for ${sched.subjectValue.trim()}.`);
@@ -512,7 +561,9 @@ function SecurityCenter({
     }
   };
 
-  const removeScheduledGrant = async (grant: RepositoryPolicy["grants"][number]) => {
+  const removeScheduledGrant = async (
+    grant: RepositoryPolicy["grants"][number],
+  ) => {
     markBusy(`sched-${grant.subject_value}`);
     try {
       await removeGrant(projectId, token, {
@@ -539,7 +590,9 @@ function SecurityCenter({
   const isManager = (email: string) => (policy?.managers ?? []).includes(email);
   const synced = users.some((user) => user.github_login);
 
-  const formatWindow = (windows: { days: number[]; start: string; end: string }[]) =>
+  const formatWindow = (
+    windows: { days: number[]; start: string; end: string }[],
+  ) =>
     windows
       .map((window) => {
         const names = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -589,11 +642,14 @@ function SecurityCenter({
                 GITHUB COLLABORATORS · MEMBERS &amp; ACCESS LEVELS
               </SectionLabel>
               <p className="mb-3 max-w-[680px] text-[12px] leading-[1.6] text-[#89958f] light:text-[#61716a]">
-                Members you add to this repository on GitHub appear here. Choose what
-                each one can see: <b className="text-[#b9c1bd] light:text-[#34473f]">GRAPH</b>{" "}
+                Members you add to this repository on GitHub appear here. Choose
+                what each one can see:{" "}
+                <b className="text-[#b9c1bd] light:text-[#34473f]">GRAPH</b>{" "}
                 means the node is visible but the source stays locked.{" "}
-                <b className="text-[#b9c1bd] light:text-[#34473f]">SOURCE</b> unlocks the code,{" "}
-                <b className="text-[#b9c1bd] light:text-[#34473f]">FULL</b> also allows downloads.
+                <b className="text-[#b9c1bd] light:text-[#34473f]">SOURCE</b>{" "}
+                unlocks the code,{" "}
+                <b className="text-[#b9c1bd] light:text-[#34473f]">FULL</b> also
+                allows downloads.
               </p>
               <div className="mb-4 flex flex-wrap gap-1.5">
                 {LEVEL_OPTIONS.map((level) => (
@@ -612,12 +668,16 @@ function SecurityCenter({
                   onClick={() => void sync()}
                 >
                   <RefreshCw size={15} />
-                  {synced ? "RESYNC GITHUB COLLABORATORS" : "SYNC GITHUB COLLABORATORS"}
+                  {synced
+                    ? "RESYNC GITHUB COLLABORATORS"
+                    : "SYNC GITHUB COLLABORATORS"}
                 </button>
               )}
               <div className="flex flex-col gap-2">
                 {users.length === 0 && (
-                  <div className={`${CARD} px-4 py-6 text-center font-dm text-[11px] text-[#79817e]`}>
+                  <div
+                    className={`${CARD} px-4 py-6 text-center font-dm text-[11px] text-[#79817e]`}
+                  >
                     No members yet.
                     {policy?.source === "github"
                       ? " Connect GitHub and sync collaborators, or share the project link."
@@ -642,7 +702,9 @@ function SecurityCenter({
                         <div className="min-w-0">
                           <div className="truncate font-dm text-[12px] text-[#b9c1bd] light:text-[#34473f]">
                             {user.name || user.email}
-                            {user.github_login ? ` · @${user.github_login}` : ""}
+                            {user.github_login
+                              ? ` · @${user.github_login}`
+                              : ""}
                             {isOwner(user.email) ? " · OWNER" : ""}
                           </div>
                           <div className="truncate font-dm text-[10px] text-[#79817e] light:text-[#61716a]">
@@ -659,7 +721,12 @@ function SecurityCenter({
                               </span>
                               <select
                                 value={user.role}
-                                onChange={(event) => void changeRole(user.email, event.target.value)}
+                                onChange={(event) =>
+                                  void changeRole(
+                                    user.email,
+                                    event.target.value,
+                                  )
+                                }
                                 className="border border-[#39413e] bg-[#111313] px-1.5 py-0.5 font-dm text-[9px] uppercase text-[#b9c1bd] outline-none focus:border-[#f2b84b] light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                               >
                                 {ROLE_OPTIONS.map((role) => (
@@ -679,7 +746,9 @@ function SecurityCenter({
                       ) : (
                         <div className="flex shrink-0 items-center gap-2">
                           {busy.has(busyKey) && (
-                            <span className="font-dm text-[9px] text-[#f2b84b]">SAVING…</span>
+                            <span className="font-dm text-[9px] text-[#f2b84b]">
+                              SAVING…
+                            </span>
                           )}
                           <LevelPicker
                             value={level}
@@ -693,18 +762,26 @@ function SecurityCenter({
                               className="shrink-0 border border-[#f2b84b]/60 px-2 py-1 font-dm text-[9px] tracking-[.06em] text-[#f2b84b] hover:border-[#f2b84b] disabled:opacity-40"
                               disabled={busy.has(`manager-${user.email}`)}
                               title="Remove manager — they lose the ability to review access requests and edit the policy"
-                              onClick={() => void toggleManager(user.email, "remove")}
+                              onClick={() =>
+                                void toggleManager(user.email, "remove")
+                              }
                             >
-                              {busy.has(`manager-${user.email}`) ? "…" : "MANAGER"}
+                              {busy.has(`manager-${user.email}`)
+                                ? "…"
+                                : "MANAGER"}
                             </button>
                           ) : (
                             <button
                               className="shrink-0 border border-[#39413e] px-2 py-1 font-dm text-[9px] tracking-[.06em] text-[#79817e] hover:border-[#f2b84b] hover:text-[#f2b84b] disabled:opacity-40 light:text-[#61716a]"
                               disabled={busy.has(`manager-${user.email}`)}
                               title="Make this person a project manager — they can review access requests and manage access"
-                              onClick={() => void toggleManager(user.email, "add")}
+                              onClick={() =>
+                                void toggleManager(user.email, "add")
+                              }
                             >
-                              {busy.has(`manager-${user.email}`) ? "…" : "MAKE MANAGER"}
+                              {busy.has(`manager-${user.email}`)
+                                ? "…"
+                                : "MAKE MANAGER"}
                             </button>
                           )}
                         </div>
@@ -719,9 +796,10 @@ function SecurityCenter({
                     PENDING GITHUB COLLABORATORS · NO CODEATLAS ACCOUNT YET
                   </SectionLabel>
                   <p className="mb-3 max-w-[680px] text-[12px] leading-[1.6] text-[#89958f] light:text-[#61716a]">
-                    These people have access on GitHub but haven't signed in here
-                    yet. Once they open the project link and sign in with GitHub,
-                    they're granted automatically — no manual step needed.
+                    These people have access on GitHub but haven't signed in
+                    here yet. Once they open the project link and sign in with
+                    GitHub, they're granted automatically — no manual step
+                    needed.
                   </p>
                   <div className="flex flex-col gap-2">
                     {pending.map((item) => (
@@ -763,34 +841,47 @@ function SecurityCenter({
                 />
                 <select
                   value={memberLevel}
-                  onChange={(event) => setMemberLevel(event.target.value as AccessLevel)}
+                  onChange={(event) =>
+                    setMemberLevel(event.target.value as AccessLevel)
+                  }
                   className="border border-[#39413e] bg-[#111313] px-2 py-2 font-dm text-[10px] uppercase text-[#b9c1bd] outline-none light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                 >
-                  {LEVEL_OPTIONS.filter((level) => level.id !== "none").map((level) => (
-                    <option key={level.id} value={level.id}>
-                      {level.label}
-                    </option>
-                  ))}
+                  {LEVEL_OPTIONS.filter((level) => level.id !== "none").map(
+                    (level) => (
+                      <option key={level.id} value={level.id}>
+                        {level.label}
+                      </option>
+                    ),
+                  )}
                 </select>
                 <button
                   className="shrink-0 border border-[#64d5c4]/60 px-4 py-2 font-dm text-[10px] tracking-[.08em] text-[#64d5c4] hover:bg-[#64d5c4]/10 disabled:opacity-40"
-                  disabled={!memberEmail.trim() || busy.has(`member-${memberEmail.trim().toLowerCase()}`)}
+                  disabled={
+                    !memberEmail.trim() ||
+                    busy.has(`member-${memberEmail.trim().toLowerCase()}`)
+                  }
                   onClick={() => void addMember()}
                 >
-                  {busy.has(`member-${memberEmail.trim().toLowerCase()}`) ? "ADDING…" : "ADD MEMBER"}
+                  {busy.has(`member-${memberEmail.trim().toLowerCase()}`)
+                    ? "ADDING…"
+                    : "ADD MEMBER"}
                 </button>
               </div>
             </div>
 
             <div>
-              <SectionLabel>PROJECT MANAGERS · CAN REVIEW ACCESS REQUESTS</SectionLabel>
+              <SectionLabel>
+                PROJECT MANAGERS · CAN REVIEW ACCESS REQUESTS
+              </SectionLabel>
               <p className="mb-3 max-w-[680px] text-[12px] leading-[1.6] text-[#89958f] light:text-[#61716a]">
-                Managers can open this repository's security center: review access
-                requests, set access levels, and edit the policy — without owning
-                the repository.
+                Managers can open this repository's security center: review
+                access requests, set access levels, and edit the policy —
+                without owning the repository.
               </p>
               <div className="flex flex-col gap-2">
-                <div className={`${CARD} flex items-center justify-between gap-3 px-3 py-2.5`}>
+                <div
+                  className={`${CARD} flex items-center justify-between gap-3 px-3 py-2.5`}
+                >
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="grid h-8 w-8 shrink-0 place-items-center bg-[#2a3330] font-dm text-[12px] font-bold text-[#f2b84b] light:bg-[#e3ece7] light:text-[#398f83]">
                       {(policy?.owner_email ?? "?").slice(0, 1).toUpperCase()}
@@ -820,16 +911,19 @@ function SecurityCenter({
                     className="shrink-0 border border-[#64d5c4]/60 px-4 py-2 font-dm text-[10px] tracking-[.08em] text-[#64d5c4] hover:bg-[#64d5c4]/10 disabled:opacity-40"
                     disabled={busy.has("manager-add") || !managerEmail.trim()}
                     onClick={() => {
-                      void toggleManager(managerEmail.trim().toLowerCase(), "add").then(() =>
-                        setManagerEmail(""),
-                      );
+                      void toggleManager(
+                        managerEmail.trim().toLowerCase(),
+                        "add",
+                      ).then(() => setManagerEmail(""));
                     }}
                   >
                     {busy.has("manager-add") ? "ADDING…" : "ADD MANAGER"}
                   </button>
                 </div>
                 {(policy?.managers ?? []).length === 0 ? (
-                  <div className={`${CARD} px-4 py-4 text-center font-dm text-[11px] text-[#79817e]`}>
+                  <div
+                    className={`${CARD} px-4 py-4 text-center font-dm text-[11px] text-[#79817e]`}
+                  >
                     No additional managers. Type an email above or use{" "}
                     <b>MAKE MANAGER</b> next to a member to assign someone.
                   </div>
@@ -867,7 +961,9 @@ function SecurityCenter({
             </div>
 
             <div>
-              <SectionLabel>SCHEDULED ACCESS · TIME-WINDOWED GRANTS</SectionLabel>
+              <SectionLabel>
+                SCHEDULED ACCESS · TIME-WINDOWED GRANTS
+              </SectionLabel>
               {scheduledGrants.length > 0 && (
                 <div className="mb-3 flex flex-col gap-1.5">
                   {scheduledGrants.map((grant) => (
@@ -902,7 +998,11 @@ function SecurityCenter({
                     className="shrink-0 border border-[#39413e] bg-[#111313] px-2 py-1.5 font-dm text-[10px] text-[#b9c1bd] outline-none light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                     value={sched.subjectType}
                     onChange={(event) =>
-                      setSched({ ...sched, subjectType: event.target.value, subjectValue: "" })
+                      setSched({
+                        ...sched,
+                        subjectType: event.target.value,
+                        subjectValue: "",
+                      })
                     }
                   >
                     <option value="user">USER</option>
@@ -954,14 +1054,18 @@ function SecurityCenter({
                     type="time"
                     className="min-w-0 flex-1 border border-[#39413e] bg-[#111313] px-2 py-1.5 font-dm text-[10px] text-[#b9c1bd] outline-none light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                     value={sched.start}
-                    onChange={(event) => setSched({ ...sched, start: event.target.value })}
+                    onChange={(event) =>
+                      setSched({ ...sched, start: event.target.value })
+                    }
                   />
                   <span className="font-dm text-[10px] text-[#79817e]">TO</span>
                   <input
                     type="time"
                     className="min-w-0 flex-1 border border-[#39413e] bg-[#111313] px-2 py-1.5 font-dm text-[10px] text-[#b9c1bd] outline-none light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                     value={sched.end}
-                    onChange={(event) => setSched({ ...sched, end: event.target.value })}
+                    onChange={(event) =>
+                      setSched({ ...sched, end: event.target.value })
+                    }
                   />
                   <button
                     className="shrink-0 border border-[#64d5c4]/60 px-3 py-1.5 font-dm text-[10px] tracking-[.06em] text-[#64d5c4] hover:bg-[#64d5c4]/10 disabled:opacity-40"
@@ -988,7 +1092,10 @@ function SecurityCenter({
                     className="min-w-0 flex-1 border border-[#39413e] bg-[#111313] px-3 py-2 font-dm text-[11px] text-[#b9c1bd] outline-none placeholder:text-[#79817e] focus:border-[#64d5c4] light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                     value={newTeam.name}
                     onChange={(event) =>
-                      setNewTeam((current) => ({ ...current, name: event.target.value }))
+                      setNewTeam((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
                     }
                   />
                   <input
@@ -997,7 +1104,10 @@ function SecurityCenter({
                     className="min-w-0 flex-[2] border border-[#39413e] bg-[#111313] px-3 py-2 font-dm text-[11px] text-[#b9c1bd] outline-none placeholder:text-[#79817e] focus:border-[#64d5c4] light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                     value={newTeam.members}
                     onChange={(event) =>
-                      setNewTeam((current) => ({ ...current, members: event.target.value }))
+                      setNewTeam((current) => ({
+                        ...current,
+                        members: event.target.value,
+                      }))
                     }
                   />
                   <button
@@ -1013,8 +1123,11 @@ function SecurityCenter({
             <div>
               <SectionLabel>TEAMS ({teams.length})</SectionLabel>
               {teams.length === 0 && (
-                <div className={`${CARD} px-4 py-6 text-center font-dm text-[11px] text-[#79817e]`}>
-                  No teams yet. Group collaborators and grant one access level to the whole team.
+                <div
+                  className={`${CARD} px-4 py-6 text-center font-dm text-[11px] text-[#79817e]`}
+                >
+                  No teams yet. Group collaborators and grant one access level
+                  to the whole team.
                 </div>
               )}
               <div className="flex flex-col gap-2">
@@ -1029,7 +1142,8 @@ function SecurityCenter({
                             {team.name}
                           </div>
                           <div className="truncate font-dm text-[10px] text-[#79817e] light:text-[#61716a]">
-                            {team.members.length} MEMBER{team.members.length === 1 ? "" : "S"}
+                            {team.members.length} MEMBER
+                            {team.members.length === 1 ? "" : "S"}
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
@@ -1065,11 +1179,14 @@ function SecurityCenter({
         {tab === "policies" && (
           <div className="flex flex-col gap-6">
             <div>
-              <SectionLabel>FILE / FOLDER POLICY · PATH-LEVEL OVERRIDES</SectionLabel>
+              <SectionLabel>
+                FILE / FOLDER POLICY · PATH-LEVEL OVERRIDES
+              </SectionLabel>
               <p className="mb-3 max-w-[680px] text-[12px] leading-[1.6] text-[#89958f] light:text-[#61716a]">
-                Add rules for a specific file or folder. These override the member&apos;s
-                repository-level access. Use <b className="text-[#f17c71]">DENY</b> to block a
-                path (including secrets) even for members with source access.
+                Add rules for a specific file or folder. These override the
+                member&apos;s repository-level access. Use{" "}
+                <b className="text-[#f17c71]">DENY</b> to block a path
+                (including secrets) even for members with source access.
               </p>
               <div className={`${CARD} flex flex-col gap-2 p-3`}>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1091,7 +1208,10 @@ function SecurityCenter({
                     className="min-w-0 flex-1 border border-[#39413e] bg-[#111313] px-2 py-1.5 font-dm text-[10px] text-[#b9c1bd] outline-none light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                     value={policyPath.subjectValue}
                     onChange={(event) =>
-                      setPolicyPath({ ...policyPath, subjectValue: event.target.value })
+                      setPolicyPath({
+                        ...policyPath,
+                        subjectValue: event.target.value,
+                      })
                     }
                   >
                     <option value="">SELECT SUBJECT</option>
@@ -1127,26 +1247,33 @@ function SecurityCenter({
                     placeholder="path — e.g. src/backend/secrets/"
                     className="min-w-0 flex-1 border border-[#39413e] bg-[#111313] px-3 py-1.5 font-dm text-[10px] text-[#b9c1bd] outline-none placeholder:text-[#79817e] focus:border-[#64d5c4] light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                     value={policyPath.path}
-                    onChange={(event) => setPolicyPath({ ...policyPath, path: event.target.value })}
+                    onChange={(event) =>
+                      setPolicyPath({ ...policyPath, path: event.target.value })
+                    }
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  {(["metadata", "graph", "source", "download"] as const).map((flag) => (
-                    <label
-                      key={flag}
-                      className="flex cursor-pointer items-center gap-1.5 font-dm text-[10px] text-[#b9c1bd] light:text-[#34473f]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={policyPath[flag]}
-                        onChange={(event) =>
-                          setPolicyPath({ ...policyPath, [flag]: event.target.checked })
-                        }
-                        className="accent-[#64d5c4]"
-                      />
-                      {flag.toUpperCase()}
-                    </label>
-                  ))}
+                  {(["metadata", "graph", "source", "download"] as const).map(
+                    (flag) => (
+                      <label
+                        key={flag}
+                        className="flex cursor-pointer items-center gap-1.5 font-dm text-[10px] text-[#b9c1bd] light:text-[#34473f]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={policyPath[flag]}
+                          onChange={(event) =>
+                            setPolicyPath({
+                              ...policyPath,
+                              [flag]: event.target.checked,
+                            })
+                          }
+                          className="accent-[#64d5c4]"
+                        />
+                        {flag.toUpperCase()}
+                      </label>
+                    ),
+                  )}
                   <input
                     type="number"
                     min="1"
@@ -1154,7 +1281,10 @@ function SecurityCenter({
                     className="w-28 border border-[#39413e] bg-[#111313] px-2 py-1.5 font-dm text-[10px] text-[#b9c1bd] outline-none placeholder:text-[#79817e] light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
                     value={policyPath.expiresHours}
                     onChange={(event) =>
-                      setPolicyPath({ ...policyPath, expiresHours: event.target.value })
+                      setPolicyPath({
+                        ...policyPath,
+                        expiresHours: event.target.value,
+                      })
                     }
                   />
                   <button
@@ -1165,14 +1295,23 @@ function SecurityCenter({
                     ADD RULE
                   </button>
                 </div>
-                {formError && <div className="font-dm text-[10px] text-[#f17c71]">{formError}</div>}
+                {formError && (
+                  <div className="font-dm text-[10px] text-[#f17c71]">
+                    {formError}
+                  </div>
+                )}
               </div>
             </div>
             <div>
-              <SectionLabel>ACTIVE PATH RULES ({pathGrants.length})</SectionLabel>
+              <SectionLabel>
+                ACTIVE PATH RULES ({pathGrants.length})
+              </SectionLabel>
               {pathGrants.length === 0 && (
-                <div className={`${CARD} px-4 py-6 text-center font-dm text-[11px] text-[#79817e]`}>
-                  No path overrides. Members follow their repository-level access.
+                <div
+                  className={`${CARD} px-4 py-6 text-center font-dm text-[11px] text-[#79817e]`}
+                >
+                  No path overrides. Members follow their repository-level
+                  access.
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
@@ -1183,13 +1322,21 @@ function SecurityCenter({
                   >
                     <div className="min-w-0">
                       <div className="truncate font-dm text-[11px] text-[#b9c1bd] light:text-[#34473f]">
-                        <span className={grant.effect === "deny" ? "text-[#f17c71]" : "text-[#64d5c4]"}>
+                        <span
+                          className={
+                            grant.effect === "deny"
+                              ? "text-[#f17c71]"
+                              : "text-[#64d5c4]"
+                          }
+                        >
                           {grant.effect === "deny" ? "DENY" : "ALLOW"}
                         </span>{" "}
                         · {grant.path}
                       </div>
                       <div className="truncate font-dm text-[9px] text-[#79817e] light:text-[#61716a]">
-                        {grant.subject_type === "team" ? `TEAM · ${grant.subject_value}` : grant.subject_value}
+                        {grant.subject_type === "team"
+                          ? `TEAM · ${grant.subject_value}`
+                          : grant.subject_value}
                         {grant.expires_at
                           ? ` · expires ${new Date(grant.expires_at * 1000).toLocaleString()}`
                           : ""}
@@ -1213,7 +1360,9 @@ function SecurityCenter({
                       </div>
                       <button
                         className="border border-[#39413e] px-2 py-1 font-dm text-[9px] tracking-[.06em] text-[#f17c71] hover:border-[#f17c71] disabled:opacity-40 light:border-[#c2cfc7]"
-                        disabled={busy.has(`pg-${grant.subject_type}-${grant.subject_value}-${grant.path}`)}
+                        disabled={busy.has(
+                          `pg-${grant.subject_type}-${grant.subject_value}-${grant.path}`,
+                        )}
                         onClick={() => void removePathGrant(grant)}
                       >
                         REMOVE
@@ -1228,14 +1377,17 @@ function SecurityCenter({
 
         {tab === "requests" && (
           <div>
-            <SectionLabel>PENDING ACCESS REQUESTS ({requests.length})</SectionLabel>
+            <SectionLabel>
+              PENDING ACCESS REQUESTS ({requests.length})
+            </SectionLabel>
             {requests.length === 0 ? (
               <div className={`${CARD} px-4 py-10 text-center`}>
                 <div className="font-dm text-[12px] text-[#b9c1bd] light:text-[#34473f]">
                   No pending requests.
                 </div>
                 <p className="mt-2 font-dm text-[10px] text-[#79817e] light:text-[#61716a]">
-                  When a collaborator clicks a locked file and requests access, it appears here.
+                  When a collaborator clicks a locked file and requests access,
+                  it appears here.
                 </p>
               </div>
             ) : (
@@ -1311,13 +1463,15 @@ function SecurityCenter({
             <div>
               <SectionLabel>DEFAULT REPOSITORY ACCESS</SectionLabel>
               <p className="mb-3 max-w-[680px] text-[12px] leading-[1.6] text-[#89958f] light:text-[#61716a]">
-                What everyone can do with this repository by default, before any member or
-                team grants are applied.
+                What everyone can do with this repository by default, before any
+                member or team grants are applied.
               </p>
               <div className="flex flex-wrap gap-2">
                 {policy &&
                   (
-                    Object.keys(policy.default_access) as (keyof RepositoryPolicy["default_access"])[]
+                    Object.keys(
+                      policy.default_access,
+                    ) as (keyof RepositoryPolicy["default_access"])[]
                   ).map((flag) => (
                     <button
                       key={flag}
@@ -1325,7 +1479,8 @@ function SecurityCenter({
                       disabled={busy.has(`default-${flag}`)}
                       onClick={() => void toggleDefault(flag)}
                     >
-                      {flag.toUpperCase()} {policy.default_access[flag] ? "✓" : "✗"}
+                      {flag.toUpperCase()}{" "}
+                      {policy.default_access[flag] ? "✓" : "✗"}
                     </button>
                   ))}
               </div>
@@ -1378,11 +1533,14 @@ function SecurityCenter({
                       >
                         <div className="min-w-0">
                           <div className="font-dm text-[11px] text-[#b9c1bd] light:text-[#34473f]">
-                            v{version.version} · {version.note || "policy updated"}
+                            v{version.version} ·{" "}
+                            {version.note || "policy updated"}
                           </div>
                           <div className="truncate font-dm text-[9px] text-[#79817e] light:text-[#61716a]">
                             {version.actor || "system"} ·{" "}
-                            {version.ts ? new Date(version.ts * 1000).toLocaleString() : ""}
+                            {version.ts
+                              ? new Date(version.ts * 1000).toLocaleString()
+                              : ""}
                           </div>
                         </div>
                         <button
@@ -1441,7 +1599,9 @@ function OverviewTab({
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {stats.map(([label, value]) => (
             <div key={label} className={`${CARD} px-4 py-3`}>
-              <div className="font-dm text-[20px] text-[#64d5c4]">{String(value)}</div>
+              <div className="font-dm text-[20px] text-[#64d5c4]">
+                {String(value)}
+              </div>
               <div className="mt-1 font-dm text-[9px] tracking-[.08em] text-[#6d7974] light:text-[#61716a]">
                 {label}
               </div>
@@ -1456,7 +1616,11 @@ function OverviewTab({
           <ChecklistRow
             done
             label="Project imported & analyzed"
-            detail={policy ? `${policy.project} · ${policy.source.toUpperCase()}` : "…"}
+            detail={
+              policy
+                ? `${policy.project} · ${policy.source.toUpperCase()}`
+                : "…"
+            }
           />
           {policy?.source === "github" ? (
             <ChecklistRow
@@ -1481,7 +1645,9 @@ function OverviewTab({
             done={grants > 0}
             label="Assign access levels"
             detail={
-              grants > 0 ? `${grants} grant${grants === 1 ? "" : "s"} active` : "GRAPH / SOURCE / FULL per member"
+              grants > 0
+                ? `${grants} grant${grants === 1 ? "" : "s"} active`
+                : "GRAPH / SOURCE / FULL per member"
             }
             actionLabel="ASSIGN"
             onAction={onOpenCollaborators}

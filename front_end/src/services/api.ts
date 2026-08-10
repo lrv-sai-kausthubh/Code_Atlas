@@ -78,20 +78,20 @@ export type CurrentUser = {
 };
 
 export const register = (name: string, email: string, password: string) =>
-    api.post<{ token: string; user: CurrentUser }>("/api/auth/register", { name, email, password });
+    api.post<{ token: string; user: CurrentUser }>("/api/auth/register", { name, email, password }, { silent: true } as AtlasRequestConfig);
 
 export const login = (email: string, password: string) =>
-    api.post<{ token: string; user: CurrentUser }>("/api/auth/login", { email, password });
+    api.post<{ token: string; user: CurrentUser }>("/api/auth/login", { email, password }, { silent: true } as AtlasRequestConfig);
 
 export const logout = (token: string) => api.post<{ status: string }>("/api/auth/logout", { token });
 
 export const getMe = (token: string) => api.get<{ user: CurrentUser }>("/api/auth/me", { params: { token } });
 
 export const updateProfile = (token: string, name: string, avatarUrl?: string) =>
-    api.put<{ user: CurrentUser }>("/api/auth/profile", { name, avatar_url: avatarUrl ?? "" }, { params: { token } });
+    api.put<{ user: CurrentUser }>("/api/auth/profile", { name, avatar_url: avatarUrl ?? "" }, { params: { token }, silent: true } as AtlasRequestConfig);
 
 export const changePassword = (token: string, currentPassword: string, newPassword: string) =>
-    api.post<{ status: string }>("/api/auth/password", { current_password: currentPassword, new_password: newPassword }, { params: { token } });
+    api.post<{ status: string }>("/api/auth/password", { current_password: currentPassword, new_password: newPassword }, { params: { token }, silent: true } as AtlasRequestConfig);
 
 export const listGitHubRepos = (token: string) => api.get<{ repos: GitHubRepo[] }>("/api/auth/github/repos", { params: { token }, silent: true } as AtlasRequestConfig);
 

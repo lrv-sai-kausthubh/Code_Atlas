@@ -1,0 +1,8 @@
+.git
+**/__pycache__
+**/*.pyc
+.env
+data_base
+front_end
+back_end/tests
+back_end/README.md

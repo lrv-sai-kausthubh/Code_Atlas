@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import TopBar from "../components/workspace/topbar";
 import SecurityCenter from "../components/security/security-center";
 import { useNavigation } from "../services/navigation";
@@ -18,6 +19,18 @@ function Security({ onLogout, theme, onToggleTheme, onOpenProfile, onOpenSetting
   const navProjectId = (routeState as { projectId?: string } | null)?.projectId ?? "";
   const paramProjectId = new URLSearchParams(window.location.search).get("project") ?? "";
   const projectId = navProjectId || paramProjectId;
+
+  // History state is lost on a full page reload; mirror the project into the
+  // URL so refreshing the security page keeps the project selected.
+  useEffect(() => {
+    if (navProjectId && !paramProjectId) {
+      window.history.replaceState(
+        {},
+        "",
+        `/security?project=${encodeURIComponent(navProjectId)}`,
+      );
+    }
+  }, [navProjectId, paramProjectId]);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">

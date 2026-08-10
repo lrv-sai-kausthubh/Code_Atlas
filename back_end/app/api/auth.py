@@ -307,14 +307,20 @@ def _resolve_github_email(login: str, user_info: dict, access_token: str) -> str
     return (user_info.get("email") or "").strip().lower() or f"{login}@users.noreply.github.com"
 
 
-def _email_was_registered(email: str) -> bool:
-    """Best-effort check of whether an account was created with email+password.
+def _has_real_password(email: str) -> bool:
+    """Whether the account has a password its owner actually chose.
 
-    Legacy accounts (created before password_set existed) carry no flag. An
-    account registered via email always leaves an `auth.register` audit line,
-    while GitHub-only accounts never do — and the old code made it impossible
-    for GitHub-only accounts to set a password (the placeholder hash never
-    matched), so a missing flag means the password was never user-set.
+    The authoritative evidence is the audit trail: an account that was
+    registered with email+password leaves an `auth.register` line, a
+    successful email login (`auth.login` with a plain email resource) proves
+    the password is known, and a password change/set writes `auth.password`.
+    GitHub logins write `auth.login` with a `github:...` resource and prove
+    nothing about a password, so they are ignored.
+
+    This supersedes the stored password_set flag: older code stamped
+    `password_set: true` onto legacy GitHub-created accounts (whose hash is an
+    unverifiable random placeholder), so the flag alone cannot be trusted for
+    accounts lacking an audit trail.
     """
     try:
         with open(authz.AUDIT_FILE, "r", encoding="utf-8") as file:
@@ -323,10 +329,12 @@ def _email_was_registered(email: str) -> bool:
                     event = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                if (
-                    event.get("action") == "auth.register"
-                    and event.get("email") == email
-                ):
+                if event.get("email") != email:
+                    continue
+                action = event.get("action")
+                if action in ("auth.register", "auth.password"):
+                    return True
+                if action == "auth.login" and event.get("resource") == email:
                     return True
     except OSError:
         pass
@@ -358,9 +366,10 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
         user["name"] = name
         user["avatar_url"] = avatar_url
         # An account registered with email+password keeps its real password;
-        # a GitHub-created legacy account (no flag, no register audit line)
-        # still needs a password to be set.
-        user.setdefault("password_set", _email_was_registered(email))
+        # a GitHub-created legacy account (no register/login audit line) still
+        # needs a password to be set. Unconditional assignment also repairs
+        # accounts whose flag was wrongly stamped `true` by earlier code.
+        user["password_set"] = _has_real_password(email)
         if holder:
             placeholder_user = USERS.pop(holder, None)
             if placeholder_user:
@@ -410,10 +419,10 @@ def _bind_github_login(email: str, login: str, access_token: str, name: str, ava
         user["name"] = name
         user["avatar_url"] = avatar_url
         # A @users.noreply.github.com key only ever comes from GitHub account
-        # creation, so an account without the flag has a placeholder password
-        # (legacy accounts created before password_set existed).
+        # creation, so a legacy account keyed by one has a placeholder password
+        # unless the audit trail proves a password was set or known.
         if is_noreply:
-            user.setdefault("password_set", False)
+            user["password_set"] = _has_real_password(email)
     return email
 
 
@@ -518,6 +527,11 @@ def login(request: LoginRequest):
         if not hmac.compare_digest(expected, user["password_hash"]):
             authz.audit(email, "auth.login_failed", email, {"reason": "bad password"})
             raise HTTPException(status_code=401, detail="Incorrect email or password.")
+        # A successful email login proves the password is known: re-stamp the
+        # flag so a wrongly-inferred `false` self-heals.
+        if not user.get("password_set"):
+            user["password_set"] = True
+            _save_users()
         token = _new_session(email)
     authz.audit(email, "auth.login", email)
     return {"token": token, "user": _current_user(token)}
@@ -583,6 +597,7 @@ def change_password(request: ChangePasswordRequest, token: str):
         user["password_hash"] = _hash_password(request.new_password, new_salt)
         user["password_set"] = True
         _save_users()
+    authz.audit(session["email"], "auth.password", session["email"])
     return {"status": "password_changed"}
 
 

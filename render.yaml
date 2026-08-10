@@ -1,0 +1,38 @@
+# Render blueprint for the CodeAtlas API.
+#
+# Deploy: push to GitHub, then "New + → Blueprint" in the Render dashboard
+# pointing at this repository, or use the Render CLI:
+#   render blueprint launch
+#
+# Set these in the dashboard after creation:
+#   FRONTEND_URL       - e.g. https://your-app.vercel.app
+#   BACKEND_BASE       - e.g. https://your-api.onrender.com
+#   ALLOWED_ORIGINS    - comma-separated extra CORS origins
+#   GITHUB_CLIENT_ID   - GitHub OAuth app client id
+#   GITHUB_CLIENT_SECRET - GitHub OAuth app client secret
+#
+# CODEATLAS_SECRET_KEY is generated once at first deploy and encrypts GitHub
+# OAuth tokens at rest. Do not clear it or stored tokens become undecryptable.
+
+services:
+  - type: web
+    name: codeatlas-api
+    runtime: docker
+    dockerfilePath: ./back_end/Dockerfile
+    plan: starter
+    region: singapore
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: CODEATLAS_SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_BASE
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false

@@ -88,3 +88,9 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(router)
+
+
+@app.get("/healthz")
+def healthz():
+    """Health check for load balancers and platform probes."""
+    return {"status": "ok"}

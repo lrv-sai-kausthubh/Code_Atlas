@@ -16,6 +16,7 @@ type StateKind =
     | "validation";
 
 type ToastOptions = {
+    id?: string;
     description?: string;
     duration?: number;
     action?: { label: string; onClick: () => void };
@@ -72,6 +73,7 @@ export const toastState = (kind: StateKind, options?: ToastOptions) => {
     const description = options?.description ? preset.description || undefined : undefined;
     const accent = palette === "red" ? "#f17c71" : palette === "green" ? "#64d5c4" : "#b9c1bd";
     return toast(title, {
+        id: options?.id,
         description,
         duration: options?.duration ?? preset.duration,
         action: options?.action,

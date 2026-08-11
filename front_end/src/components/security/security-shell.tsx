@@ -26,11 +26,11 @@ function SecurityShell({
 }) {
   return (
     <section className="grid h-[calc(100vh-62px)] grid-cols-[210px_minmax(0,1fr)] max-[900px]:grid-cols-1 max-[900px]:h-auto">
-      <aside className="flex flex-col border-r border-[#2b3030] bg-[#141616] px-4 py-5 light:border-[#d6dfda] light:bg-[#f1f4f0] max-[900px]:border-r-0 max-[900px]:border-b">
-        <div className="min-w-0 border-b border-[#2b3030] pb-4 light:border-[#d6dfda]">
-          <div className="font-dm text-[10px] tracking-[.1em] text-[#64d5c4]">{title}</div>
+      <aside className="flex flex-col border-r border-[var(--ca-hairline)] bg-[var(--ca-surface-card)] px-4 py-5 max-[900px]:border-r-0 max-[900px]:border-b">
+        <div className="min-w-0 border-b border-[var(--ca-hairline)] pb-4">
+          <div className="ca-mono-label !text-[10px] font-semibold uppercase tracking-[.08em] text-[var(--ca-success)]">{title}</div>
           {subtitle && (
-            <div className="mt-1 truncate font-dm text-[10px] text-[#79817e] light:text-[#61716a]">
+            <div className="mt-1 truncate ca-mono-label !text-[10px] text-[var(--ca-muted)]">
               {subtitle}
             </div>
           )}
@@ -39,16 +39,16 @@ function SecurityShell({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={`flex items-center justify-between gap-2 border-l-2 bg-transparent px-3 py-2 text-left font-dm text-[11px] tracking-[.06em] transition-colors ${
+              className={`flex items-center justify-between gap-2 border-l-2 bg-transparent px-3 py-2 text-left ca-mono-label !text-[11px] tracking-[.06em] transition-colors ${
                 active === tab.id
-                  ? "border-[#f2b84b] bg-[#1c201f] text-[#eef0eb] light:bg-[#e7ede9] light:text-[#202824]"
-                  : "border-transparent text-[#79817e] hover:border-[#39413e] hover:text-[#f2b84b] light:text-[#61716a]"
+                  ? "border-[var(--ca-primary)] bg-[var(--ca-surface-strong)] text-[var(--ca-ink)]"
+                  : "border-transparent text-[var(--ca-muted)] hover:border-[var(--ca-hairline-strong)] hover:text-[var(--ca-primary)]"
               }`}
               onClick={() => onSelect(tab.id)}
             >
               <span>{tab.label}</span>
               {tab.badge !== undefined && tab.badge > 0 && (
-                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-[#f2b84b] px-1 font-dm text-[9px] text-[#0b1f1b]">
+                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-[var(--ca-primary)] px-1 ca-mono-label !text-[9px] text-[var(--ca-on-primary)]">
                   {tab.badge}
                 </span>
               )}
@@ -59,7 +59,7 @@ function SecurityShell({
           <BackButton onClick={onBack} label="BACK TO PROJECTS" />
         </div>
       </aside>
-      <div className="min-w-0 overflow-y-auto no-scrollbar bg-[#111313] light:bg-[#f6f8f5]">
+      <div className="min-w-0 overflow-y-auto no-scrollbar bg-[var(--ca-canvas)]">
         {children}
       </div>
     </section>

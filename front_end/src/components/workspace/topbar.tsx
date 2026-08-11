@@ -1,5 +1,6 @@
 import type { CurrentUser } from "../../services/api";
 import { Sun, Moon, Settings } from "lucide-react";
+import codeAtlasLogo from "../../../public/codeAtlas_logo.png";
 function ProfileIcon() {
   return (
     <svg
@@ -18,6 +19,7 @@ function ProfileIcon() {
     </svg>
   );
 }
+
 function TopBar({
   theme,
   onToggleTheme,
@@ -26,6 +28,7 @@ function TopBar({
   onNewProject,
   onLogout,
   user,
+  tabs,
 }: {
   theme: "dark" | "light";
   onToggleTheme: () => void;
@@ -34,29 +37,48 @@ function TopBar({
   onNewProject: () => void;
   onLogout: () => void;
   user?: CurrentUser | null;
+  tabs?: { id: string; label: string; active: boolean; onClick: () => void }[];
 }) {
   return (
-    <header className="relative z-[2] flex h-[62px] items-center justify-between border-b border-[#2b3030] px-[42px] light:border-[#d6dfda] max-[850px]:px-[18px]">
-      <div className="flex items-center gap-[11px] font-dm text-[14px] font-medium tracking-[.16em] light:text-[#202824]">
-        <img
-          src="/codeAtlas_logo.png"
-          alt="CodeAtlas"
-          className="h-[50px] w-[50px] rounded-full object-contain"
-        />
-        <span className="font-extrabold">CODEATLAS</span>
-        <small className="ml-3 text-[9px] tracking-[.1em] text-[#777e7d] light:text-[#71807a] max-[850px]:hidden">
-          V1 / MILESTONE 1
-        </small>
-      </div>
-      <div className="flex items-center gap-[22px] font-dm text-[11px]">
+    <header className="relative z-[2] flex h-[64px] items-center justify-between gap-4 border-b border-[var(--ca-hairline)] bg-[var(--ca-canvas)] px-6 max-[850px]:px-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <div>
+          {" "}
+          <img src={codeAtlasLogo} className="h-12 w-12 rounded-full" />
+        </div>
+        <span className="hidden h-8 w-px bg-[var(--ca-hairline-strong)] sm:block" />
         <button
-          className="border border-[#596260] bg-transparent px-[14px] py-[10px] font-dm text-[11px] tracking-[.04em] text-[#eff0ed] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:text-[#202824]"
           onClick={onNewProject}
+          className="hidden items-center rounded-[8px] border border-[var(--ca-hairline-strong)] bg-[var(--ca-surface-card)] px-3 py-[7px] text-[11px] font-medium text-[var(--ca-body)] transition-colors hover:border-[var(--ca-primary)] hover:text-[var(--ca-primary)] sm:inline-flex"
         >
-          + NEW PROJECT
+          + New Project
         </button>
+      </div>
+
+      {tabs && tabs.length > 0 && (
+        <nav
+          className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1"
+          aria-label="Project sections"
+        >
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={tab.onClick}
+              className={`rounded-[6px] bg-transparent px-3 py-2 text-[13px] font-medium transition-colors ${
+                tab.active
+                  ? "text-[var(--ca-ink)] shadow-[inset_0_-2px_0_var(--ca-primary)] border-t-2"
+                  : "text-[var(--ca-muted)] hover:bg-[var(--ca-surface-strong)] hover:text-[var(--ca-ink)]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <div className="flex items-center gap-2">
         <button
-          className="grid h-[38px] w-[38px]  rounded-lg place-items-center overflow-hidden border border-[#596260] bg-transparent text-[#aeb8b3] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:text-[#405149]"
+          className="grid h-[38px] w-[38px] place-items-center overflow-hidden rounded-[8px] border border-[var(--ca-hairline-strong)] bg-[var(--ca-surface-card)] text-[var(--ca-body)] transition-colors hover:border-[var(--ca-primary)] hover:text-[var(--ca-primary)]"
           onClick={onOpenProfile}
           aria-label="Open profile"
           title="Profile"
@@ -73,28 +95,26 @@ function TopBar({
           )}
         </button>
         <button
-          className="border border-[#596260]  rounded-full  bg-transparent p-2 font-dm text-[10px] tracking-[.05em] text-[#aeb8b3] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:text-[#405149] max-[850px]:hidden"
+          className="grid h-[38px] w-[38px] place-items-center rounded-[8px] border border-[var(--ca-hairline-strong)] bg-[var(--ca-surface-card)] text-[var(--ca-body)] transition-colors hover:border-[var(--ca-primary)] hover:text-[var(--ca-primary)] max-[850px]:hidden"
           onClick={onToggleTheme}
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
         >
-          {theme === "dark" ? <Sun /> : <Moon />}
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
         </button>
-
         <button
-          className="grid h-[38px]  rounded-full  w-[38px] place-items-center border border-[#596260] bg-transparent text-[#aeb8b3] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:text-[#405149]"
+          className="grid h-[38px] w-[38px] place-items-center rounded-[8px] border border-[var(--ca-hairline-strong)] bg-[var(--ca-surface-card)] text-[var(--ca-body)] transition-colors hover:border-[var(--ca-primary)] hover:text-[var(--ca-primary)]"
           onClick={onOpenSettings}
           aria-label="Open settings"
           title="Settings"
         >
-          <Settings />
+          <Settings size={16} />
         </button>
-
         <button
-          className="border border-[#596260]  bg-transparent px-[14px] py-[10px] font-dm text-[11px] tracking-[.04em] text-[#aeb8b3] transition-colors hover:border-[#f17c71] hover:text-[#f17c71] light:border-[#b8c8c0] light:text-[#405149]"
           onClick={onLogout}
           aria-label="Sign out"
+          className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-[var(--ca-primary)] bg-[var(--ca-primary)] px-4 text-[13px] font-medium text-[var(--ca-on-primary)] transition-colors hover:bg-[var(--ca-primary-active)]"
         >
-          LOG OUT
+          Log out
         </button>
       </div>
     </header>

@@ -35,27 +35,27 @@ function ExplorerTree({
         const icon = isFolder
             ? {
                 Icon: collapsed.has(node.id) ? Folder : FolderOpen,
-                className: "text-[#64d5c4]",
+                className: "text-[var(--ca-muted)]",
             }
             : fileIcon(node.label);
         return (
             <div key={node.id}>
                 <button
-                    className={`min-h-[28px] w-full flex items-center gap-2 border-0 bg-transparent px-1 py-[5px] text-left font-dm text-[11px] text-[#969f9b] transition-colors hover:bg-[#242d2b] hover:text-[#f1f3ed] light:text-[#56645e] light:hover:bg-[#e3ece7] light:hover:text-[#202824] ${selected?.id === node.id ? "bg-[#242d2b] text-[#f1f3ed] light:bg-[#e3ece7] light:text-[#202824]" : ""} ${restricted ? "opacity-60" : ""}`}
+                    className={`min-h-[28px] w-full flex items-center gap-2 border-0 border-r-2 bg-transparent px-1 py-[5px] text-left font-mono text-[11px] text-[var(--ca-body)] transition-colors hover:bg-[var(--ca-surface-strong)] hover:text-[var(--ca-ink)] ${selected?.id === node.id ? "border-r-[var(--ca-primary)] bg-[var(--ca-surface-strong)] text-[var(--ca-ink)]" : "border-r-transparent"} ${restricted ? "opacity-60" : ""}`}
                     style={{ paddingLeft: `${4 + depth * 14}px` }}
                     onClick={() => {
                         onSelect(node);
                         if (isFolder) onToggle(node.id);
                     }}
                 >
-                    <span className={`flex-[0_0_24px] w-6 text-center font-dm text-[10px] font-medium ${icon.className}`}>
+                    <span className={`flex-[0_0_24px] w-6 text-center font-mono text-[10px] font-medium ${icon.className}`}>
                         <icon.Icon size={18} strokeWidth={1.8} className="inline" />
                     </span>
                     <span className="min-w-0 truncate">{node.label}</span>
                     {restricted && (
-                        <Lock className="shrink-0 text-[#f2b84b]" size={12} aria-label="Restricted — metadata only" />
+                        <Lock className="shrink-0 text-[var(--ca-error)]" size={12} aria-label="Restricted — metadata only" />
                     )}
-                    <small className="ml-auto shrink-0 text-[8px] text-[#4f5d59] light:text-[#687870]">
+                    <small className="ca-mono-label ml-auto shrink-0 text-[8px]">
                         {node.type}
                     </small>
                 </button>

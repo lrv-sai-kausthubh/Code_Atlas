@@ -4,22 +4,35 @@ type NavbarProps = {
     onSettings?: () => void;
 };
 
+function LogoMark() {
+    return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="2.2" fill="#f54e00" />
+            <circle cx="4.5" cy="5.5" r="1.8" stroke="currentColor" strokeWidth="1.4" fill="none" />
+            <circle cx="19.5" cy="5.5" r="1.8" stroke="currentColor" strokeWidth="1.4" fill="none" />
+            <circle cx="4.5" cy="18.5" r="1.8" stroke="currentColor" strokeWidth="1.4" fill="none" />
+            <circle cx="19.5" cy="18.5" r="1.8" stroke="currentColor" strokeWidth="1.4" fill="none" />
+            <path d="M5.6 6.9 10.4 10.6M18.4 6.9 13.6 10.6M5.6 17.1l4.8-3.7M18.4 17.1l-4.8-3.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+    );
+}
+
 export default function Navbar({ onGetStarted, onAssistant, onSettings }: NavbarProps) {
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-[rgba(8,10,13,.92)] backdrop-blur-[10px] border-b border-[#30363d] flex items-center justify-between px-4">
-            <div className="flex items-center gap-[10px]">
-                <img src="/codeAtlas_logo.png" alt="Code Atlas" className="w-7 h-7 rounded-full object-contain" />
-                <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">CODE ATLAS</span>
-                <nav className="hidden max-[900px]:hidden gap-6 ml-8">
-                    <a href="#" className="active font-jet text-[10px] tracking-[.05em] uppercase text-[#007aff] no-underline pb-1 border-b-2 border-[#007aff]">Explorer</a>
-                    <a href="#" className="font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7] no-underline pb-1 border-b-2 border-transparent transition-colors duration-150 hover:text-[#dfe2eb]">Architecture</a>
-                    <a href="#" className="font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7] no-underline pb-1 border-b-2 border-transparent transition-colors duration-150 hover:text-[#dfe2eb]">Flows</a>
+        <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-[var(--ca-hairline)] bg-[var(--ca-canvas)] px-6 backdrop-blur-[10px]">
+            <div className="flex items-center gap-3">
+                <span className="text-[var(--ca-ink)]"><LogoMark /></span>
+                <span className="text-[17px] font-medium tracking-[-0.02em] text-[var(--ca-ink)]">CodeAtlas</span>
+                <nav className="ml-8 hidden gap-6 max-[900px]:hidden">
+                    <a href="#product" className="no-underline text-[14px] font-medium text-[var(--ca-body)] transition-colors hover:text-[var(--ca-ink)]">Product</a>
+                    <a href="#platform" className="no-underline text-[14px] font-medium text-[var(--ca-body)] transition-colors hover:text-[var(--ca-ink)]">Platform</a>
+                    <a href="#testimonials" className="no-underline text-[14px] font-medium text-[var(--ca-body)] transition-colors hover:text-[var(--ca-ink)]">Customers</a>
                 </nav>
             </div>
-            <div className="flex items-center gap-[14px]">
-                <button onClick={onAssistant} className="bg-transparent border border-[#30363d] text-[#dfe2eb] px-[14px] py-[9px] font-jet text-[10px] tracking-[.05em] uppercase cursor-pointer transition-colors duration-150 hover:bg-[#262a31] hover:border-[#007aff] hover:text-[#007aff]">AI Assistant</button>
-                <button className="bg-[#007aff] text-[#00285c] border border-[#007aff] px-4 py-[10px] font-jet text-[10px] font-bold tracking-[.05em] uppercase cursor-pointer transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[.98]" onClick={onGetStarted}>Upload</button>
-                <button onClick={onSettings} className="bg-transparent border-0 text-[#c1c6d7] text-lg leading-none cursor-pointer p-1 transition-colors duration-150 hover:text-[#007aff]" aria-label="Settings">⚙</button>
+            <div className="flex items-center gap-3">
+                <button onClick={onAssistant} className="border-0 bg-transparent text-[14px] font-medium text-[var(--ca-body)] transition-colors hover:text-[var(--ca-ink)]">AI Architect</button>
+                <button onClick={onSettings} className="border-0 bg-transparent p-1 text-[var(--ca-body)] transition-colors hover:text-[var(--ca-ink)]" aria-label="Settings">Settings</button>
+                <button onClick={onGetStarted} className="inline-flex h-10 items-center rounded-[8px] border border-[var(--ca-primary)] bg-[var(--ca-primary)] px-[18px] text-[14px] font-medium text-[var(--ca-on-primary)] transition-colors hover:bg-[var(--ca-primary-active)]">Upload ZIP</button>
             </div>
         </header>
     );

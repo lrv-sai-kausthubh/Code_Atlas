@@ -3,3 +3,8 @@ uvicorn
 python-multipart
 python-dotenv
 cryptography
+numpy
+scikit-learn
+joblib
+psycopg[binary]
+psycopg-pool

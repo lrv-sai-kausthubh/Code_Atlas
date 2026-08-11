@@ -12,9 +12,9 @@ function AnalysisPanel({
 }) {
     return (
         <div className={`${PANEL} flex h-full min-h-0 flex-col overflow-hidden`}>
-            <div className="flex h-9 flex-none items-center justify-between border-b border-[#2b3030] pl-5 pr-[14px] font-dm text-[10px] tracking-[.1em] text-[#b1bab5] light:border-[#d6dfda] light:text-[#71807a]">
+            <div className="flex h-9 flex-none items-center justify-between border-b border-[var(--ca-hairline)] pl-5 pr-[14px] ca-mono-label !text-[10px]">
                 <div>
-                    <span className={LIVE_DOT} /> ARCHITECTURE ANALYSIS
+                    <span className={LIVE_DOT} /> Architecture analysis
                 </div>
                 <button
                     className={PANEL_COLLAPSE}

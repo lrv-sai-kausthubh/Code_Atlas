@@ -24,7 +24,7 @@ function Admin({
   const token = localStorage.getItem("codeatlas-token") ?? "";
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">
+    <main className="min-h-screen bg-[var(--ca-canvas)]">
       <TopBar
         theme={theme}
         onToggleTheme={onToggleTheme}
@@ -38,11 +38,11 @@ function Admin({
         <AdminCenter token={token} onBack={() => navigate("projects")} />
       ) : (
         <div className="flex h-[calc(100vh-72px)] flex-col items-center justify-center gap-4">
-          <p className="font-dm text-sm text-[#f17c71]">
+          <p className="font-dm text-sm text-[var(--ca-error)]">
             The Admin Center is restricted to platform super admins.
           </p>
           <button
-            className="border border-[#39413e] px-4 py-2 font-dm text-[11px] tracking-[.08em] text-[#79817e] hover:border-[#f2b84b] hover:text-[#f2b84b]"
+            className="ca-btn-secondary px-4 py-2"
             onClick={() => navigate("projects")}
           >
             BACK TO PROJECTS

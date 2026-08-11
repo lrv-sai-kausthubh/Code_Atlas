@@ -51,6 +51,19 @@ function GoogleIcon() {
   );
 }
 
+function LogoSymbol() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="2.2" fill="#f54e00" />
+      <circle cx="4.5" cy="5.5" r="1.8" stroke="#26251e" strokeWidth="1.4" fill="none" />
+      <circle cx="19.5" cy="5.5" r="1.8" stroke="#26251e" strokeWidth="1.4" fill="none" />
+      <circle cx="4.5" cy="18.5" r="1.8" stroke="#26251e" strokeWidth="1.4" fill="none" />
+      <circle cx="19.5" cy="18.5" r="1.8" stroke="#26251e" strokeWidth="1.4" fill="none" />
+      <path d="M5.6 6.9 10.4 10.6M18.4 6.9 13.6 10.6M5.6 17.1l4.8-3.7M18.4 17.1l-4.8-3.7" stroke="#26251e" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function Login({ onLogin }: LoginProps) {
   const [timestamp, setTimestamp] = useState("");
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -111,72 +124,59 @@ function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="flex     min-h-screen bg-[#080a0d] text-[#dfe2eb] font-inter overflow-hidden max-[900px]:overflow-auto max-[900px]:flex-col">
-      <section className="flex-[0_0_60%] relative overflow-hidden border-r border-[#30363d] flex flex-col justify-between p-12 max-[900px]:hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(rgba(48,54,61,.5)_1px,transparent_1px)] bg-[size:24px_24px] opacity-20" />
-        <div className="absolute left-0 right-0 h-[100px] z-5 bg-[linear-gradient(0deg,transparent,rgba(0,122,255,.05)_50%,transparent)] opacity-40 animate-scan" />
-        <div className="relative z-10 flex flex-col justify-between h-full">
+    <div className="flex min-h-screen bg-[var(--ca-canvas)] text-[var(--ca-ink)] font-sans overflow-hidden max-[900px]:overflow-auto max-[900px]:flex-col">
+      <section className="relative flex-[0_0_55%] flex flex-col justify-between overflow-hidden border-r border-[var(--ca-hairline)] p-12 max-[900px]:hidden">
+        <div className="pointer-events-none absolute -left-[180px] -top-[140px] h-[520px] w-[520px] rounded-full border border-[var(--ca-hairline)]" />
+        <div className="pointer-events-none absolute -right-[220px] bottom-[-180px] h-[560px] w-[560px] rounded-full border border-[var(--ca-hairline-soft)]" />
+        <div className="relative z-10 flex h-full flex-col justify-between">
           <div className="flex items-center gap-[10px]">
-            <span className="w-7 h-7 bg-[#007aff] text-white grid place-items-center text-[15px]">
-              ✦
-            </span>
-            <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">
-              CODE ATLAS
-            </span>
+            <span className="text-[var(--ca-ink)]"><LogoSymbol /></span>
+            <span className="text-[17px] font-medium tracking-[-0.02em]">CodeAtlas</span>
           </div>
           <div>
-            <h1 className="font-space text-[clamp(40px,5vw,52px)] leading-[1.05] tracking-[-.02em] font-bold mt-0 mb-5 max-w-[560px]">
-              The Knowledge Graph for your{" "}
-              <span className="text-[#007aff]">Codebase.</span>
+            <h1 className="ca-display-lg mt-0 mb-5 max-w-[560px] text-[clamp(38px,4.5vw,54px)]">
+              Understand your codebase
+              <br />
+              <span className="text-[var(--ca-primary)]">without reading every file.</span>
             </h1>
-            <p className="text-[#c1c6d7] text-[15px] leading-[1.6] max-w-[420px] mt-0 mb-0">
-              Navigate architectural complexity with AI-driven insights.
-              Visualize flows, manage dependencies, and ship better code faster.
+            <p className="mt-0 mb-0 max-w-[420px] text-[15px] leading-[1.6] text-[var(--ca-body)]">
+              Upload a repository and CodeAtlas maps its files, dependencies
+              and architecture into an interactive visual graph.
             </p>
-            <div className="flex items-center gap-4 opacity-60 mt-12">
-              <span className="w-2 h-2 rounded-full bg-[#10b981]" />
-              <span
-                className="font-jet tracking-[.05em] uppercase"
-                style={{ fontSize: 10 }}
-              >
-                Stable v2.4
-              </span>
-              <span className="w-px h-3 bg-[#30363d]" />
-              <span
-                className="font-jet tracking-[.05em] uppercase"
-                style={{ fontSize: 10, color: "#c1c6d7" }}
-              >
-                Node Engine: Running
-              </span>
+            <div className="ca-mono-label mt-12 flex items-center gap-4 opacity-70">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--ca-success)]" />
+              <span>Stable v2.4</span>
+              <span className="h-3 w-px bg-[var(--ca-hairline-strong)]" />
+              <span>Graph engine: ready</span>
             </div>
           </div>
-          <div className="flex justify-between font-jet text-[11px] text-[rgba(193,198,215,.5)]">
-            <span>0x1A4F_SYSTEM_CORE</span>
-            <span>© 2026 CODE ATLAS LABS</span>
+          <div className="ca-mono-label flex justify-between text-[10px] opacity-60">
+            <span>codeatlas · architecture</span>
+            <span>© 2026 CodeAtlas Technologies</span>
           </div>
         </div>
       </section>
 
-      <section className="flex-1 bg-[#10141a] flex items-center justify-center p-8">
+      <section className="flex flex-1 items-center justify-center p-8 max-[900px]:pt-24">
         <form className="w-full max-w-[400px]" onSubmit={handleSubmit}>
-          <div className="hidden items-center gap-2 mb-12 max-[900px]:flex">
-            <img src="/codeAtlas_logo.png" alt="Code Atlas" className="w-7 h-7 rounded-full object-contain" />
-            <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">
-              CODE ATLAS
-            </span>
+          <div className="mb-12 flex items-center gap-2 max-[900px]:flex">
+            <span className="text-[var(--ca-ink)]"><LogoSymbol /></span>
+            <span className="text-[17px] font-medium tracking-[-0.02em]">CodeAtlas</span>
           </div>
-          <h2 className="font-space text-2xl font-semibold mt-0 mb-2">
-            Welcome back
+          <h2 className="ca-display-md mt-0 mb-2 text-[26px]">
+            {mode === "login" ? "Welcome back" : "Create your account"}
           </h2>
-          <p className="text-[#c1c6d7] text-sm mt-0 mb-8">
-            Sign in to your development workspace.
+          <p className="mt-0 mb-8 text-[14px] text-[var(--ca-body)]">
+            {mode === "login"
+              ? "Sign in to your development workspace."
+              : "Start mapping your repositories."}
           </p>
 
-          <div className="flex flex-col gap-3 mb-8">
+          <div className="mb-8 flex flex-col gap-3">
             <button
               type="button"
               onClick={handleGitHub}
-              className="h-11 border-0 flex items-center justify-center gap-3 font-inter text-sm font-semibold cursor-pointer transition-[background,transform] duration-150 hover:scale-[.98] bg-[#dfe2eb] text-[#0a0e14] hover:bg-white"
+              className="ca-btn-secondary h-11 w-full gap-3 !text-[14px]"
             >
               <GitHubIcon />
               Continue with GitHub
@@ -188,24 +188,22 @@ function Login({ onLogin }: LoginProps) {
                   "Google sign-in is coming soon. Use GitHub or email instead.",
                 )
               }
-              className="h-11 flex items-center justify-center gap-3 font-inter text-sm font-semibold cursor-pointer transition-[background,transform] duration-150 hover:scale-[.98] bg-[#181c22] border border-[#30363d] text-[#dfe2eb] hover:bg-[#262a31]"
+              className="ca-btn-secondary h-11 w-full gap-3 !text-[14px]"
             >
               <GoogleIcon />
               Continue with Google
             </button>
           </div>
 
-          <div className="flex items-center gap-4 mb-8 before:flex-1 before:h-px before:bg-[#30363d] after:flex-1 after:h-px after:bg-[#30363d]">
-            <span className="font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7]">
-              Or with email
-            </span>
+          <div className="mb-8 flex items-center gap-4 before:flex-1 before:h-px before:bg-[var(--ca-hairline)] after:flex-1 after:h-px after:bg-[var(--ca-hairline)]">
+            <span className="ca-label">Or with email</span>
           </div>
 
           {mode === "register" && (
             <div className="mb-5">
               <label
                 htmlFor="ca-name"
-                className="block font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7] mb-1.5"
+                className="ca-label mb-1.5 block"
               >
                 Full Name
               </label>
@@ -215,14 +213,14 @@ function Login({ onLogin }: LoginProps) {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Ada Lovelace"
                 autoComplete="name"
-                className="w-full bg-[#181c22] border border-[#30363d] text-[#dfe2eb] p-3 px-4 font-inter text-sm outline-none transition-[border-color,box-shadow] duration-150 focus:border-[#007aff] focus:shadow-[0_0_0_2px_rgba(0,122,255,.3)]"
+                className="ca-input w-full"
               />
             </div>
           )}
           <div className="mb-5">
             <label
               htmlFor="ca-email"
-              className="block font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7] mb-1.5"
+              className="ca-label mb-1.5 block"
             >
               Email Address
             </label>
@@ -232,13 +230,13 @@ function Login({ onLogin }: LoginProps) {
               onChange={(event) => setEmail(event.target.value)}
               placeholder="dev@company.com"
               autoComplete="email"
-              className="w-full bg-[#181c22] border border-[#30363d] text-[#dfe2eb] p-3 px-4 font-inter text-sm outline-none transition-[border-color,box-shadow] duration-150 focus:border-[#007aff] focus:shadow-[0_0_0_2px_rgba(0,122,255,.3)]"
+              className="ca-input w-full"
             />
           </div>
           <div className="mb-5">
             <label
               htmlFor="ca-password"
-              className="block font-jet text-[10px] tracking-[.05em] uppercase text-[#c1c6d7] mb-1.5"
+              className="ca-label mb-1.5 block"
             >
               Password
             </label>
@@ -251,19 +249,19 @@ function Login({ onLogin }: LoginProps) {
               autoComplete={
                 mode === "register" ? "new-password" : "current-password"
               }
-              className="w-full bg-[#181c22] border border-[#30363d] text-[#dfe2eb] p-3 px-4 font-inter text-sm outline-none transition-[border-color,box-shadow] duration-150 focus:border-[#007aff] focus:shadow-[0_0_0_2px_rgba(0,122,255,.3)]"
+              className="ca-input w-full"
             />
           </div>
           {mode === "login" && (
-            <div className="flex items-center gap-2 mb-6">
+            <div className="mb-6 flex items-center gap-2">
               <input
                 id="ca-remember"
                 type="checkbox"
-                className="w-4 h-4 accent-[#007aff]"
+                className="h-4 w-4 accent-[var(--ca-primary)]"
               />
               <label
                 htmlFor="ca-remember"
-                className="text-xs text-[#c1c6d7] cursor-pointer"
+                className="cursor-pointer text-[13px] text-[var(--ca-body)]"
               >
                 Remember this device for 30 days
               </label>
@@ -273,19 +271,19 @@ function Login({ onLogin }: LoginProps) {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full h-12 border-0 bg-[#007aff] text-white font-space text-sm font-bold tracking-[.06em] uppercase cursor-pointer relative overflow-hidden transition-[transform,filter] duration-150 hover:brightness-110 active:scale-[.98] disabled:opacity-60 disabled:pointer-events-none"
+            className="ca-btn-primary h-11 w-full"
           >
             {submitting
-              ? "PLEASE WAIT…"
+              ? "Please wait…"
               : mode === "register"
                 ? "Create Account"
                 : "Authorize Access"}
           </button>
 
-          <div className="mt-10 pt-10 border-t border-[#30363d] text-center">
-            <p className="text-sm text-[#c1c6d7] mt-0 mb-4">
+          <div className="mt-10 border-t border-[var(--ca-hairline)] pt-10 text-center">
+            <p className="mt-0 mb-4 text-[14px] text-[var(--ca-body)]">
               {mode === "login"
-                ? "New to Code Atlas?"
+                ? "New to CodeAtlas?"
                 : "Already have an account?"}{" "}
               <a
                 href="#"
@@ -293,17 +291,17 @@ function Login({ onLogin }: LoginProps) {
                   event.preventDefault();
                   setMode(mode === "login" ? "register" : "login");
                 }}
-                className="text-[#007aff] font-semibold no-underline"
+                className="no-underline font-medium text-[var(--ca-primary)] hover:text-[var(--ca-primary-active)]"
               >
                 {mode === "login" ? "Create an account" : "Sign in"}
               </a>
             </p>
-            <div className="flex gap-4 justify-center text-[10px] text-[rgba(193,198,215,.6)]">
-              <a href="#" className="no-underline hover:text-[#dfe2eb]">
+            <div className="flex justify-center gap-4 text-[11px] text-[var(--ca-muted)]">
+              <a href="#" className="no-underline hover:text-[var(--ca-ink)]">
                 Privacy Policy
               </a>
               <span>•</span>
-              <a href="#" className="no-underline hover:text-[#dfe2eb]">
+              <a href="#" className="no-underline hover:text-[var(--ca-ink)]">
                 Terms of Service
               </a>
             </div>
@@ -314,8 +312,8 @@ function Login({ onLogin }: LoginProps) {
       <div className="fixed top-8 left-8 z-20">
         <BackButton />
       </div>
-      <div className="fixed top-8 right-8 z-20 text-right font-jet text-[11px] text-[rgba(193,198,215,.5)] leading-[1.7] pointer-events-none">
-        <span>SECURE_SHELL_ESTABLISHED</span>
+      <div className="ca-mono-label pointer-events-none fixed top-8 right-8 z-20 text-right text-[10px] leading-[1.7] opacity-60">
+        <span>secure session</span>
         <br />
         <span>{timestamp}</span>
       </div>

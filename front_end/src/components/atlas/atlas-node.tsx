@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import { Handle, Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
@@ -10,12 +11,25 @@ export function AtlasNodeView({ data }: NodeProps<AtlasNode>) {
     const color = NODE_COLORS[data.type];
     const restricted = data.type === "file" && data.access?.source === false;
     const { Icon: FileTypeIcon } = fileIcon(data.label);
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(data.label);
+    const commitRename = () => {
+        const label = draft.trim();
+        if (label && label !== data.label) data.onRename?.(data.id, label);
+        setEditing(false);
+    };
     return (
         <div
             className={`atlas-node atlas-node-${data.type} ${data.selected ? "is-selected" : ""} ${data.focused ? "is-focused" : ""} ${restricted ? "atlas-node-restricted" : ""}`}
             style={{ "--node-color": color } as CSSProperties}
             onClick={() => data.onSelect(data)}
-            title={restricted ? `${data.label} — restricted (metadata only)` : data.path || data.label}
+            onDoubleClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setDraft(data.label);
+                setEditing(true);
+            }}
+            title={restricted ? `${data.label} — restricted (metadata only)` : `${data.path || data.label} — double-click to rename`}
         >
             <Handle type="target" position={Position.Top} className="atlas-handle" />
             <div className={`atlas-node-dot ${data.type === "file" ? fileIcon(data.label).className : ""}`}>
@@ -27,9 +41,25 @@ export function AtlasNodeView({ data }: NodeProps<AtlasNode>) {
                     <FileTypeIcon size={20} strokeWidth={1.8} />
                 )}
             </div>
-            <div className="atlas-node-label" title={data.path || data.label}>
-                {data.label}
-            </div>
+            {editing ? (
+                <input
+                    className="atlas-node-rename-input"
+                    value={draft}
+                    autoFocus
+                    onClick={(event) => event.stopPropagation()}
+                    onFocus={(event) => event.target.select()}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter") commitRename();
+                        if (event.key === "Escape") setEditing(false);
+                    }}
+                    onBlur={commitRename}
+                />
+            ) : (
+                <div className="atlas-node-label" title={data.path || data.label}>
+                    {data.label}
+                </div>
+            )}
             {data.type !== "file" && <div className="atlas-node-kind">{data.type}</div>}
             {restricted && (
                 <div className="atlas-node-restricted-badge">
@@ -54,7 +84,7 @@ export function ImageNodeView({ data }: NodeProps<ImageAtlasNode>) {
                 src={data.src}
                 alt={data.node.label}
                 draggable={false}
-                className="block max-h-[160px] max-w-[220px] rounded object-contain bg-[#101314]"
+                className="block max-h-[160px] max-w-[220px] rounded object-contain bg-[var(--ca-canvas-soft)]"
             />
             <div className="atlas-node-label">{data.node.label}</div>
             <div className="atlas-node-kind">image</div>

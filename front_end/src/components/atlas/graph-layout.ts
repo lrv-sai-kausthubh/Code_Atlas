@@ -10,6 +10,8 @@ export function makeLayout(
     compact: boolean,
     positionOffsets: ReadonlyMap<string, XYPosition>,
     focusedNodeId: string | null,
+    renames: ReadonlyMap<string, string> = new Map(),
+    onRename: (nodeId: string, label: string) => void = () => {},
 ) {
     const children = new Map<string, string[]>();
     graph.edges
@@ -45,7 +47,15 @@ export function makeLayout(
                 x: center * (compact ? 148 : 176) + offset.x,
                 y: depth * (compact ? 128 : 168) + offset.y,
             },
-            data: { ...node, onSelect, onToggle, selected: false, focused: node.id === focusedNodeId },
+            data: {
+                ...node,
+                label: renames.get(node.id) ?? node.label,
+                onSelect,
+                onToggle,
+                onRename,
+                selected: false,
+                focused: node.id === focusedNodeId,
+            },
         });
         let childStart = start;
         childIds.forEach((childId) => {

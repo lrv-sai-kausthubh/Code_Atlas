@@ -7,13 +7,13 @@ import threading
 import time
 import urllib.error
 import uuid
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from app.services import authorization as authz
+from app.services import store
 from app.services.events import bus
 from .routes import (
     _download_github_repo_zip,
@@ -26,13 +26,9 @@ from .routes import (
 )
 
 router = APIRouter()
-
-USERS_FILE = Path(__file__).resolve().parents[3] / "data_base" / "users.json"
-SESSIONS_FILE = Path(__file__).resolve().parents[3] / "data_base" / "sessions.json"
-SECRET_KEY_FILE = Path(__file__).resolve().parents[3] / "data_base" / ".secret_key"
 AUTH_LOCK = threading.Lock()
 
-# Sessions survive backend restarts (persisted to data_base/sessions.json) and
+# Sessions survive backend restarts (persisted via the store) and
 # slide on every request; a session expires only after 30 days of inactivity.
 SESSION_TTL_SECONDS = 30 * 24 * 3600
 SESSION_SAVE_INTERVAL = 300  # persist at most every 5 min per active session
@@ -77,16 +73,10 @@ def _get_fernet():
 
     key = os.environ.get("CODEATLAS_SECRET_KEY", "").strip()
     if not key:
-        if SECRET_KEY_FILE.exists():
-            key = SECRET_KEY_FILE.read_text(encoding="utf-8").strip()
-        else:
-            SECRET_KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        key = store.get_secret_key()
+        if not key:
             key = Fernet.generate_key().decode("ascii")
-            SECRET_KEY_FILE.write_text(key, encoding="utf-8")
-            try:
-                os.chmod(SECRET_KEY_FILE, 0o600)
-            except OSError:
-                pass
+            store.set_secret_key(key)
     return Fernet(key.encode("ascii"))
 
 
@@ -143,52 +133,40 @@ class ChangePasswordRequest(BaseModel):
 
 
 def _load_users() -> None:
-    if not USERS_FILE.exists():
-        return
-    try:
-        with open(USERS_FILE, "r", encoding="utf-8") as file:
-            loaded = json.load(file)
-        migrated = False
-        for user in loaded.values():
-            token = user.get("github_access_token", "")
-            if token and not token.startswith("gAAAA"):
-                user["github_access_token"] = _encrypt_token(token)
-                migrated = True
-            if _is_super_admin(user.get("email", "")):
-                user["role"] = authz.SUPER_ADMIN
-                migrated = True
-        USERS.update(loaded)
-        if migrated:
-            _save_users()
-    except (json.JSONDecodeError, OSError):
-        USERS.clear()
+    loaded = store.load_collection("users")
+    migrated = False
+    for user in loaded.values():
+        if not isinstance(user, dict):
+            continue
+        token = user.get("github_access_token", "")
+        if token and not token.startswith("gAAAA"):
+            user["github_access_token"] = _encrypt_token(token)
+            migrated = True
+        if _is_super_admin(user.get("email", "")):
+            user["role"] = authz.SUPER_ADMIN
+            migrated = True
+    USERS.update(loaded)
+    if migrated:
+        _save_users()
 
 
 def _save_users() -> None:
-    USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(USERS_FILE, "w", encoding="utf-8") as file:
-        json.dump(USERS, file, indent=2)
+    store.save_collection("users", dict(USERS))
 
 
 def _load_sessions() -> None:
-    if not SESSIONS_FILE.exists():
-        return
-    try:
-        with open(SESSIONS_FILE, "r", encoding="utf-8") as file:
-            loaded = json.load(file)
-        now = time.time()
-        for token, session in loaded.items():
-            if now - (session.get("last_seen") or session.get("created_at") or 0) > SESSION_TTL_SECONDS:
-                continue
-            SESSIONS[token] = session
-    except (json.JSONDecodeError, OSError):
-        SESSIONS.clear()
+    loaded = store.load_collection("sessions")
+    now = time.time()
+    for token, session in loaded.items():
+        if not isinstance(session, dict):
+            continue
+        if now - (session.get("last_seen") or session.get("created_at") or 0) > SESSION_TTL_SECONDS:
+            continue
+        SESSIONS[token] = session
 
 
 def _save_sessions() -> None:
-    SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(SESSIONS_FILE, "w", encoding="utf-8") as file:
-        json.dump(SESSIONS, file, indent=2)
+    store.save_collection("sessions", dict(SESSIONS))
 
 
 def _new_session(email: str) -> str:
@@ -322,22 +300,14 @@ def _has_real_password(email: str) -> bool:
     unverifiable random placeholder), so the flag alone cannot be trusted for
     accounts lacking an audit trail.
     """
-    try:
-        with open(authz.AUDIT_FILE, "r", encoding="utf-8") as file:
-            for line in file:
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if event.get("email") != email:
-                    continue
-                action = event.get("action")
-                if action in ("auth.register", "auth.password"):
-                    return True
-                if action == "auth.login" and event.get("resource") == email:
-                    return True
-    except OSError:
-        pass
+    for event in store.audit_list():
+        if event.get("email") != email:
+            continue
+        action = event.get("action")
+        if action in ("auth.register", "auth.password"):
+            return True
+        if action == "auth.login" and event.get("resource") == email:
+            return True
     return False
 
 

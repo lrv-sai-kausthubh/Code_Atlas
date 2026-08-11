@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { XYPosition } from "@xyflow/react";
 import TopBar from "../components/workspace/topbar";
 import WorkspaceLayout from "../components/workspace/workspace-layout";
-import BackButton from "../components/back-button";
 import { AtlasLoader } from "../components/premium-loader";
 import { useNavigation } from "../services/navigation";
 import { createAccessRequest, getProjectGraph } from "../services/api";
@@ -194,7 +193,7 @@ function Workspace({
 
   if (needLogin) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">
+      <main className="min-h-screen bg-[var(--ca-canvas)]">
         <TopBar
           theme={theme}
           onToggleTheme={onToggleTheme}
@@ -204,16 +203,16 @@ function Workspace({
           onLogout={onLogout}
           user={user}
         />
-        <div className="flex h-[calc(100vh-72px)] flex-col items-center justify-center gap-4">
-          <p className="max-w-[420px] text-center font-dm text-sm leading-relaxed text-[#b9c1bd] light:text-[#34473f]">
+        <div className="flex h-[calc(100vh-72px)] flex-col items-center justify-center gap-5">
+          <p className="max-w-[420px] text-center text-[14px] leading-relaxed text-[var(--ca-body)]">
             Sign in to view this project. You will be brought straight back here
             after logging in.
           </p>
           <button
-            className="border border-[#64d5c4] bg-[#14231f] px-6 py-3 font-dm text-[12px] tracking-[.08em] text-[#64d5c4] transition-colors hover:bg-[#1d3a33] light:border-[#398f83] light:bg-[#e3ece7] light:text-[#398f83]"
+            className="ca-btn-primary"
             onClick={() => navigate("login")}
           >
-            SIGN IN
+            Sign in
           </button>
         </div>
       </main>
@@ -222,7 +221,7 @@ function Workspace({
 
   if (error) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">
+      <main className="min-h-screen bg-[var(--ca-canvas)]">
         <TopBar
           theme={theme}
           onToggleTheme={onToggleTheme}
@@ -233,10 +232,7 @@ function Workspace({
           user={user}
         />
         <div className="flex h-[calc(100vh-72px)] flex-col items-center justify-center gap-4">
-          <div className="flex items-center gap-4">
-            <BackButton onClick={() => navigate("projects")} />
-          </div>
-          <p className="max-w-[520px] text-center font-dm text-sm text-[#f17c71]">{error}</p>
+          <p className="max-w-[520px] text-center text-[14px] text-[var(--ca-error)]">{error}</p>
           {canRequestAccess && !requestSent && (
             <div className="flex w-full max-w-[460px] flex-col gap-2">
               <textarea
@@ -244,21 +240,21 @@ function Workspace({
                 onChange={(event) => setRequestReason(event.target.value)}
                 placeholder="Why do you need access? (optional)"
                 rows={2}
-                className="resize-none border border-[#39413e] bg-[#111313] px-3 py-2 font-dm text-[11px] text-[#b9c1bd] outline-none placeholder:text-[#59635e] focus:border-[#64d5c4] light:border-[#ccd8d1] light:bg-[#edf2ee] light:text-[#34473f]"
+                className="ca-input h-auto resize-none p-3 font-mono text-[12px]"
               />
               <button
-                className="border border-[#64d5c4] bg-[#14231f] px-6 py-2.5 font-dm text-[12px] tracking-[.08em] text-[#64d5c4] transition-colors hover:bg-[#1d3a33] disabled:opacity-40 light:border-[#398f83] light:bg-[#e3ece7] light:text-[#398f83]"
+                className="ca-btn-primary"
                 disabled={requestBusy}
                 onClick={() => void sendAccessRequest()}
               >
-                {requestBusy ? "SENDING…" : "REQUEST COLLABORATION ACCESS"}
+                {requestBusy ? "Sending…" : "Request collaboration access"}
               </button>
             </div>
           )}
           {canRequestAccess && requestSent && (
-            <p className="max-w-[460px] text-center font-dm text-[12px] text-[#64d5c4]">
+            <p className="max-w-[460px] text-center text-[12px] text-[var(--ca-success)]">
               Request sent. When the owner approves it, this project will appear in your
-              COLLABORATION tab.
+              collaboration tab.
             </p>
           )}
         </div>
@@ -268,7 +264,7 @@ function Workspace({
 
   if (!graph) {
     return (
-      <main className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">
+      <main className="flex min-h-screen flex-col bg-[var(--ca-canvas)]">
         <TopBar
           theme={theme}
           onToggleTheme={onToggleTheme}
@@ -279,11 +275,8 @@ function Workspace({
           user={user}
         />
         <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="flex items-center gap-4">
-            <BackButton onClick={() => navigate("projects")} />
-          </div>
           <div className="flex w-full flex-1 flex-col">
-            <AtlasLoader label="LOADING PROJECT GRAPH" />
+            <AtlasLoader label="Loading project graph" />
           </div>
         </div>
       </main>
@@ -291,7 +284,7 @@ function Workspace({
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">
+    <main className="min-h-screen overflow-hidden bg-[var(--ca-canvas)]">
       <TopBar
         theme={theme}
         onToggleTheme={onToggleTheme}
@@ -313,7 +306,7 @@ function Workspace({
       />
       {graph.files === 0 && (
         <div className="pointer-events-none absolute inset-x-0 top-[72px] z-10 text-center">
-          <span className="font-dm text-[11px] text-[#f2b84b]">
+          <span className="ca-mono-label text-[var(--ca-primary)]">
             This project contains no analyzable files.
           </span>
         </div>

@@ -33,7 +33,7 @@ function Security({ onLogout, theme, onToggleTheme, onOpenProfile, onOpenSetting
   }, [navProjectId, paramProjectId]);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#eef1ed]">
+    <main className="min-h-screen bg-[var(--ca-canvas)]">
       <TopBar
         theme={theme}
         onToggleTheme={onToggleTheme}
@@ -51,7 +51,7 @@ function Security({ onLogout, theme, onToggleTheme, onOpenProfile, onOpenSetting
         />
       ) : (
         <div className="flex h-[calc(100vh-72px)] items-center justify-center">
-          <p className="font-dm text-sm text-[#f17c71]">
+          <p className="font-dm text-sm text-[var(--ca-error)]">
             No project selected. Open a project&apos;s security center from your projects list.
           </p>
         </div>

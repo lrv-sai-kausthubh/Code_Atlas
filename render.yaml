@@ -10,9 +10,16 @@
 #   ALLOWED_ORIGINS    - comma-separated extra CORS origins
 #   GITHUB_CLIENT_ID   - GitHub OAuth app client id
 #   GITHUB_CLIENT_SECRET - GitHub OAuth app client secret
+#   DATABASE_URL       - PostgreSQL URL (Render Postgres or Supabase). When
+#                        unset the backend falls back to JSON files in the
+#                        container (data lost on redeploy), so set it.
 #
 # CODEATLAS_SECRET_KEY is generated once at first deploy and encrypts GitHub
 # OAuth tokens at rest. Do not clear it or stored tokens become undecryptable.
+#
+# First deploy with DATABASE_URL: run the one-shot migration so existing data
+# is copied into Postgres before traffic arrives:
+#   docker exec <container> python -m scripts.migrate_to_db
 
 services:
   - type: web
@@ -35,4 +42,6 @@ services:
       - key: GITHUB_CLIENT_ID
         sync: false
       - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: DATABASE_URL
         sync: false

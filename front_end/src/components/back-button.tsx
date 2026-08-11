@@ -15,7 +15,7 @@ type BackButtonProps = {
     variant?: "default" | "ghost";
 };
 
-function BackButton({ label = "BACK", onClick, variant = "default" }: BackButtonProps) {
+function BackButton({ label = "Back", onClick, variant = "default" }: BackButtonProps) {
     const { goBack } = useNavigation();
     const handleClick = onClick ?? goBack;
     if (variant === "ghost") {
@@ -23,7 +23,7 @@ function BackButton({ label = "BACK", onClick, variant = "default" }: BackButton
             <button
                 onClick={handleClick}
                 aria-label="Go back"
-                className="flex items-center gap-1.5 border border-[var(--graph-edge)] bg-[var(--graph-surface)] px-2 py-[6px] font-dm text-[9px] tracking-[.05em] text-[var(--graph-label)] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:bg-[#f6f8f5] light:text-[#405149]"
+                className="ca-btn-secondary !h-8 !px-3 ca-mono-label !text-[10px] !font-medium"
             >
                 <BackIcon />
                 {label}
@@ -34,7 +34,7 @@ function BackButton({ label = "BACK", onClick, variant = "default" }: BackButton
         <button
             onClick={handleClick}
             aria-label="Go back"
-            className="flex items-center gap-2 border border-[#596260] bg-transparent px-3 py-[10px] font-dm text-[10px] tracking-[.08em] text-[#aeb8b3] transition-colors hover:border-[#f2b84b] hover:text-[#f2b84b] light:border-[#b8c8c0] light:text-[#405149]"
+            className="ca-btn-secondary ca-mono-label !text-[11px] !font-medium"
         >
             <BackIcon />
             {label}

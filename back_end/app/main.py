@@ -32,13 +32,17 @@ def _load_env_file() -> None:
 _load_env_file()
 
 from app.api.auth import router as auth_router
+from app.api.aura import router as aura_router
 from app.api.routes import router
+from app.services import store
 from app.services.events import bus
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Capture the running event loop so worker threads can publish live events."""
+    """Create DB tables when running on PostgreSQL, then capture the running
+    event loop so worker threads can publish live events."""
+    store.init()
     bus.attach_loop(asyncio.get_running_loop())
     yield
     # Close any open SSE streams so uvicorn shuts down instead of waiting for
@@ -88,6 +92,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(router)
+app.include_router(aura_router)
 
 
 @app.get("/healthz")

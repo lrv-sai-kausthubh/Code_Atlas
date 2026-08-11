@@ -1,20 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Braces, Code, Database, File, FileCode, Folder, FolderArchive, Palette, Settings, Terminal, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { cancelUpload, getUploadProgress, getUploadResult, importConnectedRepo, importGithubProject, uploadProject } from "../services/api";
 import type { GitHubRepo } from "../services/api";
 import { toastLoading, toastSuccess, toastDismiss } from "../services/toast";
 import type { ProjectGraph, UploadProgress } from "../types/project";
 
-const PARTICLE_ICONS = [Code, Braces, Palette, FileCode, Terminal, Braces, Settings, Database, Folder, File];
-
 const PHASES: Record<UploadProgress["phase"], { label: string; range: [number, number] }> = {
-    uploading: { label: "Phase 00: Uploading Archive", range: [0, 30] },
-    downloading: { label: "Phase 00: Fetching Repository", range: [0, 30] },
-    extracting: { label: "Phase 01: Extracting Archive", range: [30, 82] },
-    analyzing: { label: "Phase 02: Graph Assembly", range: [82, 98] },
-    done: { label: "Phase 03: Complete", range: [98, 100] },
-    error: { label: "Phase 03: Failed", range: [98, 100] },
+    uploading: { label: "Uploading archive", range: [0, 30] },
+    downloading: { label: "Fetching repository", range: [0, 30] },
+    extracting: { label: "Extracting archive", range: [30, 82] },
+    analyzing: { label: "Graph assembly", range: [82, 98] },
+    done: { label: "Complete", range: [98, 100] },
+    error: { label: "Failed", range: [98, 100] },
 };
+
+const PIPELINE = [
+    "Repository received",
+    "Scanning files",
+    "Detecting languages",
+    "Parsing source code",
+    "Resolving dependencies",
+    "Building architecture graph",
+    "Preparing visualization",
+];
 
 const LOG_PATTERNS = [
     (file: string) => `Extracting ${file}...`,
@@ -34,9 +42,14 @@ function formatBytes(bytes: number) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function ParticleIcon({ icon, size }: { icon: typeof Code; size: number }) {
-    const Icon = icon;
-    return <Icon size={size} className="text-[rgba(0,122,255,.25)]" strokeWidth={1.4} />;
+function pipelineIndex(progress: number): number {
+    if (progress < 30) return 0;
+    if (progress < 50) return 1;
+    if (progress < 60) return 2;
+    if (progress < 70) return 3;
+    if (progress < 85) return 4;
+    if (progress < 97) return 5;
+    return 6;
 }
 
 type ParsingScreenProps = {
@@ -74,19 +87,6 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
     const startedRef = useRef(false);
     const lastLoggedFile = useRef("");
     const logRef = useRef<HTMLDivElement>(null);
-
-    const particles = useMemo(() => Array.from({ length: 16 }, (_, index) => {
-        const size = Math.random() * 34 + 12;
-        return {
-            id: index,
-            left: Math.random() * 100,
-            top: Math.random() * 100,
-            size,
-            duration: Math.random() * 3 + 3,
-            delay: Math.random() * 4,
-            icon: PARTICLE_ICONS[Math.floor(Math.random() * PARTICLE_ICONS.length)],
-        };
-    }), []);
 
     useEffect(() => {
         if (startedRef.current) return;
@@ -171,6 +171,7 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
     const progress = serverProgress ? Math.min(100, (serverProgress.phase === "uploading" ? NETWORK_PHASE_MAX * (networkPct / 100) : NETWORK_PHASE_MAX + ((100 - NETWORK_PHASE_MAX) * serverProgress.progress) / 100)) : NETWORK_PHASE_MAX * (networkPct / 100);
     const phase: UploadProgress["phase"] = serverProgress?.phase ?? "uploading";
     const phaseLabel = PHASES[phase].label;
+    const activeIndex = pipelineIndex(progress);
 
     const elapsedSeconds = serverProgress?.elapsed_seconds ?? (Date.now() - uploadStartedAt) / 1000;
     let estimatedRemaining = serverProgress?.remaining_seconds ?? 0;
@@ -182,7 +183,6 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
     estimatedRemaining = Math.max(0, Math.round(estimatedRemaining));
 
     const bytesProcessed = serverProgress?.bytes_processed ?? (file ? (file.size * networkPct) / 100 : 0);
-    const totalBytes = serverProgress?.total_bytes ?? file?.size ?? 0;
     const filesProcessed = serverProgress?.files_processed ?? (serverProgress?.phase === "extracting" ? serverProgress.files_processed : 0);
     const throughput = (bytesProcessed / (elapsedSeconds || 1)) / (1024 * 1024);
 
@@ -192,120 +192,126 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
         onCancel();
     };
 
-    return (
-        <div className="h-screen bg-[#080a0d] text-[#dfe2eb] font-inter overflow-hidden relative">
-            <div className="fixed inset-0 z-0 overflow-hidden">
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#30363d_1px,transparent_1px)] bg-[size:24px_24px]" />
-                <div className="absolute top-1/2 left-1/2 w-[600px] h-[600px] -translate-x-1/2 -translate-y-1/2 border border-[#30363d] rounded-full opacity-10 flex items-center justify-center before:content-[''] before:absolute before:w-[400px] before:h-[400px] before:border-2 before:border-[rgba(0,122,255,.2)] before:rounded-full before:animate-pulse" />
-                {particles.map((particle) => (
-                    <div
-                        key={particle.id}
-                        className="absolute border border-[rgba(0,122,255,.3)] bg-[rgba(38,42,49,.4)] flex items-center justify-center animate-absorb pointer-events-none"
-                        style={{
-                            width: particle.size,
-                            height: particle.size,
-                            left: `${particle.left}%`,
-                            top: `${particle.top}%`,
-                            animationDuration: `${particle.duration}s`,
-                            animationDelay: `${particle.delay}s`,
-                        }}
-                    >
-                        <ParticleIcon icon={particle.icon} size={particle.size / 2} />
-                    </div>
-                ))}
-                <div className="absolute inset-0 bg-[rgba(8,10,13,.6)] backdrop-blur-[2px]" />
-            </div>
+    const failed = phase === "error";
 
-            <header className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-4 border-b border-[#30363d] bg-[rgba(8,10,13,.8)] backdrop-blur-[12px]">
-                <div className="flex items-center gap-[10px]">
-                    <img src="/codeAtlas_logo.png" alt="Code Atlas" className="w-7 h-7 rounded-full object-contain" />
-                    <span className="font-space font-bold tracking-[-.04em] text-[#007aff] text-lg">CODE ATLAS</span>
-                    <span style={{ width: 1, height: 16, background: "#30363d", margin: "0 8px" }} />
-                    <span className="font-jet tracking-[.05em] uppercase" style={{ color: "#c1c6d7" }}>Ingestion Engine V4.0</span>
+    return (
+        <div className="min-h-screen bg-[var(--ca-canvas)] text-[var(--ca-ink)] font-sans">
+            <header className="flex h-16 items-center justify-between border-b border-[var(--ca-hairline)] bg-[var(--ca-canvas)] px-6">
+                <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-medium tracking-[-0.01em]">CodeAtlas</span>
+                    <span className="h-4 w-px bg-[var(--ca-hairline-strong)]" />
+                    <span className="ca-mono-label">{isGithub ? "Importing repository" : "Analyzing archive"}</span>
                 </div>
-                <div className="flex items-center gap-[14px]">
-                    <span className="flex items-center gap-2 font-jet text-xs text-[#10b981]"><span className="w-2 h-2 rounded-full bg-[#10b981] animate-ping" />STABLE CONNECTION</span>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-[#30363d] bg-transparent text-[#c1c6d7] font-jet text-[10px] tracking-[.08em] uppercase cursor-pointer transition-[border-color,color] duration-200 hover:border-[#007aff] hover:text-[#dfe2eb]" onClick={handleCancel}><X size={18} />Cancel</button>
+                <div className="flex items-center gap-3">
+                    <span className="ca-mono-label flex items-center gap-2">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--ca-success)]" />
+                        STABLE CONNECTION
+                    </span>
+                    <button className="ca-btn-secondary !h-9 !text-[13px]" onClick={handleCancel}>
+                        <X size={15} />
+                        Cancel
+                    </button>
                 </div>
             </header>
 
-            <main className="relative z-10 h-[calc(100vh-56px-32px)] flex items-center justify-center p-4 overflow-hidden">
-                <div className="w-full max-w-[880px] flex flex-col gap-6 max-h-full">
-                    <div className="relative">
-                        <div className="absolute -inset-1 bg-[linear-gradient(90deg,rgba(0,122,255,.2),rgba(139,92,246,.2))] blur-[18px] opacity-25" />
-                        <div className="relative bg-[#10141a] border border-[#30363d] p-8 flex gap-8 items-center overflow-hidden max-[760px]:flex-col max-[760px]:items-start">
-                            <div className="relative w-[176px] h-[176px] flex-[0_0_176px] bg-[#181c22] border border-[#30363d] overflow-hidden max-[760px]:w-[120px] max-[760px]:h-[120px]">
-                                <div className="absolute left-0 right-0 h-[2px] bg-[linear-gradient(to_right,transparent,#007aff,transparent)] animate-scanline" />
-                                <span className="absolute w-2 h-2 top-0 left-0 border-t border-l border-[#007aff]" />
-                                <span className="absolute w-2 h-2 top-0 right-0 border-t border-r border-[#007aff]" />
-                                <span className="absolute w-2 h-2 bottom-0 left-0 border-b border-l border-[#007aff]" />
-                                <span className="absolute w-2 h-2 bottom-0 right-0 border-b border-r border-[#007aff]" />
-                                <div className="absolute inset-4 border border-[rgba(0,122,255,.2)] flex items-center justify-center"><FolderArchive size={44} className="text-[#007aff]" strokeWidth={1.4} /></div>
-                            </div>
-                            <div className="flex-1 flex flex-col gap-6">
-                                <div className="flex justify-between items-end">
-                                    <div>
-                                        <h1 className="font-space text-xl font-semibold mt-0 mb-0">{isGithub ? "Importing Repository From GitHub" : "Parsing Repository Archive"}</h1>
-                                        <p className="text-sm text-[#c1c6d7] mt-1 mb-0">Project: <strong style={{ color: "#dfe2eb" }}>{projectName}</strong></p>
-                                    </div>
-                                    <span className="font-jet text-base text-[#007aff]">{progress.toFixed(1)}%</span>
-                                </div>
-                                <div>
-                                    <div className="h-3 bg-[#31353c] border border-[#30363d] overflow-hidden relative"><div className="h-full bg-[#007aff] relative transition-[width] duration-300 after:content-[''] after:absolute after:top-0 after:right-0 after:bottom-0 after:w-4 after:bg-[rgba(255,255,255,.2)] after:blur-[4px]" style={{ width: `${progress}%` }}><div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(0,122,255,.15)_25%,transparent_25%,transparent_50%,rgba(0,122,255,.15)_50%,rgba(0,122,255,.15)_75%,transparent_75%,transparent)] bg-[size:20px_20px] animate-march" /></div></div>
-                                    <div className="flex justify-between font-jet text-[10px] tracking-[.08em] uppercase text-[#c1c6d7]" style={{ marginTop: 8 }}>
-                                        <span>{phaseLabel}</span>
-                                        <span>EST. {estimatedRemaining}s REMAINING</span>
-                                    </div>
-                                </div>
-                            </div>
+            <main className="mx-auto max-w-[1000px] px-[30px] py-12">
+                <div className="mb-8">
+                    <div className="ca-badge mb-4">Ingestion engine</div>
+                    <h1 className="ca-display-md m-0 text-[26px]">
+                        {isGithub ? "Importing repository from GitHub" : "Analyzing repository"}
+                    </h1>
+                    <p className="ca-mono-label mt-2">{projectName}</p>
+                </div>
+
+                <div className="ca-card p-6">
+                    <div className="mb-3 flex items-end justify-between">
+                        <span className="ca-label">{phaseLabel}</span>
+                        <span className="ca-mono text-[14px] text-[var(--ca-primary)]">{progress.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--ca-surface-strong)]">
+                        <div
+                            className={`h-full rounded-full transition-[width] duration-300 ${failed ? "bg-[var(--ca-error)]" : "bg-[var(--ca-primary)]"}`}
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                    <div className="ca-mono-label mt-3 flex justify-between">
+                        <span>{filesProcessed.toLocaleString()} files</span>
+                        <span>~{estimatedRemaining}s remaining</span>
+                    </div>
+                </div>
+
+                <div className="mt-6 grid gap-6 md:grid-cols-2">
+                    <div className="ca-card overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-[var(--ca-hairline)] px-4 py-2.5">
+                            <span className="ca-label">Analysis pipeline</span>
+                            <span className="ca-mono-label">{isGithub ? "GITHUB REPO" : "ZIP ARCHIVE"}</span>
                         </div>
+                        <ul className="m-0 flex list-none flex-col p-4">
+                            {PIPELINE.map((stage, index) => {
+                                const state = failed ? "idle" : index < activeIndex ? "done" : index === activeIndex ? "active" : "idle";
+                                return (
+                                    <li key={stage} className="flex items-center gap-3 border-b border-[var(--ca-hairline-soft)] py-2.5 last:border-0">
+                                        <span className="grid h-4 w-4 shrink-0 place-items-center">
+                                            {state === "done" ? (
+                                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                                    <circle cx="8" cy="8" r="7.2" fill="none" stroke="var(--ca-success)" strokeWidth="1.6" />
+                                                    <path d="m4.8 8.2 2.2 2.2 4.4-4.8" stroke="var(--ca-success)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                                </svg>
+                                            ) : state === "active" ? (
+                                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                                                    <circle cx="5" cy="5" r="5" fill="var(--ca-primary)" />
+                                                    <circle className="animate-ping" cx="5" cy="5" r="5" fill="var(--ca-primary)" opacity=".5" />
+                                                </svg>
+                                            ) : (
+                                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                                    <circle cx="8" cy="8" r="7.2" fill="none" stroke="var(--ca-hairline-strong)" strokeWidth="1.6" />
+                                                </svg>
+                                            )}
+                                        </span>
+                                        <span className={`ca-mono text-[12px] ${state === "idle" ? "text-[var(--ca-muted-soft)]" : "text-[var(--ca-ink)]"}`}>
+                                            {stage}
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6 max-[760px]:grid-cols-1">
-                        <div className="bg-[#181c22] border border-[#30363d] h-[192px] flex flex-col">
-                            <div className="flex justify-between items-center px-4 py-2 border-b border-[#30363d] bg-[#10141a] font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">
-                                <span>PARSING_LOGS.EXE</span>
-                                <span className="flex gap-1"><i className="w-2 h-2 bg-[#30363d]" /><i className="w-2 h-2 bg-[#30363d]" /></span>
+                    <div className="flex flex-col gap-4">
+                        <div className="ca-card flex h-1 flex-col md:flex-1">
+                            <div className="flex items-center justify-between border-b border-[var(--ca-hairline)] px-4 py-2.5">
+                                <span className="ca-label">Ingestion log</span>
                             </div>
-                            <div className="flex-1 p-4 overflow-hidden font-jet text-xs text-[rgba(193,198,215,.8)] flex flex-col gap-1.5 [mask-image:linear-gradient(to_bottom,transparent,black_18%,black_82%,transparent)]" ref={logRef}>
-                                {logs.map((line, index) => <span key={index} className="animate-slide">{line}</span>)}
+                            <div
+                                ref={logRef}
+                                className="ca-mono no-scrollbar max-h-[300px] flex-1 space-y-1.5 overflow-hidden p-4 text-[11px] leading-[1.6] text-[var(--ca-body)] [mask-image:linear-gradient(to_bottom,transparent,black_14%,black_86%,transparent)]"
+                            >
+                                {logs.map((line, index) => <span key={index} className="block animate-slide">{line}</span>)}
                             </div>
                         </div>
+
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-[#10141a] border border-[#30363d] p-4 flex flex-col justify-between min-h-[88px]">
-                                <span className="font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">FILE_COUNT</span>
-                                <span className="font-space text-[32px] font-bold leading-none text-[#007aff]">{filesProcessed.toLocaleString()}</span>
-                                <span className="mt-2 w-fit font-jet text-[9px] text-[#4c1a00] bg-[#ef6719] px-1.5 py-0.5">PROCESSED</span>
+                            <div className="ca-card flex flex-col justify-between gap-2 p-4">
+                                <span className="ca-label">Files processed</span>
+                                <span className="ca-mono text-[26px] leading-none text-[var(--ca-ink)]">{filesProcessed.toLocaleString()}</span>
                             </div>
-                            <div className="bg-[#10141a] border border-[#30363d] p-4 flex flex-col justify-between min-h-[88px]">
-                                <span className="font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">DATA_READ</span>
-                                <span className="font-space text-[32px] font-bold leading-none text-[#10b981]">{formatBytes(bytesProcessed)}</span>
-                                <span className="mt-2 w-fit font-jet text-[9px] text-[#00311f] bg-[#00a572] px-1.5 py-0.5">EXTRACTED</span>
+                            <div className="ca-card flex flex-col justify-between gap-2 p-4">
+                                <span className="ca-label">Data read</span>
+                                <span className="ca-mono text-[26px] leading-none text-[var(--ca-ink)]">{formatBytes(bytesProcessed)}</span>
                             </div>
-                            <div className="col-span-2 bg-[#10141a] border border-[#30363d] p-4 flex justify-between items-center">
+                            <div className="col-span-2 ca-card flex items-center justify-between p-4">
                                 <div>
-                                    <span className="font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">THROUGHPUT</span>
-                                    <div className="font-jet text-sm text-[#dfe2eb]" style={{ marginTop: 6 }}>{throughput.toFixed(1)} MB/s</div>
+                                    <span className="ca-label">Throughput</span>
+                                    <div className="ca-mono mt-1 text-[14px] text-[var(--ca-ink)]">{throughput.toFixed(1)} MB/s</div>
                                 </div>
-                                <div className="flex gap-1 h-8 items-end">
-                                    {barHeights.map((height, index) => <i key={index} className="w-1 bg-[#007aff]" style={{ height: `${height * 100}%` }} />)}
+                                <div className="flex h-8 items-end gap-1">
+                                    {barHeights.map((height, index) => <i key={index} className="w-1 rounded-full bg-[var(--ca-primary)] opacity-70" style={{ height: `${height * 100}%` }} />)}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </main>
-
-            <footer className="fixed bottom-0 left-0 right-0 z-50 h-8 flex items-center justify-between px-4 border-t border-[#30363d] bg-[#181c22] font-jet text-[10px] tracking-[.08em] text-[#c1c6d7]">
-                <div>
-                    <span>● ENGINE: ACTIVE</span>
-                    <span style={{ opacity: .5 }}>HEARTBEAT: 12ms</span>
-                </div>
-                <div>
-                    <span>EST. SIZE: {formatBytes(totalBytes)}</span>
-                    <span className="text-[#007aff]" style={{ marginLeft: 16 }}>SYSTEM_READY_PENDING_INGESTION</span>
-                </div>
-            </footer>
         </div>
     );
 }

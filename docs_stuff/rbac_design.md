@@ -219,14 +219,20 @@ export endpoints, temporary approval expiry, policy restore, and team grants.
 - Phase 3 (temporary permissions, policy versioning, git-aware perms, exports,
   search authorization): **implemented** (git-aware branch/commit permissions
   deferred until Git history integration).
-- Phase 4 (AI authorization, secret protection): **partially implemented**.
-  Sensitive-information protection ships (redacted findings endpoint +
-  persistence of upload-time scans). AI authorization is **deferred** — the AI
-  feature is not built yet (per product decision).
+- Phase 4 (AI authorization, secret protection): **implemented**. The Aura AI
+  service (deterministic brain + scikit-learn fallback + LLM client in
+  `app/services/aura/` and `app/services/ml/`) provides AI authorization,
+  context filtering and audit; sensitive-information protection ships
+  (redacted findings endpoint + persistence of upload-time scans).
 - Phase 5 (anomaly detection, admin analytics, audit viewer): **partially
   implemented**. Enumeration / path-sweep / brute-force detection on the audit
   trail (`GET /api/admin/security-events`), an analytics dashboard
   (`GET /api/admin/analytics`) and a protected audit viewer
-  (`GET /api/admin/audit`) are live for super admins. SSO/SCIM/OIDC,
-  multi-organization tenancy and admin impersonation preview are **not
-  started**.
+  (`GET /api/admin/audit`) are live for super admins, along with
+  admin effective-permissions preview and impersonation preview. SSO/SCIM/OIDC
+  and multi-organization tenancy are **not started**.
+- Persistence: **implemented**. All state flows through `app/services/store.py`
+  — a facade with a JSON-file backend (default, `data_base/`) and a PostgreSQL
+  backend (set `DATABASE_URL`; Supabase/Render/Neon compatible). One-time
+  migration of an existing `data_base/` into Postgres:
+  `python -m scripts.migrate_to_db` (run from `back_end/`).

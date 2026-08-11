@@ -811,6 +811,63 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str, strip_ro
         node["size_bytes"] = file_sizes.get(path, 0)
         node["lines"] = file_lines.get(path, 0)
 
+    ml_insights = None
+    try:
+        from app.services.ml import analyze_repo as _aura_analyze_repo
+
+        function_count = sum(
+            len(detail.get("functions", []))
+            for detail in file_details.values()
+            if isinstance(detail, dict)
+        )
+        external_import_count = sum(
+            len(detail.get("external_imports", []))
+            for detail in file_details.values()
+            if isinstance(detail, dict)
+        )
+        in_degree: dict[str, int] = {}
+        for edge in edges:
+            if edge.get("relation") == "IMPORTS" and edge.get("target"):
+                in_degree[edge["target"]] = in_degree.get(edge["target"], 0) + 1
+        file_rows = []
+        for file_path in file_paths:
+            file_id = f"file:{file_path.as_posix()}"
+            detail = file_details.get(file_id) or {}
+            file_rows.append({
+                "path": file_path.as_posix(),
+                "lines": file_lines.get(file_path, 0),
+                "size_bytes": file_sizes.get(file_path, 0),
+                "in_degree": in_degree.get(file_id, 0),
+                "out_degree": len(find_local_imports(file_path, source_contents.get(file_path, ""), file_path_set)),
+                "function_count": len(detail.get("functions", [])) if isinstance(detail, dict) else 0,
+                "api_call_count": len(detail.get("api_calls", [])) if isinstance(detail, dict) else 0,
+                "external_import_count": len(detail.get("external_imports", [])) if isinstance(detail, dict) else 0,
+                "local_import_count": len(detail.get("imports", [])) if isinstance(detail, dict) else 0,
+            })
+        oversized_count = sum(1 for path in file_paths if file_lines.get(path, 0) > 500)
+        ml_insights = _aura_analyze_repo(
+            analysis,
+            file_rows,
+            len(file_paths),
+            max(len(directories) - 1, 0),
+            oversized_count=oversized_count,
+            function_count=function_count,
+            external_import_count=external_import_count,
+        )
+    except Exception:
+        logger.warning("Aura 1.0 ML analysis failed; continuing with deterministic analysis.", exc_info=True)
+        ml_insights = None
+
+    if ml_insights:
+        per_file = ml_insights.get("per_file") or {}
+        for node in nodes:
+            if node["type"] != "file":
+                continue
+            info = per_file.get(node["path"])
+            if info:
+                node["ml_risk"] = info.get("risk_tier")
+                node["ml_role"] = info.get("role")
+
     result = {
         "project_id": project_id,
         "project": Path(filename).stem,
@@ -822,6 +879,7 @@ def _extract_and_analyze(upload_id: str, content: bytes, filename: str, strip_ro
         "analysis": analysis,
         "function_calls": function_calls,
         "file_details": file_details,
+        "ml_insights": ml_insights,
     }
     authz.save_project_graph(project_id, result)
     authz.save_project_secrets(project_id, analysis.get("security_issues") or [])

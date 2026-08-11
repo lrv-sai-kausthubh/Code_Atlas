@@ -51,18 +51,18 @@ function ImagePreview({
     };
 
     return (
-        <div className="fixed right-6 top-[84px] z-40 w-[420px] border border-[#2b3030] bg-[#171a1a] shadow-[0_24px_60px_rgba(0,0,0,.45)] light:border-[#d6dfda] light:bg-[#f6f8f5]">
-            <div className="flex items-center justify-between border-b border-[#2b3030] px-[14px] py-3 font-dm text-[10px] tracking-[.1em] text-[#b1bab5] light:border-[#d6dfda] light:text-[#71807a]">
+        <div className="fixed right-6 top-[84px] z-40 w-[420px] border border-[var(--ca-hairline)] bg-[var(--ca-surface-card)]">
+            <div className="flex items-center justify-between border-b border-[var(--ca-hairline)] px-[14px] py-3 ca-mono-label !text-[10px] text-[var(--ca-muted)]">
                 <span className="flex items-center gap-2">
                     {isImage ? (
-                        <ImageIcon size={16} className="text-[#f2b84b]" />
+                        <ImageIcon size={16} className="text-[var(--ca-primary)]" />
                     ) : (
-                        <FileText size={16} className="text-[#f2b84b]" />
+                        <FileText size={16} className="text-[var(--ca-primary)]" />
                     )}
                     IMAGE PREVIEW
                 </span>
                 <button
-                    className="inline-flex h-[22px] w-[22px] items-center justify-center border border-transparent bg-transparent text-[#79817e] transition-colors hover:border-[#39413e] hover:text-[#f2b84b]"
+                    className="inline-flex h-[22px] w-[22px] items-center justify-center border border-transparent bg-transparent text-[var(--ca-muted)] transition-colors hover:border-[var(--ca-hairline-strong)] hover:text-[var(--ca-primary)]"
                     onClick={onClose}
                     aria-label="Close preview"
                 >
@@ -70,11 +70,11 @@ function ImagePreview({
                 </button>
             </div>
             <div className="p-[14px]">
-                <div className="mb-3 truncate font-dm text-[11px] text-[#dfe5df] light:text-[#202824]">
+                <div className="mb-3 truncate ca-mono-label !text-[11px] text-[var(--ca-ink)]">
                     {node.label}
                 </div>
                 {error ? (
-                    <div className="flex h-[200px] items-center justify-center border border-dashed border-[#39413e] font-dm text-[10px] text-[#89958f] light:border-[#c2cfc7]">
+                    <div className="flex h-[200px] items-center justify-center border border-dashed border-[var(--ca-hairline-strong)] ca-mono-label !text-[10px] text-[var(--ca-body)]">
                         Preview unavailable or access restricted.
                     </div>
                 ) : isImage ? (
@@ -83,22 +83,22 @@ function ImagePreview({
                         alt={node.label}
                         draggable
                         onDragStart={onDragStart}
-                        className="block max-h-[360px] w-full cursor-grab object-contain bg-[repeating-conic-gradient(#14181a_0%_25%,#101314_0%_50%)] bg-[size:18px_18px] active:cursor-grabbing"
+                        className="block max-h-[360px] w-full cursor-grab object-contain bg-[repeating-conic-gradient(var(--ca-hairline-soft)_0%_25%,var(--ca-canvas-soft)_0%_50%)] bg-[size:18px_18px] active:cursor-grabbing"
                     />
                 ) : (
-                    <iframe src={src} title={node.label} className="block h-[360px] w-full border-0 bg-[#dfe2eb]" />
+                    <iframe src={src} title={node.label} className="block h-[360px] w-full border-0 bg-[var(--ca-canvas-soft)]" />
                 )}
                 {isImage && (
-                    <div className="mt-3 flex items-center justify-between font-dm text-[9px] tracking-[.08em] text-[#64d5c4]">
+                    <div className="mt-3 flex items-center justify-between ca-mono-label !text-[9px] text-[var(--ca-success)]">
                         <span>DRAG IMAGE ONTO THE MAP TO ADD AS A NODE</span>
-                        <a href={src} target="_blank" rel="noreferrer" className="text-[#f2b84b] no-underline hover:underline">
+                        <a href={src} target="_blank" rel="noreferrer" className="text-[var(--ca-primary)] no-underline hover:underline">
                             OPEN
                         </a>
                     </div>
                 )}
                 {isPdf && (
-                    <div className="mt-3 text-right font-dm text-[9px] tracking-[.08em]">
-                        <a href={src} target="_blank" rel="noreferrer" className="text-[#f2b84b] no-underline hover:underline">
+                    <div className="mt-3 text-right ca-mono-label !text-[9px] tracking-[.08em]">
+                        <a href={src} target="_blank" rel="noreferrer" className="text-[var(--ca-primary)] no-underline hover:underline">
                             OPEN PDF
                         </a>
                     </div>

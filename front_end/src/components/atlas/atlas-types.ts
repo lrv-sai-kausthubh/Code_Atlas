@@ -2,9 +2,9 @@ import type { Node, XYPosition } from "@xyflow/react";
 import type { ProjectNode } from "../../types/project";
 
 export const NODE_COLORS: Record<ProjectNode["type"], string> = {
-    project: "#f2b84b",
-    folder: "#64d5c4",
-    file: "#9ca9ff",
+    project: "var(--node-project)",
+    folder: "var(--node-folder)",
+    file: "var(--node-file)",
 };
 
 export type AtlasNodeData = ProjectNode & {
@@ -12,6 +12,7 @@ export type AtlasNodeData = ProjectNode & {
     onToggle: (nodeId: string) => void;
     selected: boolean;
     focused: boolean;
+    onRename?: (nodeId: string, label: string) => void;
 };
 
 export type AtlasNode = Node<AtlasNodeData, "atlas">;

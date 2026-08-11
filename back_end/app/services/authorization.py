@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from app.services import store
+
 DATA_BASE = Path(__file__).resolve().parents[3] / "data_base"
 POLICIES_FILE = DATA_BASE / "policies.json"
 AUDIT_FILE = DATA_BASE / "audit.jsonl"
@@ -359,12 +361,7 @@ class Policy:
 # ── policy store ────────────────────────────────────────────────────────────
 def load_policy(project_id: str) -> Policy | None:
     with POLICY_LOCK:
-        if not POLICIES_FILE.exists():
-            return None
-        try:
-            data = json.loads(POLICIES_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return None
+        data = store.load_collection("policies")
         raw = data.get(project_id)
         return Policy.from_dict(raw) if raw else None
 
@@ -373,16 +370,10 @@ def save_policy(policy: Policy, actor: str = "", note: str = "") -> None:
     """Persist a policy. When a prior state exists, the old snapshot is kept as
     a version in `policy_versions.json` so admins can inspect/restore history."""
     with POLICY_LOCK:
-        data: dict[str, Any] = {}
-        if POLICIES_FILE.exists():
-            try:
-                data = json.loads(POLICIES_FILE.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                data = {}
+        data = store.load_collection("policies")
         previous = data.get(policy.project_id)
         data[policy.project_id] = policy.to_dict()
-        POLICIES_FILE.parent.mkdir(parents=True, exist_ok=True)
-        POLICIES_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        store.save_collection("policies", data)
 
         if previous is not None and previous != policy.to_dict():
             _record_policy_version(
@@ -399,12 +390,7 @@ def _record_policy_version(
     actor: str = "",
     note: str = "",
 ) -> None:
-    versions: dict[str, Any] = {}
-    if POLICY_VERSIONS_FILE.exists():
-        try:
-            versions = json.loads(POLICY_VERSIONS_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            versions = {}
+    versions: dict[str, Any] = store.load_collection("policy_versions")
     history = versions.get(project_id, [])
     history.append(
         {
@@ -416,18 +402,12 @@ def _record_policy_version(
         }
     )
     versions[project_id] = history[-MAX_POLICY_VERSIONS:]
-    POLICY_VERSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    POLICY_VERSIONS_FILE.write_text(json.dumps(versions, indent=2), encoding="utf-8")
+    store.save_collection("policy_versions", versions)
 
 
 def list_policy_versions(project_id: str) -> list[dict[str, Any]]:
     """Return the version history for a project (metadata only, no snapshots)."""
-    if not POLICY_VERSIONS_FILE.exists():
-        return []
-    try:
-        versions = json.loads(POLICY_VERSIONS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
+    versions = store.load_collection("policy_versions")
     return [
         {"version": v["version"], "ts": v.get("ts"), "actor": v.get("actor", ""), "note": v.get("note", "")}
         for v in versions.get(project_id, [])
@@ -436,12 +416,7 @@ def list_policy_versions(project_id: str) -> list[dict[str, Any]]:
 
 def get_policy_version(project_id: str, version: int) -> dict[str, Any] | None:
     """Return a full historical snapshot for a project."""
-    if not POLICY_VERSIONS_FILE.exists():
-        return None
-    try:
-        versions = json.loads(POLICY_VERSIONS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
+    versions = store.load_collection("policy_versions")
     for v in versions.get(project_id, []):
         if v.get("version") == version:
             return v.get("snapshot")
@@ -471,12 +446,7 @@ def ensure_policy(project_id: str, owner_email: str, project: str = "") -> Polic
 
 def load_all_policies() -> list[Policy]:
     with POLICY_LOCK:
-        if not POLICIES_FILE.exists():
-            return []
-        try:
-            data = json.loads(POLICIES_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return []
+        data = store.load_collection("policies")
     return [Policy.from_dict(value) for value in data.values()]
 
 
@@ -485,40 +455,28 @@ def delete_project(project_id: str) -> bool:
     requests, graph, and secret findings. Returns False if the project did
     not exist. The audit log is append-only and intentionally untouched."""
     with POLICY_LOCK:
-        if not POLICIES_FILE.exists():
-            return False
-        try:
-            data = json.loads(POLICIES_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            data = {}
+        data = store.load_collection("policies")
         if project_id not in data:
             return False
         data.pop(project_id, None)
-        POLICIES_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        store.save_collection("policies", data)
 
-        if POLICY_VERSIONS_FILE.exists():
-            try:
-                versions = json.loads(POLICY_VERSIONS_FILE.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                versions = {}
+        versions = store.load_collection("policy_versions")
+        if project_id in versions:
             versions.pop(project_id, None)
-            POLICY_VERSIONS_FILE.write_text(json.dumps(versions, indent=2), encoding="utf-8")
+            store.save_collection("policy_versions", versions)
 
-        requests_path = DATA_BASE / "access_requests.json"
-        if requests_path.exists():
-            try:
-                requests_data = json.loads(requests_path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                requests_data = {}
-            prefix = f"request:{project_id}:"
-            for key in [key for key in requests_data if key.startswith(prefix)]:
-                requests_data.pop(key, None)
-            requests_path.write_text(json.dumps(requests_data, indent=2), encoding="utf-8")
+        requests_data = store.load_collection("access_requests")
+        prefix = f"request:{project_id}:"
+        for key in [key for key in requests_data if key.startswith(prefix)]:
+            requests_data.pop(key, None)
+        store.save_collection("access_requests", requests_data)
 
     safe_id = _sanitize_project_id(project_id)
-    project_graph_path(project_id).unlink(missing_ok=True)
-    (PROJECTS_DIR / f"{safe_id}.json").unlink(missing_ok=True)
-    (PROJECTS_DIR / f"{safe_id}.secrets.json").unlink(missing_ok=True)
+    store.delete_graph(project_id)
+    store.delete_graph(safe_id)  # legacy files may use the sanitized id
+    store.delete_secrets(project_id)
+    store.delete_secrets(safe_id)
     return True
 
 
@@ -542,20 +500,11 @@ def project_graph_path(project_id: str) -> Path:
 
 
 def save_project_graph(project_id: str, result: dict[str, Any]) -> None:
-    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
-    project_graph_path(project_id).write_text(
-        json.dumps(result, ensure_ascii=False), encoding="utf-8"
-    )
+    store.save_graph(project_id, result)
 
 
 def load_project_graph(project_id: str) -> dict[str, Any] | None:
-    path = project_graph_path(project_id)
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
+    return store.load_graph(project_id)
 
 
 # ── audit log ───────────────────────────────────────────────────────────────
@@ -563,23 +512,15 @@ def audit(
     email: str, action: str, resource: str, detail: dict[str, Any] | None = None
 ) -> None:
     """Append a security-sensitive event. Never log source code or secrets."""
-    try:
-        DATA_BASE.mkdir(parents=True, exist_ok=True)
-        with open(AUDIT_FILE, "a", encoding="utf-8") as file:
-            file.write(
-                json.dumps(
-                    {
-                        "ts": round(time.time(), 3),
-                        "email": email,
-                        "action": action,
-                        "resource": resource,
-                        "detail": detail or {},
-                    }
-                )
-                + "\n"
-            )
-    except OSError:
-        pass
+    store.audit_append(
+        {
+            "ts": round(time.time(), 3),
+            "email": email,
+            "action": action,
+            "resource": resource,
+            "detail": detail or {},
+        }
+    )
 
 
 # ── access requests ─────────────────────────────────────────────────────────
@@ -594,27 +535,14 @@ def _sanitize_project_id(project_id: str) -> str:
 def save_access_request(project_id: str, request: dict[str, Any]) -> None:
     with POLICY_LOCK:
         key = request_key(project_id, request["id"])
-        data: dict[str, Any] = {}
-        path = DATA_BASE / "access_requests.json"
-        if path.exists():
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                data = {}
+        data = store.load_collection("access_requests")
         data[key] = request
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        store.save_collection("access_requests", data)
 
 
 def load_access_requests(project_id: str, email: str) -> list[dict[str, Any]]:
     """Return requests for this project. Owners see all; users see their own."""
-    path = DATA_BASE / "access_requests.json"
-    if not path.exists():
-        return []
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
+    data = store.load_collection("access_requests")
     prefix = f"request:{project_id}:"
     requests = [
         value
@@ -627,27 +555,15 @@ def load_access_requests(project_id: str, email: str) -> list[dict[str, Any]]:
 def update_access_request(project_id: str, request_id: str, changes: dict[str, Any]) -> None:
     with POLICY_LOCK:
         key = request_key(project_id, request_id)
-        path = DATA_BASE / "access_requests.json"
-        if not path.exists():
-            return
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return
+        data = store.load_collection("access_requests")
         if key in data:
             data[key].update(changes)
-            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            store.save_collection("access_requests", data)
 
 
 def list_users_file() -> dict[str, dict[str, Any]]:
     """Load the raw user store (used by the grants management API)."""
-    users_file = DATA_BASE / "users.json"
-    if not users_file.exists():
-        return {}
-    try:
-        data = json.loads(users_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
+    data = store.load_collection("users")
     return {email: user for email, user in data.items() if isinstance(user, dict)}
 
 
@@ -661,74 +577,54 @@ def rekey_user_email(old_email: str, new_email: str) -> list[str]:
     changes: list[str] = []
 
     # policies
-    if POLICIES_FILE.exists():
-        try:
-            data = json.loads(POLICIES_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            data = {}
-        for project_id, policy in data.items():
-            if not isinstance(policy, dict):
-                continue
-            if policy.get("owner_email") == old_email:
-                policy["owner_email"] = new_email
-                changes.append("policy.owner")
-            if policy.get("managers"):
-                policy["managers"] = [new_email if m == old_email else m for m in policy["managers"]]
-            for grant in policy.get("grants", []):
-                if isinstance(grant, dict) and grant.get("subject_type") == "user" and grant.get("subject_value") == old_email:
-                    grant["subject_value"] = new_email
-                    changes.append("policy.grant")
-        if changes:
-            POLICIES_FILE.parent.mkdir(parents=True, exist_ok=True)
-            POLICIES_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    data = store.load_collection("policies")
+    for project_id, policy in data.items():
+        if not isinstance(policy, dict):
+            continue
+        if policy.get("owner_email") == old_email:
+            policy["owner_email"] = new_email
+            changes.append("policy.owner")
+        if policy.get("managers"):
+            policy["managers"] = [new_email if m == old_email else m for m in policy["managers"]]
+        for grant in policy.get("grants", []):
+            if isinstance(grant, dict) and grant.get("subject_type") == "user" and grant.get("subject_value") == old_email:
+                grant["subject_value"] = new_email
+                changes.append("policy.grant")
+    if changes:
+        store.save_collection("policies", data)
 
     # organizations
-    if ORGANIZATIONS_FILE.exists():
-        try:
-            orgs = json.loads(ORGANIZATIONS_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            orgs = {}
-        for org in orgs.values():
-            if not isinstance(org, dict):
-                continue
-            if org.get("owner_email") == old_email:
-                org["owner_email"] = new_email
-                changes.append("org.owner")
-            members = org.get("members") or []
-            if old_email in members:
-                org["members"] = [new_email if m == old_email else m for m in members]
-                changes.append("org.member")
-        if changes and (ORGANIZATIONS_FILE.exists() or orgs):
-            ORGANIZATIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-            ORGANIZATIONS_FILE.write_text(json.dumps(orgs, indent=2), encoding="utf-8")
+    orgs = store.load_collection("organizations")
+    for org in orgs.values():
+        if not isinstance(org, dict):
+            continue
+        if org.get("owner_email") == old_email:
+            org["owner_email"] = new_email
+            changes.append("org.owner")
+        members = org.get("members") or []
+        if old_email in members:
+            org["members"] = [new_email if m == old_email else m for m in members]
+            changes.append("org.member")
+    if changes:
+        store.save_collection("organizations", orgs)
 
     # teams
-    if TEAMS_FILE.exists():
-        try:
-            teams = json.loads(TEAMS_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            teams = {}
-        for team in teams.values():
-            if isinstance(team, dict) and old_email in (team.get("members") or []):
-                team["members"] = [new_email if m == old_email else m for m in team["members"]]
-                changes.append("team.member")
-        if changes:
-            TEAMS_FILE.parent.mkdir(parents=True, exist_ok=True)
-            TEAMS_FILE.write_text(json.dumps(teams, indent=2), encoding="utf-8")
+    teams = store.load_collection("teams")
+    for team in teams.values():
+        if isinstance(team, dict) and old_email in (team.get("members") or []):
+            team["members"] = [new_email if m == old_email else m for m in team["members"]]
+            changes.append("team.member")
+    if changes:
+        store.save_collection("teams", teams)
 
     # access requests
-    req_path = DATA_BASE / "access_requests.json"
-    if req_path.exists():
-        try:
-            requests = json.loads(req_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            requests = {}
-        for request in requests.values():
-            if isinstance(request, dict) and request.get("requester_email") == old_email:
-                request["requester_email"] = new_email
-                changes.append("request.requester")
-        if req_path.exists():
-            req_path.write_text(json.dumps(requests, indent=2), encoding="utf-8")
+    requests = store.load_collection("access_requests")
+    for request in requests.values():
+        if isinstance(request, dict) and request.get("requester_email") == old_email:
+            request["requester_email"] = new_email
+            changes.append("request.requester")
+    if requests:
+        store.save_collection("access_requests", requests)
 
     return changes
 
@@ -736,12 +632,7 @@ def rekey_user_email(old_email: str, new_email: str) -> list[str]:
 # ── teams (Phase 2) ──────────────────────────────────────────────────────────
 def list_teams() -> dict[str, dict[str, Any]]:
     """Return the raw team store keyed by team id."""
-    if not TEAMS_FILE.exists():
-        return {}
-    try:
-        data = json.loads(TEAMS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
+    data = store.load_collection("teams")
     return {team_id: team for team_id, team in data.items() if isinstance(team, dict)}
 
 
@@ -749,8 +640,7 @@ def save_team(team: dict[str, Any]) -> None:
     with POLICY_LOCK:
         teams = list_teams()
         teams[team["id"]] = team
-        TEAMS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        TEAMS_FILE.write_text(json.dumps(teams, indent=2), encoding="utf-8")
+        store.save_collection("teams", teams)
 
 
 def delete_team(team_id: str) -> bool:
@@ -759,7 +649,7 @@ def delete_team(team_id: str) -> bool:
         if team_id not in teams:
             return False
         del teams[team_id]
-        TEAMS_FILE.write_text(json.dumps(teams, indent=2), encoding="utf-8")
+        store.save_collection("teams", teams)
         return True
 
 
@@ -780,12 +670,7 @@ def team_member_emails(team_id: str) -> list[str]:
 # ── organizations (Phase 5 multi-tenant) ─────────────────────────────────────
 def list_organizations() -> dict[str, dict[str, Any]]:
     """Return the raw organization store keyed by org id."""
-    if not ORGANIZATIONS_FILE.exists():
-        return {}
-    try:
-        data = json.loads(ORGANIZATIONS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
+    data = store.load_collection("organizations")
     return {org_id: org for org_id, org in data.items() if isinstance(org, dict)}
 
 
@@ -793,8 +678,7 @@ def save_organization(organization: dict[str, Any]) -> None:
     with POLICY_LOCK:
         orgs = list_organizations()
         orgs[organization["id"]] = organization
-        ORGANIZATIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        ORGANIZATIONS_FILE.write_text(json.dumps(orgs, indent=2), encoding="utf-8")
+        store.save_collection("organizations", orgs)
 
 
 def delete_organization(org_id: str) -> bool:
@@ -803,7 +687,7 @@ def delete_organization(org_id: str) -> bool:
         if org_id not in orgs:
             return False
         del orgs[org_id]
-        ORGANIZATIONS_FILE.write_text(json.dumps(orgs, indent=2), encoding="utf-8")
+        store.save_collection("organizations", orgs)
         return True
 
 
@@ -892,6 +776,35 @@ def _filter_analysis(
 
 
 # ── authorized graph filtering ──────────────────────────────────────────────
+def _filter_ml_insights(
+    insights: dict[str, Any] | None, node_paths: set[str]
+) -> dict[str, Any] | None:
+    """Strip Aura ML paths the user cannot know exist (metadata boundary).
+
+    `refactor_candidates` and `per_file` reference file paths, so they must
+    never leak a metadata-denied file. The repo-level summary is metadata-safe
+    and is preserved.
+    """
+    if not insights:
+        return insights
+    filtered = dict(insights)
+    filtered["refactor_candidates"] = [
+        candidate for candidate in insights.get("refactor_candidates", [])
+        if candidate.get("path") in node_paths
+    ]
+    per_file = insights.get("per_file") or {}
+    filtered["per_file"] = {
+        path: value for path, value in per_file.items() if path in node_paths
+    }
+    if filtered.get("roles") and filtered["per_file"]:
+        counts: dict[str, int] = {}
+        for value in filtered["per_file"].values():
+            role = value.get("role", "thin")
+            counts[role] = counts.get(role, 0) + 1
+        filtered["roles"] = counts
+    return filtered
+
+
 def authorized_graph(
     result: dict[str, Any],
     user_email: str,
@@ -957,6 +870,7 @@ def authorized_graph(
     copied["analysis"] = _filter_analysis(
         result.get("analysis") or {}, node_paths, source_paths
     )
+    copied["ml_insights"] = _filter_ml_insights(result.get("ml_insights"), node_paths)
 
     copied["files"] = sum(1 for n in nodes if n.get("type") == "file")
     copied["folders"] = sum(1 for n in nodes if n.get("type") == "folder")
@@ -1223,9 +1137,6 @@ def save_project_secrets(project_id: str, secrets: list[dict[str, Any]]) -> None
     """Persist secret findings from the upload-time scan so managers can review
     them without re-scanning. The raw secret VALUES are not stored — only the
     type, location, and a truncated fingerprint."""
-    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
-    safe_id = _sanitize_project_id(project_id)
-    path = PROJECTS_DIR / f"{safe_id}.secrets.json"
     redacted = [
         {
             "file": finding.get("file", ""),
@@ -1236,18 +1147,14 @@ def save_project_secrets(project_id: str, secrets: list[dict[str, Any]]) -> None
         }
         for finding in (secrets or [])
     ]
-    path.write_text(json.dumps(redacted, indent=2), encoding="utf-8")
+    store.save_secrets(_sanitize_project_id(project_id), {"findings": redacted})
 
 
 def load_project_secrets(project_id: str) -> list[dict[str, Any]]:
-    safe_id = _sanitize_project_id(project_id)
-    path = PROJECTS_DIR / f"{safe_id}.secrets.json"
-    if not path.exists():
+    data = store.load_secrets(_sanitize_project_id(project_id))
+    if not data:
         return []
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
+    return list(data.get("findings") or [])
 
 
 def _redact_secret(value: str) -> str:
@@ -1270,55 +1177,31 @@ def list_audit_events(
     email: str | None = None,
 ) -> list[dict[str, Any]]:
     """Return the most recent audit events (newest first)."""
-    if not AUDIT_FILE.exists():
-        return []
-    events: list[dict[str, Any]] = []
-    try:
-        with open(AUDIT_FILE, "r", encoding="utf-8") as file:
-            for order, line in enumerate(file):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if action and event.get("action") != action:
-                    continue
-                if email and event.get("email") != email:
-                    continue
-                event["_order"] = order
-                events.append(event)
-    except OSError:
-        return []
-    events.sort(key=lambda event: (event.get("ts", 0), event.get("_order", 0)), reverse=True)
-    for event in events:
-        event.pop("_order", None)
+    ordered = list(reversed(store.audit_list()))  # newest first, stable on ties
+    events = [
+        event
+        for event in ordered
+        if (not action or event.get("action") == action)
+        and (not email or event.get("email") == email)
+    ]
     return events[:limit]
 
 
 # ── Phase 5: anomaly detection ───────────────────────────────────────────────
 def record_security_event(event: dict[str, Any]) -> None:
     with POLICY_LOCK:
-        events: dict[str, Any] = {}
-        if SECURITY_EVENTS_FILE.exists():
-            try:
-                events = json.loads(SECURITY_EVENTS_FILE.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                events = {}
+        events = store.load_collection("security_events")
         events[event["id"]] = event
-        SECURITY_EVENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        SECURITY_EVENTS_FILE.write_text(json.dumps(events, indent=2), encoding="utf-8")
+        store.save_collection("security_events", events)
 
 
 def list_security_events(limit: int = 100) -> list[dict[str, Any]]:
-    if not SECURITY_EVENTS_FILE.exists():
-        return []
-    try:
-        events = json.loads(SECURITY_EVENTS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
-    result = sorted(events.values(), key=lambda event: event.get("ts", 0), reverse=True)
+    events = store.load_collection("security_events")
+    result = sorted(
+        (event for event in events.values() if isinstance(event, dict)),
+        key=lambda event: event.get("ts", 0),
+        reverse=True,
+    )
     return result[:limit]
 
 
@@ -1333,22 +1216,7 @@ def detect_anomalies(
     many distinct restricted paths, and repeated failed logins. Emits at most
     one alert per signal per sliding window, and persists them.
     """
-    if not AUDIT_FILE.exists():
-        return []
-    events: list[dict[str, Any]] = []
-    try:
-        with open(AUDIT_FILE, "r", encoding="utf-8") as file:
-            for line in file:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-    except OSError:
-        return []
-
+    events = store.audit_list()
     now = time.time()
     alerts: list[dict[str, Any]] = []
     active = [event for event in events if now - event.get("ts", 0) <= window]

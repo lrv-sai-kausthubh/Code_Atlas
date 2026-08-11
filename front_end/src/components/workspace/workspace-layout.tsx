@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { XYPosition } from "@xyflow/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import AuraBar from "../aura/aura-bar";
 import AnalysisPanel from "./analysis-panel";
 import ExplorerPanel from "./explorer-panel";
 import GraphPanel from "./graph-panel";
 import ImagePreview from "../preview/image-preview";
 import InspectorPanel from "./inspector-panel";
-import { toastProcessing } from "../../services/toast";
-import type { NodeMovement } from "../atlas/atlas-types";
-import type { ProjectGraph, ProjectNode } from "../../types/project";
+import { toastProcessing, toastSuccess } from "../../services/toast";import type { NodeMovement } from "../atlas/atlas-types";
+import type { AuraAction, ProjectGraph, ProjectNode } from "../../types/project";
 
 function WorkspaceLayout({
   graph,
@@ -55,9 +55,14 @@ function WorkspaceLayout({
     return stored ? stored === "1" : true;
   });
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [auraOpen, setAuraOpen] = useState(false);
   const [previewNode, setPreviewNode] = useState<ProjectNode | null>(null);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [layoutDirty, setLayoutDirty] = useState(false);
+  const [renames, setRenames] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  );
   const [explorerWidth, setExplorerWidth] = useState(
     () => Number(localStorage.getItem("ca-explorer-width")) || 230,
   );
@@ -222,6 +227,11 @@ function WorkspaceLayout({
           y: offset.y + movement.y,
         });
       });
+      const changed = [...next.entries()].some(([nodeId, pos]) => {
+        const prev = positionOffsets.get(nodeId);
+        return !prev || prev.x !== pos.x || prev.y !== pos.y;
+      });
+      if (changed) setLayoutDirty(true);
       onMoveNodes(next);
     },
     [graph, onMoveNodes, parentById, positionOffsets],
@@ -266,6 +276,53 @@ function WorkspaceLayout({
     () => setAnalysisOpen((value) => !value),
     [],
   );
+  const toggleAura = useCallback(() => setAuraOpen((value) => !value), []);
+
+  useEffect(() => {
+    setLayoutDirty(false);
+    setRenames(new Map());
+  }, [projectId]);
+
+  const handleRename = useCallback((nodeId: string, label: string) => {
+    setRenames((prev) => {
+      const next = new Map(prev);
+      next.set(nodeId, label);
+      return next;
+    });
+    setLayoutDirty(true);
+  }, []);
+
+  const handleExportLayout = useCallback(() => {
+    if (!graph) return;
+    const payload = {
+      app: "CodeAtlas",
+      version: 1,
+      exported_at: new Date().toISOString(),
+      project_id: graph.project_id,
+      project: graph.project,
+      layout_changed: true,
+      position_offsets: Object.fromEntries(positionOffsets),
+      renames: Object.fromEntries(renames),
+      nodes: graph.nodes.map((node) => ({
+        id: node.id,
+        type: node.type,
+        path: node.path,
+        label: renames.get(node.id) ?? node.label,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `codeatlas-layout-${graph.project_id || "project"}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    toastSuccess("Layout exported");
+  }, [graph, positionOffsets, renames]);
 
   const gridCols = explorerCollapsed
     ? inspectorCollapsed
@@ -276,7 +333,13 @@ function WorkspaceLayout({
       : "grid-cols-[var(--explorer-width,230px)_4px_minmax(0,1fr)_4px_var(--inspector-width,245px)]";
   const gridRows = "grid-rows-[minmax(0,1fr)]";
 
-  return (
+      const handleAgentAction = useCallback((action: AuraAction) => {
+        if (!action.path) return;
+        const node = graph?.nodes.find((entry) => entry.path === action.path);
+        if (node) onSelect(node);
+    }, [graph, onSelect]);
+
+return (
     <section
       ref={layoutRootRef}
       className={`relative grid h-[calc(100vh-72px)] gap-0 p- ${gridCols} ${gridRows} max-[850px]:block max-[850px]:h-auto max-[850px]:min-h-[calc(100vh-72px)]`}
@@ -302,7 +365,7 @@ function WorkspaceLayout({
       />
       {explorerCollapsed && (
         <button
-          className="absolute inset-y-0 left-0 z-[6] flex w-[18px] items-center justify-center border-0 border-r border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b]"
+          className="absolute inset-y-0 left-0 z-[6] flex w-[18px] items-center justify-center border-0 border-r border-[var(--ca-hairline)] bg-[var(--ca-canvas-soft)] text-[var(--ca-muted)] transition-[background,color] duration-150 hover:bg-[var(--ca-surface-strong)] hover:text-[var(--ca-primary)]"
           title="Open explorer"
           onClick={toggleExplorer}
         >
@@ -310,7 +373,7 @@ function WorkspaceLayout({
         </button>
       )}
       <div
-        className={`relative z-[5] col-start-2 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "explorer" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} max-[850px]:hidden`}
+        className={`relative z-[5] col-start-2 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[var(--ca-hairline-strong)] ${resizingRef.current === "explorer" ? "bg-[var(--ca-hairline-strong)] " : ""} max-[850px]:hidden`}
         onPointerDown={startResize("explorer")}
       />
       <GraphPanel
@@ -324,6 +387,8 @@ function WorkspaceLayout({
         onToggleCompact={toggleCompact}
         analysisOpen={analysisOpen}
         onToggleAnalysis={toggleAnalysis}
+        auraOpen={auraOpen}
+        onToggleAura={toggleAura}
         onCollapseAll={collapseAll}
         onExpandAll={expandAll}
         positionOffsets={positionOffsets}
@@ -332,9 +397,13 @@ function WorkspaceLayout({
         onBack={onBack}
         projectId={projectId}
         token={token}
+        layoutDirty={layoutDirty}
+        onExportLayout={handleExportLayout}
+        renames={renames}
+        onRename={handleRename}
       />
       <div
-        className={`relative z-[5] col-start-4 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[#2f3a37] light:hover:before:bg-[#b8c8c0] ${resizingRef.current === "inspector" ? "bg-[#3d4b47] light:bg-[#b8c8c0]" : ""} max-[850px]:hidden`}
+        className={`relative z-[5] col-start-4 row-start-1 cursor-col-resize before:absolute before:inset-y-0 before:left-px before:right-px before:bg-transparent before:transition-colors before:duration-150 hover:before:bg-[var(--ca-hairline-strong)] ${resizingRef.current === "inspector" ? "bg-[var(--ca-hairline-strong)] " : ""} max-[850px]:hidden`}
         onPointerDown={startResize("inspector")}
       />
       <InspectorPanel
@@ -348,7 +417,7 @@ function WorkspaceLayout({
       />
       {inspectorCollapsed && (
         <button
-          className="absolute inset-y-0 right-0 z-[6] flex w-[18px] items-center justify-center border-0 border-l border-[#2b3030] bg-[#171a1ad9] text-[#79817e] transition-[background,color] duration-150 hover:bg-[#242d2b] hover:text-[#f2b84b]"
+          className="absolute inset-y-0 right-0 z-[6] flex w-[18px] items-center justify-center border-0 border-l border-[var(--ca-hairline)] bg-[var(--ca-canvas-soft)] text-[var(--ca-muted)] transition-[background,color] duration-150 hover:bg-[var(--ca-surface-strong)] hover:text-[var(--ca-primary)]"
           title="Open inspector"
           onClick={toggleInspector}
         >
@@ -356,7 +425,7 @@ function WorkspaceLayout({
         </button>
       )}
       {analysisOpen && (
-        <div className="absolute inset-y-0 right-[var(--inspector-width,245px)] z-[7] w-[420px] max-w-[46%] overflow-hidden border-l border-[#2b3030] bg-[#171a1a] shadow-[-16px_0_40px_rgba(0,0,0,.45)] animate-slide-left light:border-[#d6dfda] light:bg-[#f6f8f5]">
+        <div className="absolute inset-y-0 right-[var(--inspector-width,245px)] z-[7] w-[420px] max-w-[46%] overflow-hidden border-l border-[var(--ca-hairline)] bg-[var(--ca-surface-card)] animate-slide-left  ">
           <AnalysisPanel
             analysis={graph.analysis}
             onClose={() => setAnalysisOpen(false)}
@@ -369,6 +438,15 @@ function WorkspaceLayout({
           projectId={projectId}
           token={token}
           onClose={() => setPreviewNode(null)}
+        />
+      )}
+      {auraOpen && (
+        <AuraBar
+          graph={graph}
+          projectId={projectId}
+          token={token}
+          onClose={() => setAuraOpen(false)}
+          onAgentAction={handleAgentAction}
         />
       )}
     </section>

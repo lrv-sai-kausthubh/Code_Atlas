@@ -96,7 +96,7 @@ function Profile({ token, user, onUserChange, theme, onToggleTheme, onOpenProfil
         : "—";
 
     return (
-        <main className="min-h-screen bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#e2e6e0]">
+        <main className="min-h-screen bg-[var(--ca-canvas)]">
             <TopBar
                 theme={theme}
                 onToggleTheme={onToggleTheme}
@@ -110,22 +110,22 @@ function Profile({ token, user, onUserChange, theme, onToggleTheme, onOpenProfil
                 <div className="mb-4">
                     <BackButton />
                 </div>
-                <h1 className="mb-1 font-dm text-[22px] font-medium tracking-[.14em] text-[#eff0ed] light:text-[#202824]">PROFILE</h1>
-                <p className="mb-8 text-[12px] text-[#777e7d] light:text-[#71807a]">Manage your personal information and connected accounts.</p>
+                <h1 className="mb-1 ca-display-md text-[22px] text-[var(--ca-ink)]">PROFILE</h1>
+                <p className="mb-8 text-[13px] text-[var(--ca-muted)]">Manage your personal information and connected accounts.</p>
 
-                <section className="mb-8 flex items-center gap-6 rounded-lg border border-[#2b3030] bg-[#15191a] p-6 light:border-[#d6dfda] light:bg-[#f6f8f5]">
+                <section className="mb-8 flex items-center gap-6 ca-card p-6">
                     {user.avatar_url ? (
                         <img src={user.avatar_url} alt="avatar" className="h-20 w-20 rounded-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                        <span className="grid h-20 w-20 place-items-center rounded-full border border-[#596260] text-3xl text-[#f2b84b] light:border-[#b8c8c0]">
+                        <span className="grid h-20 w-20 place-items-center rounded-full border border-[var(--ca-hairline-strong)] text-3xl text-[var(--ca-primary)]">
                             {(user.name || user.email || "?").charAt(0).toUpperCase()}
                         </span>
                     )}
                     <div className="min-w-0">
-                        <h2 className="truncate font-dm text-[18px] text-[#eff0ed] light:text-[#202824]">{user.name || "Unnamed user"}</h2>
-                        <p className="truncate text-[13px] text-[#aeb8b3] light:text-[#405149]">{user.email}</p>
+                        <h2 className="truncate text-[18px] font-medium text-[var(--ca-ink)]">{user.name || "Unnamed user"}</h2>
+                        <p className="truncate text-[13px] text-[var(--ca-body)]">{user.email}</p>
                         {user.github_login && (
-                            <span className="mt-2 inline-block rounded-full border border-[#64d5c4] bg-[#64d5c41f] px-3 py-1 font-dm text-[10px] tracking-[.08em] text-[#64d5c4]">
+                            <span className="mt-2 inline-block rounded-full border border-[var(--ca-success)] bg-[color-mix(in_srgb,var(--ca-success)_10%,var(--ca-surface-card))] px-3 py-1 ca-mono-label !text-[10px] text-[var(--ca-success)]">
                                 GITHUB · @{user.github_login}
                             </span>
                         )}
@@ -133,36 +133,36 @@ function Profile({ token, user, onUserChange, theme, onToggleTheme, onOpenProfil
                 </section>
 
                 {needsPassword && (
-                    <section className="mb-8 rounded-lg border border-[#f2b84b]/50 bg-[#1c1810] p-6 light:border-[#d8b368] light:bg-[#faf6ec]">
-                        <h3 className="mb-1 font-dm text-[13px] tracking-[.1em] text-[#f2b84b] light:text-[#8a6a1f]">SET ACCOUNT PASSWORD</h3>
-                        <p className="mb-4 text-[12px] text-[#aeb8b3] light:text-[#61716a]">
+                    <section className="mb-8 rounded-lg border border-[var(--ca-primary)]/40 bg-[var(--ca-surface-card)] p-6">
+                        <h3 className="mb-1 ca-label !text-[12px] text-[var(--ca-primary)]">SET ACCOUNT PASSWORD</h3>
+                        <p className="mb-4 text-[13px] text-[var(--ca-muted)]">
                             You signed in with GitHub, so your account has no password yet. Set one so you can
                             also sign in with your email.
                         </p>
                         <form onSubmit={handleSetPassword} className="flex flex-col gap-5">
                             <label className="flex flex-col gap-2">
-                                <span className="font-dm text-[10px] tracking-[.1em] text-[#aeb8b3] light:text-[#61716a]">NEW PASSWORD</span>
+                                <span className="ca-label !text-[10px] text-[var(--ca-muted)]">NEW PASSWORD</span>
                                 <input
                                     type="password"
                                     value={newPassword}
                                     onChange={(event) => setNewPassword(event.target.value)}
-                                    className="border border-[#4a4232] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#cfc29b] light:text-[#202824]"
+                                    className="ca-input !h-11"
                                 />
                             </label>
                             <label className="flex flex-col gap-2">
-                                <span className="font-dm text-[10px] tracking-[.1em] text-[#aeb8b3] light:text-[#61716a]">CONFIRM PASSWORD</span>
+                                <span className="ca-label !text-[10px] text-[var(--ca-muted)]">CONFIRM PASSWORD</span>
                                 <input
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(event) => setConfirmPassword(event.target.value)}
-                                    className="border border-[#4a4232] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#cfc29b] light:text-[#202824]"
+                                    className="ca-input !h-11"
                                 />
                             </label>
                             <div>
                                 <button
                                     type="submit"
                                     disabled={settingPassword}
-                                    className="border border-[#f2b84b] bg-transparent px-6 py-3 font-dm text-[11px] tracking-[.08em] text-[#f2b84b] transition-colors hover:bg-[#f2b84b] hover:text-[#101112] disabled:opacity-60"
+                                    className="ca-btn-primary !px-6 disabled:opacity-60"
                                 >
                                     {settingPassword ? "SETTING…" : "SET PASSWORD"}
                                 </button>
@@ -171,36 +171,36 @@ function Profile({ token, user, onUserChange, theme, onToggleTheme, onOpenProfil
                     </section>
                 )}
 
-                <section className="rounded-lg border border-[#2b3030] bg-[#15191a] p-6 light:border-[#d6dfda] light:bg-[#f6f8f5]">
-                    <h3 className="mb-4 font-dm text-[13px] tracking-[.1em] text-[#aeb8b3] light:text-[#405149]">EDIT PROFILE</h3>
+                <section className="ca-card p-6">
+                    <h3 className="mb-4 ca-label !text-[12px] text-[var(--ca-ink)]">EDIT PROFILE</h3>
                     <form onSubmit={handleSave} className="flex flex-col gap-5">
                         <label className="flex flex-col gap-2">
-                            <span className="font-dm text-[10px] tracking-[.1em] text-[#777e7d] light:text-[#71807a]">DISPLAY NAME</span>
+                            <span className="ca-label !text-[10px] text-[var(--ca-muted)]">DISPLAY NAME</span>
                             <input
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
                                 placeholder="Your name"
-                                className="border border-[#2b3030] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#c8d3cd] light:text-[#202824]"
+                                className="ca-input !h-11"
                             />
                         </label>
                         <label className="flex flex-col gap-2">
-                            <span className="font-dm text-[10px] tracking-[.1em] text-[#777e7d] light:text-[#71807a]">AVATAR URL</span>
+                            <span className="ca-label !text-[10px] text-[var(--ca-muted)]">AVATAR URL</span>
                             <input
                                 value={avatarUrl}
                                 onChange={(event) => setAvatarUrl(event.target.value)}
                                 placeholder="https://…"
-                                className="border border-[#2b3030] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#c8d3cd] light:text-[#202824]"
+                                className="ca-input !h-11"
                             />
                         </label>
                         <div className="flex items-center gap-4">
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="border border-[#f2b84b] bg-transparent px-6 py-3 font-dm text-[11px] tracking-[.08em] text-[#f2b84b] transition-colors hover:bg-[#f2b84b] hover:text-[#101112] disabled:opacity-60"
+                                className="ca-btn-primary !px-6 disabled:opacity-60"
                             >
                                 {saving ? "SAVING…" : "SAVE CHANGES"}
                             </button>
-                            <span className="font-dm text-[10px] tracking-[.08em] text-[#777e7d] light:text-[#71807a]">
+                            <span className="ca-mono-label !text-[10px] text-[var(--ca-muted)]">
                                 MEMBER SINCE {joinedDate}
                             </span>
                         </div>

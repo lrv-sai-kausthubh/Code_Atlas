@@ -14,6 +14,8 @@ export type ProjectNode = {
     size_bytes?: number;
     lines?: number;
     access?: NodeAccess;
+    ml_risk?: "low" | "medium" | "high";
+    ml_role?: "core" | "glue" | "thin" | "data";
 };
 
 export type TimeWindow = {
@@ -255,6 +257,59 @@ export type RepositoryAnalysis = {
     health_score: number;
 };
 
+export type AuraFileMl = {
+    path: string;
+    risk_tier: "low" | "medium" | "high";
+    risk_score: number;
+    role: "core" | "glue" | "thin" | "data";
+    role_label: string;
+    reason?: string;
+    lines: number;
+};
+
+export type AuraFactor = {
+    feature: string;
+    importance: number;
+};
+
+export type AuraInsights = {
+    model: string;
+    trained: boolean;
+    health_score?: number;
+    health_confidence?: number;
+    risk_tier?: "low" | "medium" | "high";
+    top_factors?: AuraFactor[];
+    refactor_candidates?: AuraFileMl[];
+    roles?: Record<string, number>;
+    per_file?: Record<string, AuraFileMl>;
+};
+
+export type AuraEmotion =
+    | "neutral"
+    | "happy"
+    | "excited"
+    | "concerned"
+    | "alert"
+    | "thinking"
+    | "sad"
+    | "listening";
+
+export type AuraAction = {
+    type: "select" | "open-analysis" | "open-preview" | "focus";
+    path?: string;
+    label?: string;
+};
+
+export type AuraMessage = {
+    id: string;
+    role: "user" | "aura";
+    text: string;
+    emotion?: AuraEmotion;
+    engine?: "brain" | "llm" | "aura";
+    thinking?: string[];
+    actions?: AuraAction[];
+};
+
 export type ProjectNodeType = ProjectNode["type"];
 
 export type ProjectEdge = {
@@ -277,6 +332,7 @@ export type ProjectGraph = {
     function_calls?: FunctionCall[];  // populated for uploads processed after v1.1
     file_details?: Record<string, FileDetails>;
     node_access?: Record<string, NodeAccess>;
+    ml_insights?: AuraInsights;       // populated for uploads processed after Aura 1.0
     owner_email?: string;
     is_manager?: boolean;
     policy_source?: "zip" | "github";

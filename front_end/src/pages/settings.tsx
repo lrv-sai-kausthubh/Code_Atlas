@@ -73,7 +73,7 @@ function Settings({ token, user, onUserChange, theme, onToggleTheme, onOpenProfi
     };
 
     return (
-        <main className="min-h-screen bg-[radial-gradient(circle_at_72%_20%,#1a2424_0,transparent_32%),#101112] light:bg-[radial-gradient(circle_at_72%_20%,#dbeae5_0,transparent_34%),#e2e6e0]">
+        <main className="min-h-screen bg-[var(--ca-canvas)]">
             <TopBar
                 theme={theme}
                 onToggleTheme={onToggleTheme}
@@ -87,72 +87,72 @@ function Settings({ token, user, onUserChange, theme, onToggleTheme, onOpenProfi
                 <div className="mb-6">
                     <BackButton />
                 </div>
-                <h1 className="mb-1 font-dm text-[22px] font-medium tracking-[.14em] text-[#eff0ed] light:text-[#202824]">SETTINGS</h1>
-                <p className="mb-8 text-[12px] text-[#777e7d] light:text-[#71807a]">Appearance and account security.</p>
+                <h1 className="mb-1 ca-display-md text-[22px] text-[var(--ca-ink)]">SETTINGS</h1>
+                <p className="mb-8 text-[13px] text-[var(--ca-muted)]">Appearance and account security.</p>
 
-                <section className="mb-8 rounded-lg border border-[#2b3030] bg-[#15191a] p-6 light:border-[#d6dfda] light:bg-[#f6f8f5]">
-                    <h3 className="mb-4 font-dm text-[13px] tracking-[.1em] text-[#aeb8b3] light:text-[#405149]">APPEARANCE</h3>
+                <section className="mb-8 ca-card p-6">
+                    <h3 className="mb-4 ca-label !text-[12px] text-[var(--ca-ink)]">APPEARANCE</h3>
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <p className="font-dm text-[13px] text-[#eff0ed] light:text-[#202824]">Theme</p>
-                            <p className="text-[12px] text-[#777e7d] light:text-[#71807a]">Currently {theme === "dark" ? "Dark" : "Light"} mode.</p>
+                            <p className="text-[14px] font-medium text-[var(--ca-ink)]">Theme</p>
+                            <p className="text-[13px] text-[var(--ca-muted)]">Currently {theme === "dark" ? "Dark" : "Light"} mode.</p>
                         </div>
                         <button
                             onClick={onToggleTheme}
-                            className="border border-[#f2b84b] bg-transparent px-5 py-3 font-dm text-[11px] tracking-[.08em] text-[#f2b84b] transition-colors hover:bg-[#f2b84b] hover:text-[#101112]"
+                            className="ca-btn-primary !px-5"
                         >
-                            {theme === "dark" ? "☼ SWITCH TO LIGHT" : "◐ SWITCH TO DARK"}
+                            {theme === "dark" ? theme === "dark" ? "Switch to Light" : "Switch to Dark" : ""}
                         </button>
                     </div>
                 </section>
 
-                <section className="rounded-lg border border-[#2b3030] bg-[#15191a] p-6 light:border-[#d6dfda] light:bg-[#f6f8f5]">
-                    <h3 className="mb-1 font-dm text-[13px] tracking-[.1em] text-[#aeb8b3] light:text-[#405149]">SECURITY</h3>
-                    <p className="mb-4 text-[12px] text-[#777e7d] light:text-[#71807a]">
+                <section className="ca-card p-6">
+                    <h3 className="mb-1 ca-label !text-[12px] text-[var(--ca-ink)]">SECURITY</h3>
+                    <p className="mb-4 text-[13px] text-[var(--ca-muted)]">
                         {needsPassword
                             ? "Your account was created with GitHub and has no password yet. Set one to also sign in with your email."
                             : "Change your account password."}
                     </p>
                     {needsPassword && (
-                        <p className="mb-4 w-fit border border-[#f2b84b]/60 px-2 py-1 font-dm text-[9px] tracking-[.08em] text-[#f2b84b]">
+                        <p className="mb-4 w-fit border border-[var(--ca-primary)]/50 px-2 py-1 ca-label !text-[9px] text-[var(--ca-primary)]">
                             PASSWORD NOT SET
                         </p>
                     )}
                     <form onSubmit={handleChangePassword} className="flex flex-col gap-5">
                         {!needsPassword && (
                             <label className="flex flex-col gap-2">
-                                <span className="font-dm text-[10px] tracking-[.1em] text-[#777e7d] light:text-[#71807a]">CURRENT PASSWORD</span>
+                                <span className="ca-label !text-[10px] text-[var(--ca-muted)]">CURRENT PASSWORD</span>
                                 <input
                                     type="password"
                                     value={currentPassword}
                                     onChange={(event) => setCurrentPassword(event.target.value)}
-                                    className="border border-[#2b3030] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#c8d3cd] light:text-[#202824]"
+                                    className="ca-input !h-11"
                                 />
                             </label>
                         )}
                             <label className="flex flex-col gap-2">
-                                <span className="font-dm text-[10px] tracking-[.1em] text-[#777e7d] light:text-[#71807a]">NEW PASSWORD</span>
+                                <span className="ca-label !text-[10px] text-[var(--ca-muted)]">NEW PASSWORD</span>
                                 <input
                                     type="password"
                                     value={newPassword}
                                     onChange={(event) => setNewPassword(event.target.value)}
-                                    className="border border-[#2b3030] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#c8d3cd] light:text-[#202824]"
+                                    className="ca-input !h-11"
                                 />
                             </label>
                             <label className="flex flex-col gap-2">
-                                <span className="font-dm text-[10px] tracking-[.1em] text-[#777e7d] light:text-[#71807a]">CONFIRM NEW PASSWORD</span>
+                                <span className="ca-label !text-[10px] text-[var(--ca-muted)]">CONFIRM NEW PASSWORD</span>
                                 <input
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(event) => setConfirmPassword(event.target.value)}
-                                    className="border border-[#2b3030] bg-transparent px-4 py-3 font-dm text-[13px] text-[#eff0ed] outline-none transition-colors focus:border-[#f2b84b] light:border-[#c8d3cd] light:text-[#202824]"
+                                    className="ca-input !h-11"
                                 />
                             </label>
                             <div>
                                 <button
                                     type="submit"
                                     disabled={changing}
-                                    className="border border-[#f17c71] bg-transparent px-6 py-3 font-dm text-[11px] tracking-[.08em] text-[#f17c71] transition-colors hover:bg-[#f17c71] hover:text-[#101112] disabled:opacity-60"
+                                    className="ca-btn-secondary !px-6 !text-[var(--ca-error)] !border-[var(--ca-error)] disabled:opacity-60"
                                 >
                                     {changing ? "UPDATING…" : needsPassword ? "SET PASSWORD" : "UPDATE PASSWORD"}
                                 </button>

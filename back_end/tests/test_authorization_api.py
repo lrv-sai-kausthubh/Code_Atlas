@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
 from app.services import authorization as authz  # noqa: E402
+from app.services import store  # noqa: E402
 
 OWNER = "alice@example.com"
 BOB = "bob@example.com"
@@ -35,6 +36,11 @@ def client(tmp_path, monkeypatch) -> TestClient:
     authz.POLICY_VERSIONS_FILE = tmp_path / "policy_versions.json"
     authz.SECURITY_EVENTS_FILE = tmp_path / "security_events.json"
     authz.ORGANIZATIONS_FILE = tmp_path / "organizations.json"
+
+    # In DB mode the store ignores the monkeypatched paths, so give every test
+    # an empty schema instead (no-op in file mode).
+    store.init()
+    store.reset_db()
 
     import app.api.routes as routes
 

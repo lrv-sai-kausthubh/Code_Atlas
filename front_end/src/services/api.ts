@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { InternalAxiosRequestConfig, AxiosError } from "axios";
-import type { ProjectGraph, NodeAccess, RepositoryPolicy, AccessRequest, DeveloperProject, SearchResult, PolicyVersion, Team, SecretFinding, AuditEvent, SecurityEvent, AdminAnalytics, Organization, EffectivePermissions, PreviewGraph, TimeWindow, ProjectStatus } from "../types/project";
+import type { ProjectGraph, NodeAccess, RepositoryPolicy, AccessRequest, DeveloperProject, SearchResult, PolicyVersion, Team, SecretFinding, AuditEvent, SecurityEvent, AdminAnalytics, Organization, EffectivePermissions, PreviewGraph, TimeWindow, ProjectStatus, AuraEmotion } from "../types/project";
 import { toastError, toastForbidden, toastNotFound, toastOffline, toastUnauthorized, toastValidation } from "./toast";
 
 type AtlasRequestConfig = InternalAxiosRequestConfig & { silent?: boolean };
@@ -261,5 +261,20 @@ export const getEffectivePermissions = (token: string, email: string, projectId:
 
 export const getPreviewGraph = (token: string, email: string, projectId: string) =>
     api.get<PreviewGraph>("/api/admin/preview-graph", { params: { token, email, project_id: projectId }, silent: true } as AtlasRequestConfig);
+
+export type AuraChatResponse = {
+    emotion: AuraEmotion;
+    message: string;
+    model: string;
+    engine: "brain" | "llm" | "aura";
+    thinking: string[];
+    actions?: Array<{ type: string; path?: string; label?: string }>;
+};
+
+export const auraChat = (token: string, message: string, projectId: string) =>
+    api.post<AuraChatResponse>("/api/aura/chat", { message, project_id: projectId }, { params: { token }, silent: true } as AtlasRequestConfig);
+
+export const getAuraStatus = (token: string) =>
+    api.get<{ model: string; ml_trained: boolean; llm_configured: boolean }>("/api/aura/status", { params: { token }, silent: true } as AtlasRequestConfig);
 
 export default api;

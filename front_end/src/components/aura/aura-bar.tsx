@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Move, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import AuraAvatar3D from "./aura-avatar-3d";
+import EmptyState from "../empty-state";
 import { auraChat } from "../../services/api";
 import type {
   AuraAction,
@@ -301,9 +302,9 @@ export default function AuraBar({
         className="aura-bar-sheet"
         style={{ "--aura-tint": riskTint } as React.CSSProperties}
       >
-       <div className="p-2 flex items-center border border bg-[#DCB67A]">
+       <div className="p-2 flex justify-center items-center w-full">
          <div
-          className="aura-bar-grab "
+          className="aura-bar-grab  border border "
           onPointerDown={startDrag}
           onDoubleClick={resetPosition}
           title="Drag to move Aura · double-click to re-center"
@@ -413,17 +414,25 @@ export default function AuraBar({
               </div>
             )}
             {messages.length === 0 && !busy && (
-              <div className="mt-1 flex flex-wrap gap-2">
-                {QUICK_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    className="aura-chip"
-                    onClick={() => send(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+              <>
+                <EmptyState
+                  compact
+                  icon={Sparkles}
+                  title="How can I help you with this codebase?"
+                  description="Ask about architecture, imports, dependencies, or what would break if you change a file."
+                />
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {QUICK_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      className="aura-chip"
+                      onClick={() => send(prompt)}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
           <div className="aura-bar-input">

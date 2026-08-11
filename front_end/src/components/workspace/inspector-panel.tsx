@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, Folder, GitFork, Lock } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Check, ChevronLeft, ChevronRight, Copy, Eye, Folder, GitFork, Lock } from "lucide-react";
 import { fileIcon, formatBytes, isPreviewable } from "../atlas/file-utils";
 import { NODE_COLORS } from "../atlas/atlas-types";
-import { createAccessRequest } from "../../services/api";
+import { createAccessRequest, getFileContent } from "../../services/api";
 import { toastSuccess, toastError } from "../../services/toast";
 import {
   PANEL,
@@ -176,6 +176,85 @@ function FunctionCard({ functionDetail }: { functionDetail: SourceFunction }) {
   );
 }
 
+function SourceCodeCard({
+  selected,
+  projectId,
+  token,
+}: {
+  selected: ProjectNode;
+  projectId: string;
+  token: string;
+}) {
+  const [content, setContent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setContent(null);
+    setLoading(true);
+    setCopied(false);
+    getFileContent(projectId, selected.path, token)
+      .then((response) => {
+        if (alive) setContent(response.data.content);
+      })
+      .catch(() => {
+        if (alive) setContent(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [projectId, selected.path, token]);
+
+  const copy = async () => {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // clipboard unavailable
+    }
+  };
+
+  if (loading)
+    return (
+      <section className="mt-5 border-t border-[var(--ca-hairline)] pt-4">
+        <div className="ca-mono-label text-[9px] text-[var(--ca-muted)]">
+          LOADING SOURCE…
+        </div>
+      </section>
+    );
+  if (!content) return null;
+  return (
+    <section className="mt-5 overflow-hidden rounded-xl border border-[var(--ca-hairline)]">
+      <div className="flex items-center gap-2 border-b border-[var(--ca-hairline)] bg-[var(--ca-canvas-soft)] px-3 py-2">
+        <span className="flex gap-1.5">
+          <i className="h-2.5 w-2.5 rounded-full bg-[var(--ca-error)]/70" />
+          <i className="h-2.5 w-2.5 rounded-full bg-[#c08532]/70" />
+          <i className="h-2.5 w-2.5 rounded-full bg-[var(--ca-success)]/70" />
+        </span>
+        <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--ca-muted)]">
+          {selected.path}
+        </span>
+        <button
+          className="ca-mono-label flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--ca-hairline)] bg-[var(--ca-surface-card)] px-2 py-1 text-[9px] text-[var(--ca-body)] transition-colors hover:border-[var(--ca-primary)] hover:text-[var(--ca-primary)]"
+          onClick={() => void copy()}
+        >
+          {copied ? <Check size={11} /> : <Copy size={11} />}
+          {copied ? "COPIED" : "COPY"}
+        </button>
+      </div>
+      <pre className="no-scrollbar m-0 max-h-[300px] overflow-auto bg-[var(--ca-canvas-soft)] p-3 font-mono text-[10.5px] leading-[1.6] text-[var(--ca-body)]">
+        {content}
+      </pre>
+    </section>
+  );
+}
+
 function InspectorPanel({
   graph,
   selected,
@@ -184,6 +263,7 @@ function InspectorPanel({
   inspectorCollapsed,
   onToggleCollapse,
   onOpenPreview,
+  onSelect,
 }: {
   graph: ProjectGraph;
   selected: ProjectNode | null;
@@ -192,9 +272,28 @@ function InspectorPanel({
   inspectorCollapsed: boolean;
   onToggleCollapse: () => void;
   onOpenPreview: (node: ProjectNode) => void;
+  onSelect: (node: ProjectNode) => void;
 }) {
   const restricted =
     selected?.type === "file" && selected.access?.source === false;
+  const pathChain = useMemo(() => {
+    if (!selected) return [];
+    const parentById = new Map<string, ProjectNode>();
+    graph.edges
+      .filter((edge) => edge.relation !== "IMPORTS")
+      .forEach((edge) => {
+        const child = graph.nodes.find((node) => node.id === edge.target);
+        const parent = graph.nodes.find((node) => node.id === edge.source);
+        if (child && parent) parentById.set(child.id, parent);
+      });
+    const chain: ProjectNode[] = [];
+    let current: ProjectNode | undefined = selected;
+    while (current) {
+      chain.unshift(current);
+      current = parentById.get(current.id);
+    }
+    return chain;
+  }, [graph, selected]);
   return (
     <aside
       className={`${PANEL} relative overflow-y-auto no-scrollbar px-4 py-5 col-start-5 row-start-1 max-[850px]:order-3 max-[850px]:min-h-[300px]`}
@@ -248,7 +347,28 @@ function InspectorPanel({
                 ) : (
                   <GitFork size={45} strokeWidth={1.2} />
                 )}
-              </div>              <h2 className="my-[5px] text-[20px] [overflow-wrap:anywhere]">
+              </div>
+              <nav
+                className="mt-3 flex flex-wrap items-center gap-1 font-dm text-[9px] text-[var(--ca-muted)]"
+                aria-label="Breadcrumb"
+              >
+                <span className="text-[var(--ca-primary)]">{graph.project}</span>
+                {pathChain.map((node) => (
+                  <span key={node.id} className="flex items-center gap-1">
+                    <ChevronRight size={10} className="text-[var(--ca-muted-soft)]" />
+                    <button
+                      className={`border-0 bg-transparent p-0 font-dm text-[9px] transition-colors ${
+                        node.id === selected.id
+                          ? "text-[var(--ca-ink)]"
+                          : "text-[var(--ca-muted)] hover:text-[var(--ca-primary)]"
+                      }`}
+                      onClick={() => onSelect(node)}
+                    >
+                      {node.label}
+                    </button>
+                  </span>
+                ))}
+              </nav>              <h2 className="my-[5px] text-[20px] [overflow-wrap:anywhere]">
                 {selected.label}
               </h2>
               <p className="font-dm text-[11px] leading-[1.5] text-[var(--ca-muted)] [overflow-wrap:anywhere] ">
@@ -319,7 +439,14 @@ function InspectorPanel({
                     token={token}
                   />
                 ) : (
-                  <SourceIntelligence graph={graph} selected={selected} />
+                  <>
+                    <SourceIntelligence graph={graph} selected={selected} />
+                    <SourceCodeCard
+                      selected={selected}
+                      projectId={projectId}
+                      token={token}
+                    />
+                  </>
                 ))}
             </>
           ) : (

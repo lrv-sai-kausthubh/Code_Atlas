@@ -18,6 +18,11 @@ export type ProjectNode = {
     ml_role?: "core" | "glue" | "thin" | "data";
 };
 
+export type AddedFile = {
+    path: string;
+    file: File;
+};
+
 export type TimeWindow = {
     days: number[];
     start: string;

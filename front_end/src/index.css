@@ -415,15 +415,15 @@ button { cursor: pointer; }
   box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
 }
 .aura-bar-grab {
-  height: 10px;
+  height: 8px;
   
-  width: 200px;
+  width: 170px;
   cursor: grab;
   border: #191916;
 border-radius: 10px;
   transition: background-color .15s;
+   background-color: var(--ca-surface-strong);
 }
-.aura-bar-grab:hover { background-color: var(--ca-surface-strong); }
 .aura-bar-grab:active { cursor: grabbing; }
 .aura-bar-grab:focus-visible { outline: 1px solid var(--ca-primary); outline-offset: -1px; }
 .aura-bar-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; }

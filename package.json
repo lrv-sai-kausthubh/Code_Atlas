@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@types/three": "^0.185.4",
+    "three": "^0.185.1"
+  }
+}

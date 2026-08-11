@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, FolderOpen, Users } from "lucide-react";
+import EmptyState from "../components/empty-state";
 import TopBar from "../components/workspace/topbar";
 import LandingView from "../components/workspace/landing-view";
 import ParsingScreen from "../components/parsing";
@@ -329,7 +330,8 @@ function Projects({
 
   return (
     <main className="min-h-screen bg-[var(--ca-canvas)]">
-      <TopBar
+      {!(parsingFile || parsingRepoUrl || parsingConnectedRepo) && (
+        <TopBar
         theme={theme}
         onToggleTheme={onToggleTheme}
         onOpenProfile={onOpenProfile}
@@ -358,6 +360,7 @@ function Projects({
           },
         ]}
       />
+      )}
 
       {parsingFile || parsingRepoUrl || parsingConnectedRepo ? (
         <ParsingScreen
@@ -374,24 +377,24 @@ function Projects({
         <div className="mx-auto flex min-h-[calc(100vh-72px)] w-full max-w-[1180px] flex-col px-[30px] pb-[60px] pt-10 max-[850px]:px-[18px]">
           {tab === "projects" ? (
             renderProjectGrid(myProjects, (
-              <>
-                <p className="text-[14px] text-[var(--ca-body)]">
-                  No projects yet. Upload a ZIP or import a GitHub repository to build your first architecture map.
-                </p>
-                <button
-                  className="ca-btn-primary"
-                  onClick={() => setTab("add")}
-                >
-                  Add your first project
-                </button>
-              </>
+              <EmptyState
+                icon={FolderOpen}
+                title="No projects yet"
+                description="Upload a ZIP or import a GitHub repository to build your first architecture map."
+                actions={
+                  <button className="ca-btn-primary" onClick={() => setTab("add")}>
+                    Add your first project
+                  </button>
+                }
+              />
             ))
           ) : tab === "collab" ? (
             renderProjectGrid(collaborations, (
-              <p className="text-[14px] text-[var(--ca-body)]">
-                No collaboration projects yet. When someone shares a project with you — as a GitHub
-                collaborator, manager, or through an access grant — it appears here.
-              </p>
+              <EmptyState
+                icon={Users}
+                title="No collaboration projects"
+                description="When someone shares a project with you — as a GitHub collaborator, manager, or through an access grant — it appears here."
+              />
             ))
           ) : (
             <div className="flex flex-1 flex-col justify-center">

@@ -196,31 +196,19 @@ export default function ParsingScreen({ file, repoUrl, connectedRepo, authToken,
 
     return (
         <div className="min-h-screen bg-[var(--ca-canvas)] text-[var(--ca-ink)] font-sans">
-            <header className="flex h-16 items-center justify-between border-b border-[var(--ca-hairline)] bg-[var(--ca-canvas)] px-6">
-                <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-medium tracking-[-0.01em]">CodeAtlas</span>
-                    <span className="h-4 w-px bg-[var(--ca-hairline-strong)]" />
-                    <span className="ca-mono-label">{isGithub ? "Importing repository" : "Analyzing archive"}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                    <span className="ca-mono-label flex items-center gap-2">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--ca-success)]" />
-                        STABLE CONNECTION
-                    </span>
+            <main className="mx-auto max-w-[1000px] px-[30px] py-12">
+                <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <div className="ca-badge mb-4">Ingestion engine</div>
+                        <h1 className="ca-display-md m-0 text-[26px]">
+                            {isGithub ? "Importing repository from GitHub" : "Analyzing repository"}
+                        </h1>
+                        <p className="ca-mono-label mt-2">{projectName}</p>
+                    </div>
                     <button className="ca-btn-secondary !h-9 !text-[13px]" onClick={handleCancel}>
                         <X size={15} />
                         Cancel
                     </button>
-                </div>
-            </header>
-
-            <main className="mx-auto max-w-[1000px] px-[30px] py-12">
-                <div className="mb-8">
-                    <div className="ca-badge mb-4">Ingestion engine</div>
-                    <h1 className="ca-display-md m-0 text-[26px]">
-                        {isGithub ? "Importing repository from GitHub" : "Analyzing repository"}
-                    </h1>
-                    <p className="ca-mono-label mt-2">{projectName}</p>
                 </div>
 
                 <div className="ca-card p-6">

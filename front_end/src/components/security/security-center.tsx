@@ -1031,23 +1031,47 @@ function SecurityCenter({
                         ))}
                   </select>
                 </div>
-                <div className="flex items-center gap-1">
-                  {["M", "T", "W", "T", "F", "S", "S"].map((label, index) => (
-                    <button
-                      key={index}
-                      className={`h-7 flex-1 border font-dm text-[10px] ${sched.days.includes(index) ? "border-[#64d5c4] text-[#64d5c4]" : "border-[#39413e] text-[#79817e] hover:border-[#64d5c4]/50"}`}
-                      onClick={() =>
-                        setSched({
-                          ...sched,
-                          days: sched.days.includes(index)
-                            ? sched.days.filter((day) => day !== index)
-                            : [...sched.days, index],
-                        })
-                      }
-                    >
-                      {label}
-                    </button>
-                  ))}
+                <div className="border border-[#39413e] p-1.5">
+                  <div className="mb-1.5 flex items-center justify-between px-1">
+                    <span className="font-dm text-[9px] tracking-[.08em] text-[#79817e]">
+                      REPEATS WEEKLY
+                    </span>
+                    <span className="font-dm text-[9px] text-[#b9c1bd]">
+                      {new Date().toLocaleString("en-US", { month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((label, index) => {
+                      const monday = new Date();
+                      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+                      const date = new Date(monday);
+                      date.setDate(monday.getDate() + index);
+                      const active = sched.days.includes(index);
+                      return (
+                        <button
+                          key={index}
+                          className={`flex flex-col items-center gap-0.5 border px-1 py-1.5 transition-colors ${
+                            active
+                              ? "border-[#64d5c4] bg-[#64d5c4]/10 text-[#64d5c4]"
+                              : "border-[#39413e] text-[#79817e] hover:border-[#64d5c4]/50"
+                          }`}
+                          onClick={() =>
+                            setSched({
+                              ...sched,
+                              days: active
+                                ? sched.days.filter((day) => day !== index)
+                                : [...sched.days, index],
+                            })
+                          }
+                        >
+                          <span className="font-dm text-[7px] tracking-[.08em]">{label}</span>
+                          <span className={`font-dm text-[10px] ${active ? "text-[#64d5c4]" : "text-[#b9c1bd]"}`}>
+                            {date.getDate()}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <input

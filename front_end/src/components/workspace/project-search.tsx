@@ -6,7 +6,8 @@ import type {
   SearchResult,
 } from "../../types/project";
 import { toastError } from "../../services/toast";
-import { Search, Lock, X } from "lucide-react";
+import { Search, Lock, X, SearchX } from "lucide-react";
+import EmptyState from "../empty-state";
 
 function ProjectSearch({
   graph,
@@ -137,9 +138,12 @@ function ProjectSearch({
               </div>
             )}
             {query.trim() && results.length === 0 && !busy && (
-              <div className="px-3 py-2 ca-mono-label !text-[9px] text-[var(--ca-muted)]">
-                No matches in your visible scope.
-              </div>
+              <EmptyState
+                compact
+                icon={SearchX}
+                title="No matches"
+                description="Nothing matched in your visible scope."
+              />
             )}
             {results.map((result, index) => {
               const locked = restricted(result);

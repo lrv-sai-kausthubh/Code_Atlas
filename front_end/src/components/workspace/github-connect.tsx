@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getMe, listGitHubRepos } from "../../services/api";
 import type { GitHubRepo } from "../../services/api";
+import { GitBranch } from "lucide-react";
+import EmptyState from "../empty-state";
 import {
   toastDismiss,
   toastError,
@@ -113,10 +115,17 @@ function GithubConnect({
           </div>
           <ul className="max-h-[300px] overflow-y-auto no-scrollbar">
             {filtered.length === 0 ? (
-              <li className="px-4 py-5 text-center ca-mono-label !text-[11px] text-[var(--ca-muted)]">
-                {repos.length === 0
-                  ? "No repositories found. Make sure your GitHub account has access to some."
-                  : "No repositories match your filter."}
+              <li className="list-none">
+                <EmptyState
+                  compact
+                  icon={GitBranch}
+                  title="No repositories"
+                  description={
+                    repos.length === 0
+                      ? "Make sure your GitHub account has access to some."
+                      : "No repositories match your filter."
+                  }
+                />
               </li>
             ) : (
               filtered.map((repo) => (

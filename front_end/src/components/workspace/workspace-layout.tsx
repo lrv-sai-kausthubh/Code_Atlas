@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { XYPosition } from "@xyflow/react";
+import type { DropTarget, Key } from "react-aria-components";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import JSZip from "jszip";
 import AuraBar from "../aura/aura-bar";
 import AnalysisPanel from "./analysis-panel";
 import ExplorerPanel from "./explorer-panel";
 import GraphPanel from "./graph-panel";
 import ImagePreview from "../preview/image-preview";
 import InspectorPanel from "./inspector-panel";
-import { toastProcessing, toastSuccess } from "../../services/toast";import type { NodeMovement } from "../atlas/atlas-types";
-import type { AuraAction, ProjectGraph, ProjectNode } from "../../types/project";
+import { toastError, toastProcessing, toastSuccess } from "../../services/toast";
+import { getProjectFileBlob } from "../../services/api";
+import { downloadBlob, sanitizeFilename } from "../../services/download";
+import type { NodeMovement } from "../atlas/atlas-types";
+import type { AddedFile, AuraAction, ProjectGraph, ProjectNode } from "../../types/project";
 
 function WorkspaceLayout({
   graph,
@@ -61,6 +66,9 @@ function WorkspaceLayout({
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [layoutDirty, setLayoutDirty] = useState(false);
   const [renames, setRenames] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  );
+  const [orderings, setOrderings] = useState<Map<string, string[]>>(
     () => new Map(),
   );
   const [explorerWidth, setExplorerWidth] = useState(
@@ -281,6 +289,7 @@ function WorkspaceLayout({
   useEffect(() => {
     setLayoutDirty(false);
     setRenames(new Map());
+    setOrderings(new Map());
   }, [projectId]);
 
   const handleRename = useCallback((nodeId: string, label: string) => {
@@ -303,6 +312,7 @@ function WorkspaceLayout({
       layout_changed: true,
       position_offsets: Object.fromEntries(positionOffsets),
       renames: Object.fromEntries(renames),
+      reorderings: Object.fromEntries(orderings),
       nodes: graph.nodes.map((node) => ({
         id: node.id,
         type: node.type,
@@ -322,7 +332,241 @@ function WorkspaceLayout({
     anchor.remove();
     URL.revokeObjectURL(url);
     toastSuccess("Layout exported");
-  }, [graph, positionOffsets, renames]);
+  }, [graph, positionOffsets, renames, orderings]);
+
+  const [addedFiles, setAddedFiles] = useState<AddedFile[]>([]);
+  const [removedPaths, setRemovedPaths] = useState<Set<string>>(new Set());
+  const [exportBusy, setExportBusy] = useState(false);
+
+  useEffect(() => {
+    setAddedFiles([]);
+    setRemovedPaths(new Set());
+    setExportBusy(false);
+  }, [projectId]);
+
+  const handleAddFiles = useCallback((files: File[]) => {
+    setAddedFiles((prev) => [
+      ...prev,
+      ...files.map((file) => ({ path: file.name, file })),
+    ]);
+  }, []);
+
+  const handleAddFolder = useCallback((files: File[]) => {
+    setAddedFiles((prev) => [
+      ...prev,
+      ...files
+        .filter((file) => file.webkitRelativePath)
+        .map((file) => ({ path: file.webkitRelativePath, file })),
+    ]);
+  }, []);
+
+  const handleDeleteNode = useCallback((node: ProjectNode) => {
+    setRemovedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(node.path)) next.delete(node.path);
+      else next.add(node.path);
+      return next;
+    });
+  }, []);
+
+  const handleRemoveAdded = useCallback((path: string) => {
+    setAddedFiles((prev) => prev.filter((entry) => entry.path !== path));
+  }, []);
+
+  const childrenById = useMemo(() => {
+    const map = new Map<string, ProjectNode[]>();
+    graph.edges
+      .filter((edge) => edge.relation !== "IMPORTS")
+      .forEach((edge) => {
+        const child = graph.nodes.find((node) => node.id === edge.target);
+        if (child) map.set(edge.source, [...(map.get(edge.source) ?? []), child]);
+      });
+    return map;
+  }, [graph]);
+
+
+
+  const handleReorder = useCallback(
+    (keys: Set<Key>, target: DropTarget) => {
+      setOrderings((prev) => {
+        const next = new Map(prev);
+        const keyList = Array.from(keys, String);
+        const ordered = (parentId: string, exclude: string[] = []) => {
+          const base =
+            parentId === "local-changes"
+              ? addedFiles.map((entry) => entry.path)
+              : (childrenById.get(parentId) ?? []).map((node) => node.id);
+          const stored = next.get(parentId);
+          const list = stored
+            ? stored.filter((id) => base.includes(id))
+            : [...base];
+          for (const id of base) {
+            if (!list.includes(id)) list.push(id);
+          }
+          return list.filter((id) => !exclude.includes(id));
+        };
+        const parentOf = (id: string) =>
+          parentById.get(id) ??
+          (addedFiles.some((entry) => entry.path === id)
+            ? "local-changes"
+            : "root");
+        const place = (parentId: string, index: number) => {
+          const list = ordered(parentId, keyList);
+          const clamped = Math.max(0, Math.min(index, list.length));
+          list.splice(clamped, 0, ...keyList);
+          next.set(parentId, list);
+        };
+        const clearFromOthers = (parentId: string) => {
+          for (const key of keyList) {
+            const parent = parentOf(key);
+            if (parent && parent !== parentId) {
+              next.set(parent, ordered(parent, keyList));
+            }
+          }
+        };
+        if (target.type === "root") {
+          place("root", 0);
+          clearFromOthers("root");
+        } else if (target.dropPosition === "on") {
+          const parent = String(target.key);
+          place(parent, 0);
+          clearFromOthers(parent);
+        } else {
+          const anchor = String(target.key);
+          const parent = parentOf(anchor);
+          const list = ordered(parent, keyList);
+          let index = list.indexOf(anchor);
+          if (index < 0) index = list.length;
+          if (target.dropPosition === "after") index += 1;
+          list.splice(index, 0, ...keyList);
+          next.set(parent, list);
+          clearFromOthers(parent);
+        }
+        return next;
+      });
+    },
+    [addedFiles, childrenById, parentById],
+  );
+
+  const handleExportZip = useCallback(async () => {
+    if (!graph) return;
+    setExportBusy(true);
+    try {
+      const zip = new JSZip();
+      const rootName = sanitizeFilename(graph.project);
+      let fetched = 0;
+      let skipped = 0;
+      for (const node of graph.nodes) {
+        if (node.type !== "file") continue;
+        if (removedPaths.has(node.path)) continue;
+        if (node.access?.source === false) {
+          skipped++;
+          continue;
+        }
+        try {
+          const response = await getProjectFileBlob(
+            graph.project_id,
+            node.path,
+            token,
+          );
+          zip.file(`${rootName}/${node.path}`, response.data as Blob);
+          fetched++;
+        } catch {
+          skipped++;
+        }
+      }
+      for (const entry of addedFiles) {
+        if (removedPaths.has(entry.path)) continue;
+        const content = await entry.file.arrayBuffer();
+        zip.file(`${rootName}/${entry.path}`, content);
+      }
+      zip.file(
+        `${rootName}/.codeatlas/edits.json`,
+        JSON.stringify(
+          {
+            app: "CodeAtlas",
+            project_id: graph.project_id,
+            project: graph.project,
+            exported_at: new Date().toISOString(),
+            removed: [...removedPaths].sort(),
+            added: addedFiles.map((entry) => entry.path),
+            reorderings: Object.fromEntries(orderings),
+          },
+          null,
+          2,
+        ),
+      );
+      const blob = await zip.generateAsync({ type: "blob" });
+      downloadBlob(blob, `${rootName}-edited.zip`);
+      toastSuccess(
+        `ZIP exported — ${fetched} files${skipped ? `, ${skipped} skipped (no source access)` : ""}, ${addedFiles.length} added, ${removedPaths.size} removed.`,
+      );
+    } catch {
+      toastError("Could not build the ZIP.");
+    } finally {
+      setExportBusy(false);
+    }
+  }, [addedFiles, graph, removedPaths, token]);
+
+  const handleExportJson = useCallback(async () => {
+    if (!graph) return;
+    setExportBusy(true);
+    try {
+      const removed = [...removedPaths].sort();
+      const nodes = graph.nodes
+        .filter((node) => !removed.includes(node.path))
+        .map((node) => ({
+          ...node,
+          label: renames.get(node.id) ?? node.label,
+        }));
+      const edges = graph.edges.filter(
+        (edge) =>
+          !removed.includes(
+            graph.nodes.find((node) => node.id === edge.source)?.path ?? "",
+          ) &&
+          !removed.includes(
+            graph.nodes.find((node) => node.id === edge.target)?.path ?? "",
+          ),
+      );
+      const added = [];
+      for (const entry of addedFiles) {
+        if (removedPaths.has(entry.path)) continue;
+        added.push({
+          path: entry.path,
+          name: entry.path.split("/").pop(),
+          size_bytes: entry.file.size,
+          content: await entry.file.text(),
+        });
+      }
+      const payload = {
+        app: "CodeAtlas",
+        version: 1,
+        exported_at: new Date().toISOString(),
+        project_id: graph.project_id,
+        project: graph.project,
+        layout_changed: layoutDirty,
+        position_offsets: Object.fromEntries(positionOffsets),
+        renames: Object.fromEntries(renames),
+        reorderings: Object.fromEntries(orderings),
+        changes: { removed, added },
+        graph: {
+          ...graph,
+          nodes,
+          edges,
+          files: graph.files - removed.length + added.length,
+        },
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      downloadBlob(blob, `${sanitizeFilename(graph.project)}-edited.json`);
+      toastSuccess("JSON exported with your edits.");
+    } catch {
+      toastError("Could not build the JSON.");
+    } finally {
+      setExportBusy(false);
+    }
+  }, [addedFiles, graph, layoutDirty, positionOffsets, removedPaths, renames, orderings]);
 
   const gridCols = explorerCollapsed
     ? inspectorCollapsed
@@ -362,6 +606,17 @@ return (
         onToggle={toggleFolder}
         explorerCollapsed={explorerCollapsed}
         onToggleCollapse={toggleExplorer}
+        addedFiles={addedFiles}
+        removedPaths={removedPaths}
+        onAddFiles={handleAddFiles}
+        onAddFolder={handleAddFolder}
+        onDeleteNode={handleDeleteNode}
+        onRemoveAdded={handleRemoveAdded}
+        orderings={orderings}
+        onReorder={handleReorder}
+        onExportZip={() => void handleExportZip()}
+        onExportJson={() => void handleExportJson()}
+        exportBusy={exportBusy}
       />
       {explorerCollapsed && (
         <button
@@ -414,6 +669,7 @@ return (
         inspectorCollapsed={inspectorCollapsed}
         onToggleCollapse={toggleInspector}
         onOpenPreview={setPreviewNode}
+        onSelect={handleSelect}
       />
       {inspectorCollapsed && (
         <button

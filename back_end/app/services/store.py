@@ -19,6 +19,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
+load_dotenv()
 DATA_BASE = Path(__file__).resolve().parents[3] / "data_base"
 
 DB_ENABLED = bool(os.environ.get("DATABASE_URL", "").strip())

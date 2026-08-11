@@ -82,7 +82,8 @@ function GraphPanel({
       <div className="flex h-[49px] items-center justify-between gap-3 border-b border-[var(--ca-hairline)] px-5 ca-mono-label !text-[10px] ">
         <div className="flex min-w-0 items-center gap-3">
           <BackButton variant="ghost" onClick={onBack} label="BACK" />
-          <div className="truncate text-[var(--ca-ink)]">
+        </div>
+         <div className="truncate text-[var(--ca-ink)]">
             <span className={LIVE_DOT} /> STRUCTURE MAP{" "}
             <span className="mx-[7px] text-[var(--ca-muted-soft)]">/</span> {visibleNodes} OF{" "}
             {graph.nodes.length} NODES
@@ -98,7 +99,6 @@ function GraphPanel({
               </>
             )}
           </div>
-        </div>
         <div className="flex h-[30px] shrink-0 items-center rounded-[8px] border border-[var(--ca-hairline)] bg-[var(--ca-surface-card)]">
           {graph.is_manager && (
             <>
@@ -108,7 +108,9 @@ function GraphPanel({
                 className="flex h-full items-center gap-1.5 px-[11px] text-[var(--graph-label)] transition-colors hover:bg-[var(--ca-surface-strong)] hover:text-[var(--ca-primary)]"
               >
                 <Shield size={13} />
-                <span className="ca-mono-label !text-[9px] max-[1150px]:hidden">SECURITY</span>
+                <span className="ca-mono-label !text-[9px] max-[1150px]:hidden">
+                  SECURITY
+                </span>
               </button>
               <span className="h-4 w-px shrink-0 bg-[var(--ca-hairline)]" />
             </>
@@ -137,7 +139,9 @@ function GraphPanel({
           <span className="h-4 w-px shrink-0 bg-[var(--ca-hairline)]" />
           <button
             onClick={onToggleAnalysis}
-            title={analysisOpen ? "Hide analysis panel" : "Open repository analysis"}
+            title={
+              analysisOpen ? "Hide analysis panel" : "Open repository analysis"
+            }
             className={`flex h-full items-center gap-1.5 px-[11px] transition-colors ${
               analysisOpen
                 ? "bg-[color-mix(in_srgb,var(--ca-primary)_14%,transparent)] text-[var(--ca-primary)]"
@@ -167,7 +171,9 @@ function GraphPanel({
             <Download size={13} />
             <span className="ca-mono-label !text-[9px] max-[1150px]:hidden">
               {layoutDirty ? "EXPORT" : "EXPORT"}
-              {layoutDirty && <span className="ml-1 text-[var(--ca-success)]">●</span>}
+              {layoutDirty && (
+                <span className="ml-1 text-[var(--ca-success)]">●</span>
+              )}
             </span>
           </button>
           <span className="h-4 w-px shrink-0 bg-[var(--ca-hairline)]" />
@@ -188,7 +194,11 @@ function GraphPanel({
             title={anyCollapsed ? "Expand all folders" : "Collapse all folders"}
             className="grid h-full w-[34px] place-items-center text-[var(--graph-label)] transition-colors hover:bg-[var(--ca-surface-strong)] hover:text-[var(--ca-primary)]"
           >
-            {anyCollapsed ? <ChevronsDownUp size={13} /> : <ChevronsUpDown size={13} />}
+            {anyCollapsed ? (
+              <ChevronsDownUp size={13} />
+            ) : (
+              <ChevronsUpDown size={13} />
+            )}
           </button>
         </div>
       </div>

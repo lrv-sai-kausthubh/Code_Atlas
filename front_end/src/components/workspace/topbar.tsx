@@ -64,9 +64,9 @@ function TopBar({
             <button
               key={tab.id}
               onClick={tab.onClick}
-              className={`rounded-[6px] bg-transparent px-3 py-2 text-[13px] font-medium transition-colors ${
+              className={`rounded-[8px] px-3 py-2 text-[13px] font-medium transition-colors ${
                 tab.active
-                  ? "text-[var(--ca-ink)] shadow-[inset_0_-2px_0_var(--ca-primary)] border-t-2"
+                  ? "bg-[var(--ca-surface-strong)] text-[var(--ca-ink)] shadow-[inset_0_0_0_1px_var(--ca-hairline-strong)]"
                   : "text-[var(--ca-muted)] hover:bg-[var(--ca-surface-strong)] hover:text-[var(--ca-ink)]"
               }`}
             >

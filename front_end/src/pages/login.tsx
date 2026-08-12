@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { login, register } from "../services/api";
 import BackButton from "../components/back-button";
+import { Moon, Sun } from "lucide-react";
 import {
   toastDismiss,
   toastError,
@@ -12,6 +13,8 @@ import {
 
 type LoginProps = {
   onLogin: (token: string) => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 };
 
 function GitHubIcon() {
@@ -64,7 +67,7 @@ function LogoSymbol() {
   );
 }
 
-function Login({ onLogin }: LoginProps) {
+function Login({ onLogin, theme, onToggleTheme }: LoginProps) {
   const [timestamp, setTimestamp] = useState("");
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
@@ -158,8 +161,23 @@ function Login({ onLogin }: LoginProps) {
       </section>
 
       <section className="flex flex-1 items-center justify-center p-8 max-[900px]:pt-24">
+        
         <form className="w-full max-w-[400px]" onSubmit={handleSubmit}>
+           <div className="relative bottom-3 right-35">
+        <BackButton />
+        <button
+        type="button"
+        onClick={onToggleTheme}
+        className="fixed top-29 right-8 z-20 grid h-9 w-9 place-items-center rounded-lg border border-[var(--ca-hairline)] bg-[var(--ca-surface-card)] text-[var(--ca-muted)] transition-colors hover:border-[var(--ca-primary)] hover:text-[var(--ca-primary)]"
+        aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      >
+        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+      </div>  
+
           <div className="mb-12 flex items-center gap-2 max-[900px]:flex">
+           
             <span className="text-[var(--ca-ink)]"><LogoSymbol /></span>
             <span className="text-[17px] font-medium tracking-[-0.02em]">CodeAtlas</span>
           </div>
@@ -309,10 +327,10 @@ function Login({ onLogin }: LoginProps) {
         </form>
       </section>
 
-      <div className="fixed top-8 left-8 z-20">
-        <BackButton />
-      </div>
-      <div className="ca-mono-label pointer-events-none fixed top-8 right-8 z-20 text-right text-[10px] leading-[1.7] opacity-60">
+      
+      
+      <div className="ca-mono-label pointer-events-none fixed top-[68px] right-8 z-20 text-right text-[10px] leading-[1.7] opacity-60">
+        
         <span>secure session</span>
         <br />
         <span>{timestamp}</span>

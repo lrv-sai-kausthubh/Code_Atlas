@@ -159,6 +159,8 @@ function AppInner() {
     if (current) void logout(current).catch(() => undefined);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem("codeatlas-last-graph");
+    localStorage.setItem("codeatlas-theme", "light");
+    document.documentElement.dataset.theme = "light";
     for (let index = localStorage.length - 1; index >= 0; index--) {
       const key = localStorage.key(index);
       if (key && key.startsWith("codeatlas-offsets-")) {
@@ -192,7 +194,13 @@ function AppInner() {
   if (route === "login") {
     return (
       <>
-        <Login onLogin={handleLogin} />
+        <Login
+          onLogin={handleLogin}
+          theme={theme}
+          onToggleTheme={() =>
+            setTheme((value) => (value === "dark" ? "light" : "dark"))
+          }
+        />
         <Toaster theme="dark" position="bottom-right" richColors closeButton />
       </>
     );

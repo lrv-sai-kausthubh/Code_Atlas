@@ -134,6 +134,13 @@ function WorkflowCards({ activeStep, setActiveStep }: { activeStep: number; setA
 function Landing({ onGetStarted, isAuthenticated = false }: LandingProps) {
     const { navigate } = useNavigation();
     const [activeStep, setActiveStep] = useState(1);
+    useEffect(() => {
+        const previousTheme = document.documentElement.dataset.theme;
+        document.documentElement.dataset.theme = "light";
+        return () => {
+            document.documentElement.dataset.theme = previousTheme || "light";
+        };
+    }, []);
     const bookDemo = () => toastLoading("Opening demo scheduler…");
     const comingSoon = (label: string) => (event: { preventDefault: () => void }) => {
         event.preventDefault();
@@ -235,41 +242,6 @@ function Landing({ onGetStarted, isAuthenticated = false }: LandingProps) {
             </section>
 
             <FaqAccordion />
-
-            <section className="border-y border-[var(--ca-hairline)] bg-[var(--ca-canvas-soft)] py-[80px] px-4">
-                <div className="mx-auto grid max-w-[1160px] grid-cols-1 gap-4 md:grid-cols-3 max-[900px]:grid-cols-1">
-                    <figure className="ca-card flex flex-col justify-between p-6">
-                        <blockquote className="mt-0 mb-8 text-[14px] leading-[1.7] text-[var(--ca-body)]">&ldquo;CodeAtlas completely changed how we onboard new senior devs. What used to take weeks of reading code now takes 48 hours.&rdquo;</blockquote>
-                        <figcaption className="flex items-center gap-4">
-                            <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--ca-surface-strong)] ca-mono text-[12px] text-[var(--ca-ink)]">MC</span>
-                            <div>
-                                <strong className="ca-label block">Marcus Chen</strong>
-                                <small className="text-[12px] text-[var(--ca-muted)]">Staff Engineer, FinTech OS</small>
-                            </div>
-                        </figcaption>
-                    </figure>
-                    <figure className="ca-card flex flex-col justify-between border-t-[3px] border-t-[var(--ca-primary)] p-6">
-                        <blockquote className="mt-0 mb-8 text-[14px] leading-[1.7] text-[var(--ca-body)]">&ldquo;Visualizing dependencies in our monolith was a pipe dream until we plugged in CodeAtlas. The graph is incredibly fast even at our scale.&rdquo;</blockquote>
-                        <figcaption className="flex items-center gap-4">
-                            <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--ca-surface-strong)] ca-mono text-[12px] text-[var(--ca-ink)]">SJ</span>
-                            <div>
-                                <strong className="ca-label block">Sarah J. Miller</strong>
-                                <small className="text-[12px] text-[var(--ca-muted)]">CTO, CloudScale</small>
-                            </div>
-                        </figcaption>
-                    </figure>
-                    <figure className="ca-card flex flex-col justify-between p-6">
-                        <blockquote className="mt-0 mb-8 text-[14px] leading-[1.7] text-[var(--ca-body)]">&ldquo;The AI Architect doesn&apos;t just guess — it&apos;s grounded in the actual graph. It&apos;s the first LLM implementation that understands our system.&rdquo;</blockquote>
-                        <figcaption className="flex items-center gap-4">
-                            <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--ca-surface-strong)] ca-mono text-[12px] text-[var(--ca-ink)]">DV</span>
-                            <div>
-                                <strong className="ca-label block">David Vance</strong>
-                                <small className="text-[12px] text-[var(--ca-muted)]">Senior Lead, GameStream</small>
-                            </div>
-                        </figcaption>
-                    </figure>
-                </div>
-            </section>
 
             <section id="about" className="px-4 py-[90px]">
                 <div className="mx-auto max-w-[1160px]">

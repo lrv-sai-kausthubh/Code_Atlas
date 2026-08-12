@@ -151,6 +151,7 @@ function Landing({ onGetStarted, isAuthenticated = false }: LandingProps) {
         <div className="min-h-screen bg-[var(--ca-canvas)] text-[var(--ca-ink)] font-sans overflow-x-hidden">
             <Navbar onGetStarted={onGetStarted} />
             <section className="relative flex min-h-screen items-center overflow-hidden px-5 pb-20 pt-28">
+                <img src="/codeatlas-architecture-bg.svg" alt="" aria-hidden="true" className="landing-background-art pointer-events-none absolute inset-0 h-full w-full object-cover" />
                 <div className="pointer-events-none absolute -right-[280px] -top-[120px] h-[560px] w-[560px] rounded-full border border-[var(--ca-hairline)] max-[1000px]:hidden" />
                 <div className="pointer-events-none absolute -right-[160px] top-[60px] h-[320px] w-[320px] rounded-full border border-[var(--ca-hairline-soft)] max-[1000px]:hidden" />
                 <div className="relative z-10 mx-auto grid w-full max-w-[1180px] items-center gap-12 lg:grid-cols-[.9fr_1.1fr]">
@@ -186,7 +187,8 @@ function Landing({ onGetStarted, isAuthenticated = false }: LandingProps) {
                 </div>
             </section>
 
-            <section id="platform" className="py-[80px] px-4">
+            <section id="platform" className="relative overflow-hidden py-[80px] px-4">
+                <img src="/codeatlas-architecture-bg.svg" alt="" aria-hidden="true" className="landing-background-art landing-background-art-platform pointer-events-none absolute inset-0 h-full w-full object-cover" />
                 <div className="mx-auto mb-12 flex max-w-[1160px] items-center gap-4">
                     <span className="h-px w-12 bg-[var(--ca-primary)]" />
                     <span className="ca-display-md text-[28px]">The platform ecosystem</span>

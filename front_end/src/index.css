@@ -309,6 +309,9 @@
   border-color: var(--ca-primary);
   box-shadow: 0 16px 34px color-mix(in srgb, var(--ca-ink) 8%, transparent);
 }
+.landing-background-art { z-index: 0; opacity: .62; mix-blend-mode: multiply; animation: landing-background-drift 18s ease-in-out infinite alternate; }
+.landing-background-art-platform { opacity: .24; animation-duration: 24s; }
+@keyframes landing-background-drift { from { transform: scale(1) translate3d(0, 0, 0); } to { transform: scale(1.04) translate3d(-12px, 8px, 0); } }
 .landing-react-flow .react-flow__minimap {
   z-index: 10;
   width: 180px;
@@ -324,7 +327,8 @@
 @media (prefers-reduced-motion: reduce) {
   .landing-flow-line,
   .landing-node-pulse,
-  .landing-workflow-card {
+  .landing-workflow-card,
+  .landing-background-art {
     animation: none;
   }
   .landing-metric-card,
@@ -332,6 +336,7 @@
     transition: none;
   }
 }
+@media (max-width: 850px) { .landing-background-art { opacity: .3; } }
 
 .loader-edge {
   stroke-dasharray: 64;

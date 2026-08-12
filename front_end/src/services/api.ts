@@ -11,6 +11,14 @@ const api = axios.create({
     baseURL: API_BASE_URL,
 });
 
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem("codeatlas-token");
+    if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
 const isSilent = (error: AxiosError) => (error.config as AtlasRequestConfig | undefined)?.silent === true;
 
 api.interceptors.response.use(

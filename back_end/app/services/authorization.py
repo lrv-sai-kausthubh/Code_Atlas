@@ -753,6 +753,16 @@ def _filter_analysis(
         issue for issue in analysis.get("security_issues", [])
         if issue.get("file") in source_paths
     ]
+    filtered["api_connections"] = [
+        connection
+        for connection in analysis.get("api_connections", [])
+        if connection.get("file") in source_paths
+    ]
+    visible_api_counts: Counter[str] = Counter()
+    for connection in filtered["api_connections"]:
+        visible_api_counts[connection.get("provider", "unknown")] += int(connection.get("count", 0))
+    filtered["api_provider_counts"] = dict(visible_api_counts)
+    filtered["api_call_count"] = sum(visible_api_counts.values())
     # Path lists are metadata: restrict to metadata-visible files.
     filtered["orphan_files"] = [
         path for path in analysis.get("orphan_files", []) if path in node_paths

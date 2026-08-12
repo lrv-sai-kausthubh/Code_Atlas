@@ -30,7 +30,7 @@ AUTH_LOCK = threading.Lock()
 
 # Sessions survive backend restarts (persisted via the store) and
 # slide on every request; a session expires only after 30 days of inactivity.
-SESSION_TTL_SECONDS = 30 * 24 * 3600
+SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", 30 * 24 * 3600))
 SESSION_SAVE_INTERVAL = 300  # persist at most every 5 min per active session
 
 SESSIONS: dict[str, dict] = {}
@@ -187,19 +187,9 @@ def _issue_token() -> str:
 
 
 def _current_user(token: str) -> dict | None:
-    session = SESSIONS.get(token)
+    session = _touch_session(token)
     if not session:
         return None
-    now = time.time()
-    last_seen = session.get("last_seen") or session.get("created_at") or now
-    if now - last_seen > SESSION_TTL_SECONDS:
-        SESSIONS.pop(token, None)
-        _save_sessions()
-        return None
-    # Sliding expiry: refresh last_seen in memory each call, persist lazily.
-    session["last_seen"] = now
-    if now - last_seen > SESSION_SAVE_INTERVAL:
-        _save_sessions()
     user = USERS.get(session.get("email"))
     if not user:
         return None
@@ -215,6 +205,25 @@ def _current_user(token: str) -> dict | None:
         "role": role,
         "password_set": bool(user.get("password_set", True)),
     }
+
+
+def _touch_session(token: str) -> dict | None:
+    """Validate and slide a session timeout on every authenticated action."""
+    if not token:
+        return None
+    session = SESSIONS.get(token)
+    if not session:
+        return None
+    now = time.time()
+    last_seen = session.get("last_seen") or session.get("created_at") or now
+    if now - last_seen > SESSION_TTL_SECONDS:
+        SESSIONS.pop(token, None)
+        _save_sessions()
+        return None
+    session["last_seen"] = now
+    if now - last_seen > SESSION_SAVE_INTERVAL:
+        _save_sessions()
+    return session
 
 
 def _github_api_get(url: str, token: str) -> dict:
@@ -528,7 +537,7 @@ def me(token: str):
 @router.put("/api/auth/profile")
 def update_profile(request: UpdateProfileRequest, token: str):
     """Update the logged-in user's display name and avatar."""
-    session = SESSIONS.get(token)
+    session = _touch_session(token)
     if not session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     name = request.name.strip()
@@ -548,7 +557,7 @@ def update_profile(request: UpdateProfileRequest, token: str):
 @router.post("/api/auth/password")
 def change_password(request: ChangePasswordRequest, token: str):
     """Change the logged-in user's password."""
-    session = SESSIONS.get(token)
+    session = _touch_session(token)
     if not session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     if len(request.new_password) < 6:
@@ -574,7 +583,7 @@ def change_password(request: ChangePasswordRequest, token: str):
 @router.get("/api/auth/github/repos")
 def github_repos(token: str):
     """List repositories accessible to the connected GitHub account."""
-    session = SESSIONS.get(token)
+    session = _touch_session(token)
     if not session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     user = USERS.get(session.get("email"))
@@ -610,7 +619,7 @@ def github_repos(token: str):
 @router.post("/api/auth/github/import")
 def github_import(request: ImportRepoRequest):
     """Import a connected repository into the analysis pipeline."""
-    session = SESSIONS.get(request.token)
+    session = _touch_session(request.token)
     if not session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     existing = _existing_upload_task(request.upload_id)
@@ -627,7 +636,7 @@ def github_import(request: ImportRepoRequest):
 
 def _import_github_repo(upload_id: str, repo_url: str, token: str) -> None:
     try:
-        session = SESSIONS.get(token)
+        session = _touch_session(token)
         if not session:
             _update_upload_task(upload_id, status="error", error="Session expired.")
             return

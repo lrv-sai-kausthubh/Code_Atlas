@@ -9,7 +9,9 @@ export type Route =
     | "security"
     | "admin"
     | "profile"
-    | "settings";
+    | "settings"
+    | "privacy"
+    | "terms";
 
 type NavigationValue = {
     route: Route;
@@ -28,6 +30,8 @@ export function routeFromPath(path: string): Route {
     if (path === "/admin") return "admin";
     if (path === "/profile") return "profile";
     if (path === "/settings") return "settings";
+    if (path === "/privacy") return "privacy";
+    if (path === "/terms") return "terms";
     return "landing";
 }
 
@@ -39,6 +43,8 @@ export function pathFromRoute(route: Route): string {
     if (route === "admin") return "/admin";
     if (route === "profile") return "/profile";
     if (route === "settings") return "/settings";
+    if (route === "privacy") return "/privacy";
+    if (route === "terms") return "/terms";
     return "/";
 }
 

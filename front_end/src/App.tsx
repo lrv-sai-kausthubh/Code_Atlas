@@ -13,6 +13,7 @@ import type { CurrentUser } from "./services/api";
 import { toastState } from "./services/toast";
 import { NavigationProvider, useNavigation } from "./services/navigation";
 import { AtlasLoader } from "./components/premium-loader";
+import LegalPage from "./pages/legal";
 
 const TOKEN_KEY = "codeatlas-token";
 
@@ -90,6 +91,26 @@ function AppInner() {
       alive = false;
     };
   }, [navigate, route, token, openPendingProject]);
+
+  useEffect(() => {
+    if (!token) return;
+    const refreshSession = () => {
+      void getMe(token).then((response) => {
+        setUser(response.data.user);
+      }).catch(() => {
+        localStorage.removeItem(TOKEN_KEY);
+        setToken("");
+        setUser(null);
+        navigate("landing", { replace: true });
+      });
+    };
+    const interval = window.setInterval(refreshSession, 10 * 60 * 1000);
+    window.addEventListener("focus", refreshSession);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshSession);
+    };
+  }, [navigate, token]);
 
   useEffect(() => {
     if (!checked || !user || user.password_set !== false) return;
@@ -207,6 +228,10 @@ function AppInner() {
         <Toaster theme="dark" position="bottom-right" richColors closeButton />
       </>
     );
+  }
+
+  if (route === "privacy" || route === "terms") {
+    return <LegalPage kind={route} onBack={() => navigate("landing")} />;
   }
 
   if (route === "projects") {

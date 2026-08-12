@@ -138,8 +138,31 @@ LANGUAGES = {
     ".html": "HTML",
     ".json": "JSON",
     ".md": "Markdown",
+    ".dart": "Dart",
+    ".java": "Java",
+    ".kt": "Kotlin",
+    ".kts": "Kotlin",
+    ".swift": "Swift",
+    ".go": "Go",
+    ".rs": "Rust",
+    ".rb": "Ruby",
+    ".php": "PHP",
+    ".cs": "C#",
+    ".cpp": "C++",
+    ".cc": "C++",
+    ".c": "C",
+    ".h": "C/C++ Header",
+    ".sql": "SQL",
+    ".sh": "Shell",
+    ".bash": "Shell",
+    ".vue": "Vue",
+    ".svelte": "Svelte",
+    ".xml": "XML",
+    ".yaml": "YAML",
+    ".yml": "YAML",
+    ".toml": "TOML",
 }
-SOURCE_EXTENSIONS = {".js", ".jsx", ".ts", ".tsx", ".py"}
+SOURCE_EXTENSIONS = set(LANGUAGES) - {".md", ".json", ".css", ".html", ".xml", ".yaml", ".yml", ".toml"}
 RESOLVE_EXTENSIONS = ["", ".ts", ".tsx", ".js", ".jsx", ".py", ".json", ".css", ".html"]
 
 
@@ -614,6 +637,27 @@ def build_analysis(file_paths: list[PurePosixPath], edges: list[dict], file_size
     average_dependencies = round(sum(len(targets) for targets in adjacency.values()) / len(file_paths), 2) if file_paths else 0
     orphan_ratio = len(orphan_paths) / len(analyzed_ids) if analyzed_ids else 0
     secrets = scan_for_secrets(source_contents or {})
+    api_connections = []
+    api_counts = Counter()
+    for detail in (source_contents or {}).items():
+        path, content = detail
+        lower = content.lower()
+        patterns = (
+            ("fetch", r"\bfetch\s*\("),
+            ("axios", r"\baxios(?:\s*\.\s*(?:get|post|put|patch|delete|request))?\s*\("),
+            ("requests", r"\brequests\s*\.\s*(?:get|post|put|patch|delete)\s*\("),
+            ("httpx", r"\bhttpx\s*\.\s*(?:get|post|put|patch|delete)\s*\("),
+            ("Dio", r"\b(?:Dio|dio)\s*\.\s*(?:get|post|put|patch|delete)\s*\("),
+            ("GraphQL", r"\b(?:graphql|gql)\b"),
+            ("gRPC", r"\bgrpc\b"),
+            ("Firebase", r"\bfirebase\b"),
+            ("Supabase", r"\bsupabase\b"),
+        )
+        for provider, pattern in patterns:
+            count = len(re.findall(pattern, lower, re.IGNORECASE))
+            if count:
+                api_counts[provider] += count
+                api_connections.append({"provider": provider, "file": path.as_posix(), "count": count})
     score = max(0, min(100, round(100 - len(cycles) * 10 - orphan_ratio * 20 - sum(1 for path in file_paths if file_lines.get(path, 0) > 500) * 3 - len(secrets) * 4)))
 
     return {
@@ -628,6 +672,9 @@ def build_analysis(file_paths: list[PurePosixPath], edges: list[dict], file_size
         "orphan_files": orphan_paths,
         "circular_dependencies": [[file_ids[node_id].as_posix() for node_id in cycle] for cycle in cycles],
         "security_issues": secrets,
+        "api_connections": api_connections,
+        "api_provider_counts": dict(api_counts.most_common()),
+        "api_call_count": sum(api_counts.values()),
         "health_score": score,
     }
 

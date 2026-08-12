@@ -259,6 +259,9 @@ export type RepositoryAnalysis = {
     orphan_files: string[];
     circular_dependencies: string[][];
     security_issues: SecurityIssue[];
+    api_connections?: { provider: string; file: string; count: number }[];
+    api_provider_counts?: Record<string, number>;
+    api_call_count?: number;
     health_score: number;
 };
 

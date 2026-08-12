@@ -10,6 +10,7 @@ function AnalysisDrawer({ analysis }: { analysis: RepositoryAnalysis }) {
                 ? "var(--ca-primary)"
                 : "var(--ca-error)";
     const issues = analysis.security_issues ?? [];
+    const apiProviders = Object.entries(analysis.api_provider_counts ?? {});
     return (
         <section className="flex-[0_0_auto] overflow-y-auto p-[18px] bg-[color-mix(in_srgb,var(--graph-surface)_96%,var(--ca-success))] ">
             <div className="flex items-center gap-4">
@@ -155,6 +156,28 @@ function AnalysisDrawer({ analysis }: { analysis: RepositoryAnalysis }) {
                     <small className="mt-1.5 block ca-mono-label !text-[9px] text-[var(--graph-label)] opacity-60">
                         +{issues.length - 12} more hidden
                     </small>
+                )}
+            </div>
+            <div className="mt-[7px] border-t border-[color-mix(in_srgb,var(--graph-edge)_70%,transparent)] pt-3">
+                <div className="flex items-baseline gap-[10px]">
+                    <span className="block ca-mono-label !text-[9px] text-[var(--graph-label)]">
+                        API CONNECTIONS
+                    </span>
+                    <strong className="ca-mono-label !text-[11px] text-[var(--ca-primary)]">
+                        {analysis.api_call_count ?? 0} calls
+                    </strong>
+                </div>
+                {apiProviders.length ? (
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
+                        {apiProviders.map(([provider, count]) => (
+                            <div key={provider} className="flex items-center justify-between border border-[color-mix(in_srgb,var(--graph-edge)_55%,transparent)] px-2 py-1.5">
+                                <span className="ca-mono-label !text-[9px] text-[var(--graph-label)]">{provider}</span>
+                                <span className="ca-mono-label !text-[9px] text-[var(--ca-success)]">{count}</span>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="mt-2 mb-0 ca-mono-label !text-[9px] text-[var(--graph-label)]">No recognizable external API calls detected.</p>
                 )}
             </div>
         </section>
